@@ -176,6 +176,10 @@
         <button class="btn ${done ? "green" : ""}" id="learnBtn">${done ? t(UI.markedLearned) : t(UI.markLearned)}</button>
         <button class="btn subtle" id="goCards">${fa(ICON.cards)} ${t(UI.cards)}</button>
         <button class="btn subtle" id="goQuiz">${fa(ICON.quiz)} ${t(UI.quiz)}</button>
+        ${(function() {
+          var bSaved = IP.bookmarks && IP.bookmarks.has(IP.bookmarks.all(), id);
+          return `<button class="btn ${bSaved ? "bookmarked" : "subtle"}" id="bookmarkBtn">${fa(bSaved ? ICON.bookmark : ICON.bookmarkO)} ${bSaved ? (State.lang === "vi" ? "Đã lưu" : "Saved") : (State.lang === "vi" ? "Lưu" : "Save")}</button>`;
+        })()}
       </div>
     </div>`;
   }
@@ -183,6 +187,36 @@
   function catOf(topic) {
     const c = CATS.find(c => c.id === topic.category);
     return c ? c : { vi: "", en: "" };
+  }
+
+  function renderSaved() {
+    const L = State.lang;
+    const ids = (IP.bookmarks ? IP.bookmarks.all() : []).filter(id => PREP.topics[id]);
+    if (!ids.length) {
+      return `<div class="fade-in">
+        <div class="page-head">
+          <h1>${fa(ICON.bookmark)} ${L === "vi" ? "Đã lưu" : "Saved"}</h1>
+        </div>
+        <div class="empty-hint">${L === "vi" ? "Chưa có chủ đề nào được lưu. Mở một chủ đề và bấm \"Lưu\" để thêm vào đây." : "No saved topics yet. Open a topic and click \"Save\" to add it here."}</div>
+      </div>`;
+    }
+    const cards = ids.map(id => {
+      const tp = PREP.topics[id];
+      return `<div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
+        <div class="tc-done">${fa(ICON.check)}</div>
+        <div class="tc-icon">${fa(catIcon(tp))}</div>
+        <h3>${t(tp.title)}</h3>${proBadge(tp)}
+        <p>${t(tp.blurb)}</p>
+        <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
+      </div>`;
+    }).join("");
+    return `<div class="fade-in">
+      <div class="page-head">
+        <h1>${fa(ICON.bookmark)} ${L === "vi" ? "Đã lưu" : "Saved"}</h1>
+        <div class="blurb">${ids.length} ${L === "vi" ? "chủ đề đã lưu" : "saved topics"}</div>
+      </div>
+      <div class="home-grid">${cards}</div>
+    </div>`;
   }
 
   /* ---------- Track helpers (Step 1) ---------- */
@@ -503,6 +537,7 @@
     }
     if (State.mode === "cards") { main.innerHTML = renderCards(); updateCardProgress(); }
     else if (State.mode === "quiz") main.innerHTML = renderQuiz();
+    else if (State.mode === "saved") main.innerHTML = renderSaved();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
     // sync mode buttons
@@ -606,8 +641,7 @@
           State.topic = null; State.browseAll = false;
           pMenu.hidden = true; render();
         } else if (action === "bookmarks") {
-          // Task 7 placeholder: switch to browse-all learn view (Task 9 refines)
-          State.mode = "learn"; State.topic = null; State.browseAll = true;
+          State.mode = "saved"; State.topic = null;
           pMenu.hidden = true; render();
         } else if (action === "clear") {
           if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
@@ -652,6 +686,7 @@
         State.progress[State.topic] = !State.progress[State.topic];
         LS.set("progress", State.progress); render(); return;
       }
+      if (e.target.id === "bookmarkBtn") { IP.bookmarks.toggleStored(State.topic); render(); return; }
       if (e.target.id === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
       if (e.target.id === "goQuiz") { setMode("quiz"); buildQuiz(State.topic); render(); return; }
 
