@@ -386,3 +386,64 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
   .ob-chips{padding:0 14px 14px}
   .ob-start{padding:6px 14px;font-size:13px}
 }
+
+/* ============================================================
+   TASK 7 — Track card + profile menu
+   ============================================================ */
+
+/* Track card in sidebar */
+.track-card{
+  background:var(--panel);border:1px solid var(--line2);border-radius:11px;
+  padding:12px 12px 10px;margin-bottom:10px;
+}
+.tk-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tk-ic{font-size:18px;flex-shrink:0;color:var(--accent)}
+.tk-name{flex:1;font-size:13px;font-weight:700;color:var(--txt);line-height:1.3;word-break:break-word}
+.tk-change{
+  flex-shrink:0;background:var(--panel2);border:1px solid var(--line2);color:var(--muted);
+  border-radius:7px;padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:5px;transition:.12s;
+}
+.tk-change:hover{color:var(--txt);border-color:var(--accent)}
+
+/* Progress bar */
+.tk-bar-wrap{display:flex;align-items:center;gap:8px}
+.tk-bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.tk-bar-fill{height:100%;background:var(--green);border-radius:3px;transition:width .3s}
+.tk-num{font-size:11px;color:var(--muted2);white-space:nowrap;flex-shrink:0}
+
+/* Numbered nav item */
+.nav-item .ni-num{
+  font-size:11px;font-weight:700;color:var(--muted2);width:18px;text-align:center;flex-shrink:0
+}
+
+/* Back-to-track item */
+.nav-item--back{color:var(--accent);font-weight:600}
+.nav-item--back:hover{color:var(--accent)}
+
+/* All-topics link item */
+.all-topics-item{color:var(--accent);font-weight:600;margin-top:4px}
+.all-topics-item:hover{color:var(--accent)}
+
+/* Profile button + dropdown */
+.profile-wrap{position:relative}
+.profile-menu{
+  position:absolute;right:0;top:calc(100% + 8px);
+  background:var(--panel);border:1px solid var(--line2);border-radius:11px;
+  box-shadow:var(--shadow);min-width:180px;z-index:200;
+  padding:6px;display:flex;flex-direction:column;gap:2px;
+}
+.profile-menu button{
+  background:none;border:none;color:var(--txt);font-size:14px;font-weight:500;
+  padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;
+  display:flex;align-items:center;gap:10px;transition:.12s;width:100%;
+}
+.profile-menu button:hover{background:var(--panel2)}
+.profile-menu button.danger{color:var(--red)}
+.profile-menu button.danger:hover{background:#f8514912}
+.profile-menu hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+
+/* Light theme overrides (profile menu shadow) */
+html[data-theme="light"] .profile-menu{
+  box-shadow:0 8px 24px #1f243028;
+}

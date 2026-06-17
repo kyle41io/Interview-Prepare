@@ -68,6 +68,7 @@
     mode: "learn",            // learn | cards | quiz
     topic: null,              // current topic id (learn mode)
     track: LS.get("track", null),        // {role, level} or null
+    browseAll: false,         // true = show category sidebar even when track set
     progress: LS.get("progress", {}),   // {topicId:true}
     cards: LS.get("cards", {}),         // {cardKey:{due,interval,ease,reps}}
     quizBest: LS.get("quizBest", {}),   // {topicId: pct}
@@ -77,6 +78,10 @@
   // t(node): node is string OR {vi,en}. Delegates to IP.i18n.pick with current lang.
   function t(node) { return IP.i18n.pick(node, State.lang); }
   const UI = Object.assign(IP.i18n.STR, {
+    changeTrack: { vi: "Đổi lộ trình", en: "Change path" },
+    saved: { vi: "Đã lưu", en: "Saved" },
+    clearData: { vi: "Xoá dữ liệu", en: "Clear data" },
+    confirmClear: { vi: "Xoá toàn bộ dữ liệu học? Không thể hoàn tác.", en: "Clear all study data? This cannot be undone." },
     markLearned: { vi: "✓ Đánh dấu đã học", en: "✓ Mark as learned" },
     markedLearned: { vi: "✓ Đã học (bấm để bỏ)", en: "✓ Learned (click to undo)" },
     next: { vi: "Tiếp theo →", en: "Next →" },
@@ -178,6 +183,22 @@
   function catOf(topic) {
     const c = CATS.find(c => c.id === topic.category);
     return c ? c : { vi: "", en: "" };
+  }
+
+  /* ---------- Track helpers (Step 1) ---------- */
+  function validTopicIds() { return PREP.order; }
+  function currentTrack() {
+    if (!State.track) return null;
+    return IP.tracks.getTrack(State.track.role, State.track.level, PREP.tracks) || null;
+  }
+  function roleLabel() {
+    if (!State.track) return "";
+    const role = (PREP.roles || []).find(r => r.id === State.track.role);
+    const roleTitle = role ? t(role.title) : State.track.role;
+    const lvId = State.track.level;
+    const lvObj = lvId ? (PREP.levels || {})[lvId] : null;
+    const lvLabel = lvObj ? t(lvObj) : (lvId || "");
+    return lvLabel ? roleTitle + " · " + lvLabel : roleTitle;
   }
 
   /* ============================================================
@@ -388,20 +409,71 @@
      ============================================================ */
   function renderSidebar() {
     const sb = document.getElementById("sidebar");
-    let html = `<div class="nav-item ${State.mode === "learn" && !State.topic ? "active" : ""}" data-home="1">
-      <span class="ni-icon">${fa(ICON.home)}</span><span class="ni-label">${State.lang === "vi" ? "Trang chủ" : "Home"}</span></div>`;
-    CATS.forEach(cat => {
-      const topics = PREP.order.filter(id => PREP.topics[id].category === cat.id);
-      if (!topics.length) return;
-      html += `<div class="cat"><div class="cat-label">${fa(ICON[cat.id] || "")} ${t(cat)}</div>`;
-      topics.forEach(id => {
-        const tp = PREP.topics[id];
-        const active = State.mode === "learn" && State.topic === id;
-        html += `<div class="nav-item ${active ? "active" : ""} ${State.progress[id] ? "done" : ""}" data-topic="${id}">
-          <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
+    const L = State.lang;
+
+    // --- Mode A: browse-all OR no track → category sidebar ---
+    if (State.browseAll || !State.track) {
+      let html = `<div class="nav-item ${State.mode === "learn" && !State.topic ? "active" : ""}" data-home="1">
+        <span class="ni-icon">${fa(ICON.home)}</span><span class="ni-label">${L === "vi" ? "Trang chủ" : "Home"}</span></div>`;
+      // "← Back to track" item when a track exists but we are browsing all
+      if (State.track) {
+        html += `<div class="nav-item nav-item--back" data-track-mode="1">
+          <span class="ni-icon">${fa("fa-solid fa-arrow-left")}</span>
+          <span class="ni-label">${L === "vi" ? "← Về lộ trình" : "← Back to track"}</span></div>`;
+      }
+      CATS.forEach(cat => {
+        const topics = PREP.order.filter(id => PREP.topics[id].category === cat.id);
+        if (!topics.length) return;
+        html += `<div class="cat"><div class="cat-label">${fa(ICON[cat.id] || "")} ${t(cat)}</div>`;
+        topics.forEach(id => {
+          const tp = PREP.topics[id];
+          const active = State.mode === "learn" && State.topic === id;
+          html += `<div class="nav-item ${active ? "active" : ""} ${State.progress[id] ? "done" : ""}" data-topic="${id}">
+            <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
+        });
+        html += `</div>`;
       });
-      html += `</div>`;
+      sb.innerHTML = html;
+      return;
+    }
+
+    // --- Mode B: track mode ---
+    const track = currentTrack();
+    const items = IP.tracks.resolveItems(track, validTopicIds());
+    const prog = IP.tracks.progressOf(track, State.progress, validTopicIds());
+    const role = (PREP.roles || []).find(r => r.id === State.track.role) || {};
+    const roleIcon = role.icon || ICON.swe || "fa-solid fa-code";
+    const pct = prog.pct;
+
+    let html = `<div class="track-card">
+      <div class="tk-top">
+        <span class="tk-ic">${fa(roleIcon)}</span>
+        <span class="tk-name">${roleLabel()}</span>
+        <button class="tk-change" data-change-track="1">${fa(ICON.change)} ${L === "vi" ? "Đổi" : "Change"}</button>
+      </div>
+      <div class="tk-bar-wrap">
+        <div class="tk-bar"><div class="tk-bar-fill" style="width:${pct}%"></div></div>
+        <span class="tk-num">${prog.done}/${prog.total}</span>
+      </div>
+    </div>`;
+
+    // Numbered topic items
+    items.forEach((id, idx) => {
+      const tp = PREP.topics[id];
+      if (!tp) return;
+      const done = !!State.progress[id];
+      const current = State.mode === "learn" && State.topic === id;
+      html += `<div class="nav-item ${current ? "active" : ""} ${done ? "done" : ""}" data-topic="${id}">
+        <span class="ni-num">${idx + 1}</span>
+        <span class="ni-icon">${fa(catIcon(tp))}</span>
+        <span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
     });
+
+    // "All topics →" item
+    html += `<div class="nav-item all-topics-item" data-browse-all="1">
+      <span class="ni-icon">${fa(ICON.allTopics)}</span>
+      <span class="ni-label">${L === "vi" ? "Tất cả chủ đề →" : "All topics →"}</span></div>`;
+
     sb.innerHTML = html;
   }
 
@@ -503,6 +575,31 @@
       themeBtn.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
     };
 
+    // profile menu toggle
+    const pBtn = document.getElementById("profileBtn");
+    const pMenu = document.getElementById("profileMenu");
+    if (pBtn && pMenu) {
+      pBtn.onclick = (e) => { e.stopPropagation(); pMenu.hidden = !pMenu.hidden; };
+      document.addEventListener("click", () => { if (pMenu) pMenu.hidden = true; });
+      pMenu.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-menu]");
+        if (!b) return;
+        const action = b.dataset.menu;
+        if (action === "change-track") {
+          State.track = null; LS.set("track", null);
+          State.topic = null; State.browseAll = false;
+          pMenu.hidden = true; render();
+        } else if (action === "bookmarks") {
+          // Task 7 placeholder: switch to browse-all learn view (Task 9 refines)
+          State.mode = "learn"; State.topic = null; State.browseAll = true;
+          pMenu.hidden = true; render();
+        } else if (action === "clear") {
+          if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
+          pMenu.hidden = true;
+        }
+      });
+    }
+
     // delegated clicks
     document.body.addEventListener("click", e => {
       // onboarding — must be first
@@ -517,6 +614,18 @@
       const goEl = e.target.closest("[data-go]");
       if (goEl) { si.value = ""; return goTopic(goEl.dataset.go); }
       if (e.target.closest("[data-home]")) return goHome();
+
+      // track nav branches
+      if (e.target.closest("[data-browse-all]")) {
+        State.browseAll = true; State.topic = null; render(); return;
+      }
+      if (e.target.closest("[data-track-mode]")) {
+        State.browseAll = false; render(); return;
+      }
+      if (e.target.closest("[data-change-track]")) {
+        State.track = null; LS.set("track", null);
+        State.topic = null; State.browseAll = false; render(); return;
+      }
 
       // section collapse
       const tog = e.target.closest("[data-toggle]");
@@ -606,6 +715,14 @@
     document.querySelector('[data-mode="cards"] span').textContent = t(UI.cards);
     document.querySelector('[data-mode="quiz"] span').textContent = t(UI.quiz);
     document.getElementById("search").placeholder = t(UI.search);
+    // profile menu i18n labels
+    function setI(key, str) {
+      const el = document.querySelector(`[data-i18n="${key}"]`);
+      if (el) el.textContent = t(str);
+    }
+    setI("changeTrack", UI.changeTrack);
+    setI("saved", UI.saved);
+    setI("clearData", UI.clearData);
   }
 
   /* ---------- boot ---------- */
