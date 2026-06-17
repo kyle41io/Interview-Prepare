@@ -39,17 +39,9 @@
   };
 
   /* ---------- i18n helper ---------- */
-  // t(node): node is string OR {vi,en}. Returns current-language string.
-  function t(node) {
-    if (node == null) return "";
-    if (typeof node === "string") return node;
-    return node[State.lang] != null ? node[State.lang] : (node.en || node.vi || "");
-  }
-  const UI = {
-    learn: { vi: "Học", en: "Learn" },
-    cards: { vi: "Thẻ ghi nhớ", en: "Flashcards" },
-    quiz: { vi: "Trắc nghiệm", en: "Quiz" },
-    search: { vi: "Tìm kiếm…", en: "Search…" },
+  // t(node): node is string OR {vi,en}. Delegates to IP.i18n.pick with current lang.
+  function t(node) { return IP.i18n.pick(node, State.lang); }
+  const UI = Object.assign(IP.i18n.STR, {
     markLearned: { vi: "✓ Đánh dấu đã học", en: "✓ Mark as learned" },
     markedLearned: { vi: "✓ Đã học (bấm để bỏ)", en: "✓ Learned (click to undo)" },
     next: { vi: "Tiếp theo →", en: "Next →" },
@@ -67,7 +59,7 @@
     studyAgain: { vi: "Ôn lại tất cả", en: "Study all again" },
     cheatTitle: { vi: "🎯 Cheat sheet ngày phỏng vấn", en: "🎯 Interview-day cheat sheet" },
     cheatSub: { vi: "Những câu nói \"ăn điểm\" — đọc lướt 5 phút trước khi vào phỏng vấn.", en: "Soundbites to skim 5 minutes before you walk in." },
-  };
+  });
 
   /* ============================================================
      RENDER: content blocks
