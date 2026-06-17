@@ -55,7 +55,9 @@
 
 <!-- ===== Bootstrap: define PREP before data files self-register ===== -->
 <script>
-  window.PREP = { topics: {}, order: [], register(t){ if(!this.topics[t.id]) this.order.push(t.id); this.topics[t.id] = t; } };
+  window.PREP = { topics:{}, order:[], roles:[], levels:{}, tracks:[],
+    register(t){ if(!this.topics[t.id]) this.order.push(t.id); this.topics[t.id]=t; },
+    registerTrack(t){ this.tracks.push(t); } };
 </script>
 
 <!-- ===== Knowledge data (each file registers itself via PREP.register) ===== -->
@@ -75,11 +77,13 @@
 <script src="assets/data/aws.js"></script>
 <script src="assets/data/owork.js"></script>
 <script src="assets/data/behavioral.js"></script>
+<script src="assets/data/tracks.js"></script>
 
 <!-- ===== App ===== -->
 <script src="assets/js/store.js"></script>
 <script src="assets/js/i18n.js"></script>
 <script src="assets/js/theme.js"></script>
+<script src="assets/js/tracks.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

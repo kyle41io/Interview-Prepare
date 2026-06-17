@@ -55,6 +55,7 @@
     swe: "fa-solid fa-code", "ai-engineer": "fa-solid fa-robot",
   };
   function fa(cls) { return `<i class="${cls}"></i>`; }
+  function proBadge(tp) { return tp && tp.tier === "pro" ? `<span class="pro-badge">${fa(ICON.pro)} PRO</span>` : ""; }
   function catIcon(tp) { return ICON[tp.category] || "fa-solid fa-book"; }
 
   /* ---------- State ---------- */
@@ -160,7 +161,7 @@
     return `<div class="fade-in">
       <div class="page-head">
         <div class="eyebrow">${t(catOf(topic))}</div>
-        <h1>${fa(catIcon(topic))} ${t(topic.title)}</h1>
+        <h1>${fa(catIcon(topic))} ${t(topic.title)}</h1>${proBadge(topic)}
         <div class="blurb">${t(topic.blurb)}</div>
       </div>
       ${counts}
@@ -194,7 +195,7 @@
       return `<div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
         <div class="tc-done">${fa(ICON.check)}</div>
         <div class="tc-icon">${fa(catIcon(tp))}</div>
-        <h3>${t(tp.title)}</h3>
+        <h3>${t(tp.title)}</h3>${proBadge(tp)}
         <p>${t(tp.blurb)}</p>
         <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
       </div>`;
@@ -396,7 +397,7 @@
         const tp = PREP.topics[id];
         const active = State.mode === "learn" && State.topic === id;
         html += `<div class="nav-item ${active ? "active" : ""} ${State.progress[id] ? "done" : ""}" data-topic="${id}">
-          <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span><span class="ni-check">${fa(ICON.check)}</span></div>`;
+          <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
       });
       html += `</div>`;
     });
