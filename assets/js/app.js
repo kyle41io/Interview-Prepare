@@ -234,7 +234,23 @@
     const cheatHtml = cheats.map(c => `<div class="cheat"><div class="cheat-topic">${t(c.topic)}</div><div class="cheat-text">"${t(c.text)}"</div></div>`).join("");
 
     const L = State.lang;
+    let continueHtml = "";
+    if (State.track) {
+      const track = currentTrack();
+      const prog = IP.tracks.progressOf(track, State.progress, PREP.order);
+      const nextId = IP.tracks.nextTopic(track, State.progress, PREP.order);
+      const nextTp = nextId ? PREP.topics[nextId] : null;
+      continueHtml = `<div class="continue-card" ${nextId ? `data-go="${nextId}"` : ""}>
+        <div class="cc-left">
+          <div class="cc-eyebrow">${roleLabel()} · ${prog.done}/${prog.total} (${prog.pct}%)</div>
+          <div class="cc-title">${nextTp ? (L === "vi" ? "Tiếp tục: " : "Continue: ") + t(nextTp.title) : (L === "vi" ? "Đã hoàn thành lộ trình! 🎉" : "Track complete! 🎉")}</div>
+          <div class="cc-bar"><i style="width:${prog.pct}%"></i></div>
+        </div>
+        ${nextId ? `<div class="cc-go">${fa("fa-solid fa-arrow-right")}</div>` : ""}
+      </div>`;
+    }
     return `<div class="fade-in">
+      ${continueHtml}
       <div class="hero">
         <h1>${L === "vi" ? "Sẵn sàng cho buổi phỏng vấn 🚀" : "Get interview-ready 🚀"}</h1>
         <p>${L === "vi"

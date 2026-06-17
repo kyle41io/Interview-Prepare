@@ -447,3 +447,15 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 html[data-theme="light"] .profile-menu{
   box-shadow:0 8px 24px #1f243028;
 }
+
+/* Continue-learning card */
+.continue-card{display:flex;align-items:center;gap:16px;cursor:pointer;
+  background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid var(--accent);
+  border-radius:14px;padding:16px 18px;margin-bottom:20px;transition:.15s}
+.continue-card:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
+.cc-left{flex:1}
+.cc-eyebrow{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.cc-title{font-size:17px;font-weight:800;margin:4px 0 10px}
+.cc-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden}
+.cc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--accent))}
+.cc-go{font-size:22px;color:var(--accent)}
