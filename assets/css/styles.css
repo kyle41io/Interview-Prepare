@@ -327,6 +327,11 @@ pre.code code{color:var(--txt);white-space:pre}
 .overlay{display:none;position:fixed;inset:0;background:#0008;z-index:39}
 .overlay.show{display:block}
 
+.pro-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
+  color:#7a4d00;background:linear-gradient(90deg,#fde68a,#fbbf24);
+  padding:1px 7px;border-radius:99px;margin-left:6px;letter-spacing:.03em}
+html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
+
 @media(max-width:900px){
   :root{--sidebar-w:268px}
   .menu-btn{display:grid}

@@ -3,6 +3,7 @@ PREP.register({
   id: "microservices",
   icon: "🧩",
   category: "architecture",
+  tier: "pro",
   title: { vi: "Kiến trúc Microservices", en: "Microservices Architecture" },
   blurb: {
     vi: "Chủ đề system-design hay bị hỏi. Hiểu <b>bản chất và trade-off</b> (đánh đổi): vì sao tách service, giao tiếp sync/async, dữ liệu phân tán (saga/CQRS), và các pattern chống lỗi — để trả lời tự tin chứ không học thuộc định nghĩa.",
