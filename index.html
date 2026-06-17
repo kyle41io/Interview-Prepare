@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Bilingual (VI/EN) Software Engineer interview prep app — DSA, microservices, system design, databases, frontend/backend, DevOps & cloud, with flashcards and quizzes.">
+<title>Interview Prep · Ôn thi phỏng vấn SWE</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <button class="icon-btn menu-btn" id="menuBtn">☰</button>
+  <div class="brand" id="brand" style="cursor:pointer">
+    <span class="logo">🎯</span>
+    <span class="grad">Interview Prep</span>
+  </div>
+  <div class="modes">
+    <button data-mode="learn" class="active">📖 <span>Học</span></button>
+    <button data-mode="cards">📇 <span>Thẻ ghi nhớ</span></button>
+    <button data-mode="quiz">✍️ <span>Trắc nghiệm</span></button>
+  </div>
+  <div class="spacer"></div>
+  <div class="search-box">
+    <span class="si">🔍</span>
+    <input id="search" type="text" placeholder="Tìm kiếm…" autocomplete="off">
+    <kbd>/</kbd>
+  </div>
+  <div class="lang-toggle">
+    <button data-lang="vi">VI</button>
+    <button data-lang="en">EN</button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content" id="content"></main>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="kbd-help"><kbd>/</kbd> tìm · <kbd>Space</kbd> lật thẻ · <kbd>1-4</kbd> chấm điểm</div>
+
+<!-- ===== Bootstrap: define PREP before data files self-register ===== -->
+<script>
+  window.PREP = { topics: {}, order: [], register(t){ if(!this.topics[t.id]) this.order.push(t.id); this.topics[t.id] = t; } };
+</script>
+
+<!-- ===== Knowledge data (each file registers itself via PREP.register) ===== -->
+<script src="assets/data/dsa.js"></script>
+<script src="assets/data/microservices.js"></script>
+<script src="assets/data/system-design.js"></script>
+<script src="assets/data/design-patterns.js"></script>
+<script src="assets/data/rest-grpc.js"></script>
+<script src="assets/data/databases.js"></script>
+<script src="assets/data/react.js"></script>
+<script src="assets/data/redux.js"></script>
+<script src="assets/data/vue.js"></script>
+<script src="assets/data/django.js"></script>
+<script src="assets/data/dotnet.js"></script>
+<script src="assets/data/docker-k8s.js"></script>
+<script src="assets/data/cicd.js"></script>
+<script src="assets/data/aws.js"></script>
+<script src="assets/data/owork.js"></script>
+<script src="assets/data/behavioral.js"></script>
+
+<!-- ===== App ===== -->
+<script src="assets/js/app.js"></script>
+</body>
+</html>

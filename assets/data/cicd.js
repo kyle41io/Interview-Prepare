@@ -1,0 +1,153 @@
+/* CI/CD — Continuous Integration & Continuous Delivery/Deployment */
+PREP.register({
+  id: "cicd",
+  icon: "🔁",
+  category: "devops",
+  title: { vi: "CI/CD — Tích hợp & triển khai liên tục", en: "CI/CD — Continuous Integration & Delivery/Deployment" },
+  blurb: {
+    vi: "Từ commit tới production một cách tự động: build, test, đóng gói artifact, deploy, monitor. Nắm chắc CI vs CD, các chiến lược deploy và rollback là đủ trả lời phần lớn câu hỏi DevOps.",
+    en: "From commit to production automatically: build, test, package artifacts, deploy, monitor. Master CI vs CD, deploy strategies, and rollback to answer most DevOps questions.",
+  },
+  sections: [
+    {
+      id: "definitions",
+      title: { vi: "1. Định nghĩa (phân biệt rõ — hay hỏi)", en: "1. Definitions (distinguish clearly — frequently asked)" },
+      blocks: [
+        { type: "prose", vi: "<b>CI/CD</b> tự động hóa con đường từ commit tới production. Câu hỏi kinh điển là phân biệt <b>CI</b>, <b>Continuous Delivery</b> và <b>Continuous Deployment</b> — ba khái niệm dễ lẫn.", en: "<b>CI/CD</b> automates the path from commit to production. The classic question is distinguishing <b>CI</b>, <b>Continuous Delivery</b>, and <b>Continuous Deployment</b> — three easily-confused concepts." },
+        { type: "list", items: [
+          { vi: "<b>CI (Continuous Integration):</b> lập trình viên <b>merge code thường xuyên</b> vào nhánh chung; mỗi lần push tự động <b>build + chạy test</b> → phát hiện lỗi sớm, tránh \"merge hell\".", en: "<b>CI (Continuous Integration):</b> developers <b>merge code frequently</b> into a shared branch; each push automatically <b>builds + runs tests</b> → catch bugs early, avoid \"merge hell\"." },
+          { vi: "<b>Continuous Delivery:</b> mỗi thay đổi qua được pipeline thì <b>sẵn sàng để deploy</b>, nhưng bước lên production là <b>bấm tay</b> (manual approval).", en: "<b>Continuous Delivery:</b> every change that passes the pipeline is <b>ready to deploy</b>, but the step to production is a <b>manual button</b> (manual approval)." },
+          { vi: "<b>Continuous Deployment:</b> <b>tự động deploy thẳng</b> lên production nếu mọi test pass (không cần bấm tay).", en: "<b>Continuous Deployment:</b> <b>automatically deploys straight</b> to production if all tests pass (no manual approval)." },
+        ] },
+        { type: "callout", variant: "key", vi: "Cả hai \"CD\" đều viết tắt giống nhau nhưng khác nhau ở <b>bước cuối</b>: Delivery = <i>sẵn sàng</i> deploy (bấm tay); Deployment = <i>tự động</i> deploy lên prod.", en: "Both \"CD\"s share the abbreviation but differ at the <b>last step</b>: Delivery = <i>ready</i> to deploy (manual); Deployment = <i>automatically</i> deploys to prod." },
+      ],
+    },
+    {
+      id: "pipeline",
+      title: { vi: "2. Pipeline điển hình (các stage)", en: "2. A typical pipeline (the stages)" },
+      blocks: [
+        { type: "code",
+          code: "Commit/PR → Build → Test (unit/integration) → [Security scan / Lint] →\n  Package Artifact → Deploy (staging → prod) → Monitor",
+          caption: { vi: "Luồng pipeline điển hình từ commit tới giám sát sau deploy.", en: "A typical pipeline flow from commit to post-deploy monitoring." } },
+        { type: "list", items: [
+          { vi: "<b>Build:</b> biên dịch, đóng gói (ví dụ build Docker image).", en: "<b>Build:</b> compile and package (e.g. build a Docker image)." },
+          { vi: "<b>Test:</b> chạy test tự động; theo <b>testing pyramid</b> (nhiều <b>unit</b> ở dưới → ít <b>integration</b> → rất ít <b>E2E</b> ở đỉnh, vì E2E chậm & dễ flaky).", en: "<b>Test:</b> run automated tests; follow the <b>testing pyramid</b> (many <b>unit</b> tests at the bottom → fewer <b>integration</b> → very few <b>E2E</b> at the top, since E2E is slow & flaky)." },
+          { vi: "<b>Artifact:</b> sản phẩm build (binary, Docker image) lưu ở registry để deploy.", en: "<b>Artifact:</b> the build output (binary, Docker image) stored in a registry for deployment." },
+          { vi: "<b>Deploy:</b> đẩy lên các <b>environment</b> (dev → staging → production).", en: "<b>Deploy:</b> push to <b>environments</b> (dev → staging → production)." },
+          { vi: "<b>Monitor:</b> theo dõi sau deploy (metrics, logs, alert) để rollback nếu lỗi.", en: "<b>Monitor:</b> watch after deploy (metrics, logs, alerts) to roll back on failure." },
+        ] },
+        { type: "callout", variant: "tip", vi: "<b>Testing pyramid:</b> nhiều unit (nhanh, rẻ) ở đáy, ít integration ở giữa, rất ít E2E (chậm, dễ flaky) ở đỉnh. Tránh \"ice-cream cone\" — quá nhiều E2E làm pipeline chậm và dễ vỡ.", en: "<b>Testing pyramid:</b> many unit tests (fast, cheap) at the base, fewer integration in the middle, very few E2E (slow, flaky) at the top. Avoid the \"ice-cream cone\" — too many E2E makes the pipeline slow and brittle." },
+      ],
+    },
+    {
+      id: "deploy-strategies",
+      title: { vi: "3. Chiến lược deploy (rất hay hỏi)", en: "3. Deploy strategies (very commonly asked)" },
+      blocks: [
+        { type: "table",
+          headers: { vi: ["Chiến lược", "Cách làm", "Lợi / Hại"], en: ["Strategy", "How it works", "Pros / Cons"] },
+          rows: [
+            { vi: ["Rolling", "Thay dần từng phần instance", "Không downtime; rollback chậm hơn"], en: ["Rolling", "Replace instances gradually, batch by batch", "No downtime; slower rollback"] },
+            { vi: ["Blue-Green", "2 môi trường giống hệt; switch traffic Blue→Green", "Rollback tức thì (switch lại); tốn 2x hạ tầng"], en: ["Blue-Green", "Two identical environments; switch traffic Blue→Green", "Instant rollback (switch back); costs 2x infrastructure"] },
+            { vi: ["Canary", "Đưa bản mới cho <b>% nhỏ</b> user trước, tăng dần", "Giảm rủi ro, phát hiện lỗi sớm; phức tạp hơn"], en: ["Canary", "Release the new version to a <b>small %</b> of users first, ramp up", "Lower risk, catches bugs early; more complex to run"] },
+            { vi: ["Recreate", "Tắt cũ, bật mới", "Đơn giản nhưng có downtime"], en: ["Recreate", "Shut down old, start new", "Simple but causes downtime"] },
+          ] },
+        { type: "callout", variant: "danger", vi: "<b>Rollback:</b> khả năng quay lại bản trước nhanh khi lỗi — yếu tố sống còn. Mọi chiến lược deploy đều phải có đường rollback rõ ràng trước khi release.", en: "<b>Rollback:</b> the ability to quickly revert to the previous version on failure — a survival factor. Every deploy strategy must have a clear rollback path before you release." },
+        { type: "callout", variant: "soundbite", vi: "\"Blue-green switch toàn bộ traffic một phát nên rollback tức thì nhưng tốn 2x hạ tầng; canary thả % nhỏ tăng dần nên giảm rủi ro và phát hiện lỗi sớm, đổi lại vận hành phức tạp hơn.\"", en: "\"Blue-green switches all traffic at once, so rollback is instant but it costs 2x infra; canary releases to a small % and ramps up, so it lowers risk and catches bugs early, at the cost of more operational complexity.\"" },
+      ],
+    },
+    {
+      id: "tools",
+      title: { vi: "4. Công cụ & khái niệm liên quan", en: "4. Tools & related concepts" },
+      blocks: [
+        { type: "list", items: [
+          { vi: "<b>Công cụ CI/CD:</b> <b>GitHub Actions</b>, GitLab CI, Jenkins, CircleCI, Argo CD. Mỗi job chạy trên một <b>runner / agent</b>.", en: "<b>CI/CD tools:</b> <b>GitHub Actions</b>, GitLab CI, Jenkins, CircleCI, Argo CD. Each job runs on a <b>runner / agent</b>." },
+          { vi: "<b>IaC (Infrastructure as Code):</b> quản hạ tầng bằng code (<b>Terraform</b>, CloudFormation, Ansible) → tái lập được, versioned.", en: "<b>IaC (Infrastructure as Code):</b> manage infrastructure with code (<b>Terraform</b>, CloudFormation, Ansible) → reproducible, versioned." },
+          { vi: "<b>GitOps:</b> Git là nguồn sự thật cho cả hạ tầng & deploy; công cụ (ArgoCD/Flux) tự đồng bộ cụm về đúng state trong Git.", en: "<b>GitOps:</b> Git is the source of truth for both infrastructure & deployment; tools (ArgoCD/Flux) automatically sync the cluster to the state declared in Git." },
+          { vi: "<b>Artifact registry:</b> Docker Hub, ECR, Nexus, Artifactory — nơi lưu artifact build để deploy.", en: "<b>Artifact registry:</b> Docker Hub, ECR, Nexus, Artifactory — where build artifacts are stored for deployment." },
+          { vi: "<b>Secrets:</b> không hardcode; dùng Vault / secrets của CI / cloud KMS.", en: "<b>Secrets:</b> never hardcode; use Vault / the CI's secrets store / cloud KMS." },
+        ] },
+        { type: "callout", variant: "warning", vi: "Không bao giờ <b>hardcode</b> secret (API key, mật khẩu, token) vào code hay log của pipeline. Dùng secrets manager và inject lúc runtime.", en: "Never <b>hardcode</b> secrets (API keys, passwords, tokens) into code or pipeline logs. Use a secrets manager and inject them at runtime." },
+      ],
+    },
+    {
+      id: "benefits",
+      title: { vi: "5. Lợi ích & best practice", en: "5. Benefits & best practices" },
+      blocks: [
+        { type: "prose", vi: "<b>Lợi ích:</b> phát hiện lỗi sớm, release nhanh & thường xuyên, ít rủi ro mỗi lần (thay đổi nhỏ), bớt việc tay, dễ rollback.", en: "<b>Benefits:</b> catch bugs early, release fast & frequently, lower risk per release (small changes), less manual work, easy rollback." },
+        { type: "list", items: [
+          { vi: "Build <b>một lần</b>, dùng cùng artifact cho mọi môi trường (<b>build once, deploy many</b>).", en: "Build <b>once</b>, use the same artifact for every environment (<b>build once, deploy many</b>)." },
+          { vi: "Pipeline <b>nhanh</b> (fail nhanh, chạy song song, cache dependency).", en: "Keep the pipeline <b>fast</b> (fail fast, run in parallel, cache dependencies)." },
+          { vi: "<b>Tự động hóa test</b> + cổng chất lượng (lint, coverage, security scan).", en: "<b>Automate testing</b> + quality gates (lint, coverage, security scan)." },
+          { vi: "Mọi thứ <b>versioned trong Git</b> (code + IaC + pipeline).", en: "Keep everything <b>versioned in Git</b> (code + IaC + pipeline)." },
+          { vi: "Môi trường giống nhau (dev ~ staging ~ prod) để tránh \"chạy ở staging mà lỗi ở prod\".", en: "Keep environments identical (dev ~ staging ~ prod) to avoid \"works in staging, breaks in prod\"." },
+        ] },
+        { type: "callout", variant: "key", vi: "<b>Build once, deploy many:</b> cùng một artifact đã test đi qua mọi môi trường — đảm bảo thứ chạy ở prod chính xác là thứ đã được kiểm thử ở staging.", en: "<b>Build once, deploy many:</b> the same tested artifact flows through every environment — guaranteeing what runs in prod is exactly what was tested in staging." },
+      ],
+    },
+    {
+      id: "real-project",
+      title: { vi: "6. Liên hệ dự án thực", en: "6. Real-project connection" },
+      blocks: [
+        { type: "prose", vi: "Repo <code>Flinters-Submission</code> của bạn đã có <b>GitHub Actions CI</b>: mỗi push chạy <code>ruff</code> (lint) + <code>mypy</code> (type) + <code>pytest</code> trên Python 3.9/3.11/3.12 (<b>ma trận</b>). Đây chính là phần <b>CI</b> — đúng tinh thần \"mỗi commit tự động build & test trên nhiều môi trường\". Có thể kể như ví dụ thực tế khi phỏng vấn.", en: "Your <code>Flinters-Submission</code> repo already has <b>GitHub Actions CI</b>: every push runs <code>ruff</code> (lint) + <code>mypy</code> (type) + <code>pytest</code> across Python 3.9/3.11/3.12 (a <b>matrix build</b>). This is exactly the <b>CI</b> part — embodying \"every commit automatically builds & tests across multiple environments\". You can cite it as a real example in interviews." },
+        { type: "chips", items: ["GitHub Actions", "matrix build", "ruff", "mypy", "pytest", "Python 3.9/3.11/3.12"] },
+      ],
+    },
+    {
+      id: "qa",
+      title: { vi: "7. Câu hỏi phỏng vấn", en: "7. Interview Q&A" },
+      blocks: [
+        { type: "list", items: [
+          { vi: "<b>\"CI khác CD?\"</b> → CI: merge + build + test tự động. CD: delivery (sẵn sàng deploy, bấm tay) vs deployment (tự deploy prod).", en: "<b>\"CI vs CD?\"</b> → CI: merge + build + test automatically. CD: delivery (ready to deploy, manual) vs deployment (auto-deploys to prod)." },
+          { vi: "<b>\"Blue-green vs canary?\"</b> → blue-green switch toàn bộ (rollback tức thì); canary thả % nhỏ tăng dần (giảm rủi ro).", en: "<b>\"Blue-green vs canary?\"</b> → blue-green switches everything (instant rollback); canary releases a small % and ramps up (lower risk)." },
+          { vi: "<b>\"Vì sao cần CI/CD?\"</b> → lỗi sớm, release nhanh, rủi ro nhỏ, rollback dễ.", en: "<b>\"Why CI/CD?\"</b> → catch bugs early, release fast, smaller risk, easy rollback." },
+          { vi: "<b>\"Testing pyramid?\"</b> → nhiều unit, ít integration, rất ít E2E.", en: "<b>\"Testing pyramid?\"</b> → many unit, fewer integration, very few E2E." },
+          { vi: "<b>\"IaC/GitOps là gì?\"</b> → quản hạ tầng/deploy bằng code trong Git, tái lập & tự đồng bộ.", en: "<b>\"What is IaC/GitOps?\"</b> → manage infrastructure/deployment as code in Git, reproducible & self-syncing." },
+        ] },
+      ],
+    },
+    {
+      id: "terms",
+      title: { vi: "8. Thuật ngữ", en: "8. Terminology" },
+      blocks: [
+        { type: "chips", items: ["CI", "CD (delivery vs deployment)", "pipeline", "build/test/deploy stage", "artifact", "environment (dev/staging/prod)", "rolling", "blue-green", "canary", "recreate", "rollback", "testing pyramid", "IaC (Terraform)", "GitOps (ArgoCD)", "runner/agent", "matrix build", "secrets management"] },
+      ],
+    },
+  ],
+  flashcards: [
+    { front: { vi: "CI là gì?", en: "What is CI?" }, back: { vi: "<b>Continuous Integration</b> — merge code thường xuyên vào nhánh chung; mỗi push tự động <b>build + test</b> để phát hiện lỗi sớm, tránh \"merge hell\".", en: "<b>Continuous Integration</b> — merge code frequently into a shared branch; each push automatically <b>builds + tests</b> to catch bugs early and avoid \"merge hell\"." } },
+    { front: { vi: "Continuous Delivery vs Continuous Deployment?", en: "Continuous Delivery vs Continuous Deployment?" }, back: { vi: "<b>Delivery:</b> qua pipeline thì <b>sẵn sàng deploy</b> nhưng lên prod <b>bấm tay</b>. <b>Deployment:</b> <b>tự động deploy</b> lên prod nếu test pass.", en: "<b>Delivery:</b> passing the pipeline means it's <b>ready to deploy</b> but going to prod is <b>manual</b>. <b>Deployment:</b> <b>auto-deploys</b> to prod if tests pass." } },
+    { front: { vi: "Các stage điển hình của một pipeline?", en: "Typical stages of a pipeline?" }, back: { vi: "Commit/PR → <b>Build</b> → <b>Test</b> (unit/integration) → [Security/Lint] → đóng gói <b>Artifact</b> → <b>Deploy</b> (staging→prod) → <b>Monitor</b>.", en: "Commit/PR → <b>Build</b> → <b>Test</b> (unit/integration) → [Security/Lint] → package <b>Artifact</b> → <b>Deploy</b> (staging→prod) → <b>Monitor</b>." } },
+    { front: { vi: "Testing pyramid là gì?", en: "What is the testing pyramid?" }, back: { vi: "Nhiều <b>unit test</b> (nhanh, rẻ) ở đáy → ít <b>integration</b> → rất ít <b>E2E</b> ở đỉnh (chậm, dễ flaky). Cân bằng tốc độ và độ tin cậy.", en: "Many <b>unit tests</b> (fast, cheap) at the base → fewer <b>integration</b> → very few <b>E2E</b> at the top (slow, flaky). Balances speed and confidence." } },
+    { front: { vi: "Artifact là gì? Lưu ở đâu?", en: "What is an artifact? Where is it stored?" }, back: { vi: "Sản phẩm của build (binary, Docker image). Lưu ở <b>artifact registry</b> (Docker Hub, ECR, Nexus, Artifactory) để deploy lại đúng bản đã test.", en: "The output of a build (binary, Docker image). Stored in an <b>artifact registry</b> (Docker Hub, ECR, Nexus, Artifactory) to re-deploy the exact tested version." } },
+    { front: { vi: "Rolling deploy hoạt động thế nào?", en: "How does a rolling deploy work?" }, back: { vi: "Thay dần từng phần instance bằng bản mới. <b>Không downtime</b>, nhưng rollback chậm hơn vì phải đảo ngược dần.", en: "Replace instances with the new version batch by batch. <b>No downtime</b>, but rollback is slower since you must reverse gradually." } },
+    { front: { vi: "Blue-green deploy là gì?", en: "What is a blue-green deploy?" }, back: { vi: "Hai môi trường giống hệt (Blue đang chạy, Green bản mới); switch traffic sang Green. <b>Rollback tức thì</b> bằng switch lại, đổi lại tốn <b>2x hạ tầng</b>.", en: "Two identical environments (Blue live, Green new); switch traffic to Green. <b>Instant rollback</b> by switching back, at the cost of <b>2x infrastructure</b>." } },
+    { front: { vi: "Canary deploy là gì?", en: "What is a canary deploy?" }, back: { vi: "Đưa bản mới cho <b>% nhỏ</b> user trước rồi tăng dần. <b>Giảm rủi ro</b> và phát hiện lỗi sớm trên ít người dùng; phức tạp hơn để vận hành.", en: "Release the new version to a <b>small %</b> of users first, then ramp up. <b>Lowers risk</b> and catches bugs early on few users; more complex to operate." } },
+    { front: { vi: "Vì sao rollback quan trọng?", en: "Why does rollback matter?" }, back: { vi: "Khả năng quay lại bản trước nhanh khi phát hiện lỗi là <b>yếu tố sống còn</b>. Mọi chiến lược deploy phải có đường rollback rõ trước khi release.", en: "Quickly reverting to the previous version on failure is a <b>survival factor</b>. Every deploy strategy must have a clear rollback path before releasing." } },
+    { front: { vi: "IaC và GitOps khác nhau thế nào?", en: "How do IaC and GitOps differ?" }, back: { vi: "<b>IaC</b>: mô tả hạ tầng bằng code (Terraform) → tái lập, versioned. <b>GitOps</b>: Git là nguồn sự thật; công cụ (ArgoCD/Flux) tự đồng bộ cụm về state trong Git.", en: "<b>IaC</b>: describe infrastructure as code (Terraform) → reproducible, versioned. <b>GitOps</b>: Git is the source of truth; tools (ArgoCD/Flux) auto-sync the cluster to the state in Git." } },
+    { front: { vi: "\"Build once, deploy many\" nghĩa là gì?", en: "What does \"build once, deploy many\" mean?" }, back: { vi: "Build <b>một lần</b> ra một artifact rồi dùng <b>cùng</b> artifact đó cho mọi môi trường. Đảm bảo thứ chạy ở prod đúng là thứ đã test ở staging.", en: "Build <b>once</b> into a single artifact, then use the <b>same</b> artifact for every environment. Guarantees what runs in prod is exactly what was tested in staging." } },
+    { front: { vi: "Quản lý secrets trong CI/CD thế nào?", en: "How do you manage secrets in CI/CD?" }, back: { vi: "Không bao giờ hardcode. Dùng <b>Vault / secrets của CI / cloud KMS</b> và inject lúc runtime; không để lộ trong code hay log.", en: "Never hardcode. Use <b>Vault / the CI's secrets store / cloud KMS</b> and inject at runtime; never expose them in code or logs." } },
+  ],
+  quiz: [
+    { q: { vi: "Điểm khác biệt chính giữa Continuous Delivery và Continuous Deployment?", en: "The main difference between Continuous Delivery and Continuous Deployment?" },
+      options: [{ vi: "Delivery chạy test, deployment thì không", en: "Delivery runs tests, deployment doesn't" }, { vi: "Delivery cần bấm tay để lên prod; deployment tự động lên prod", en: "Delivery needs a manual button for prod; deployment auto-deploys to prod" }, { vi: "Deployment chỉ dùng cho mobile", en: "Deployment is only for mobile" }, { vi: "Không có khác biệt, chỉ là cách gọi", en: "No difference, just naming" }], answer: 1,
+      explain: { vi: "Cả hai đều đẩy thay đổi qua pipeline; khác ở bước cuối: Delivery dừng để bấm tay, Deployment tự deploy thẳng lên prod nếu test pass.", en: "Both push changes through the pipeline; they differ at the last step: Delivery stops for a manual approval, Deployment auto-deploys to prod if tests pass." } },
+    { q: { vi: "Trong testing pyramid, loại test nào nên có NHIỀU nhất?", en: "In the testing pyramid, which test type should you have the MOST of?" },
+      options: [{ vi: "E2E (end-to-end)", en: "E2E (end-to-end)" }, { vi: "Integration", en: "Integration" }, { vi: "Unit", en: "Unit" }, { vi: "Manual", en: "Manual" }], answer: 2,
+      explain: { vi: "Unit test ở đáy (nhanh, rẻ, nhiều). E2E ở đỉnh — chậm và dễ flaky nên rất ít. Quá nhiều E2E tạo \"ice-cream cone\".", en: "Unit tests form the base (fast, cheap, plentiful). E2E sits at the top — slow and flaky, so very few. Too many E2E creates an \"ice-cream cone\"." } },
+    { q: { vi: "Chiến lược deploy nào cho rollback TỨC THÌ nhưng tốn 2x hạ tầng?", en: "Which deploy strategy gives INSTANT rollback but costs 2x infrastructure?" },
+      options: [{ vi: "Rolling", en: "Rolling" }, { vi: "Blue-Green", en: "Blue-Green" }, { vi: "Canary", en: "Canary" }, { vi: "Recreate", en: "Recreate" }], answer: 1,
+      explain: { vi: "Blue-green giữ 2 môi trường giống hệt; switch traffic giữa chúng → rollback chỉ là switch lại, nhưng phải nuôi 2x hạ tầng.", en: "Blue-green keeps two identical environments; switching traffic between them → rollback is just switching back, but you must run 2x infrastructure." } },
+    { q: { vi: "Chiến lược nào đưa bản mới cho một % nhỏ user trước rồi tăng dần?", en: "Which strategy releases the new version to a small % of users first, then ramps up?" },
+      options: [{ vi: "Recreate", en: "Recreate" }, { vi: "Blue-Green", en: "Blue-Green" }, { vi: "Canary", en: "Canary" }, { vi: "Rolling", en: "Rolling" }], answer: 2,
+      explain: { vi: "Canary giảm rủi ro bằng cách thử trên ít user trước, phát hiện lỗi sớm trước khi mở rộng cho toàn bộ.", en: "Canary reduces risk by testing on a few users first, catching bugs early before rolling out to everyone." } },
+    { q: { vi: "\"Build once, deploy many\" đảm bảo điều gì?", en: "What does \"build once, deploy many\" guarantee?" },
+      options: [{ vi: "Thứ chạy ở prod đúng là artifact đã test ở staging", en: "What runs in prod is exactly the artifact tested in staging" }, { vi: "Mỗi môi trường build lại từ đầu", en: "Each environment rebuilds from scratch" }, { vi: "Không cần test ở staging", en: "No need to test in staging" }, { vi: "Chỉ build cho production", en: "Only build for production" }], answer: 0,
+      explain: { vi: "Cùng một artifact đã test đi qua mọi môi trường → loại bỏ khác biệt do build lại, tránh \"chạy ở staging mà lỗi ở prod\".", en: "The same tested artifact flows through every environment → eliminates build-time drift, avoiding \"works in staging, breaks in prod\"." } },
+    { q: { vi: "GitOps định nghĩa nguồn sự thật (source of truth) là gì?", en: "In GitOps, what is the source of truth?" },
+      options: [{ vi: "Trạng thái thực tế của cụm production", en: "The live state of the production cluster" }, { vi: "Git (repo chứa cả hạ tầng & deploy)", en: "Git (the repo holding both infra & deploy state)" }, { vi: "Dashboard của ops", en: "The ops dashboard" }, { vi: "Artifact registry", en: "The artifact registry" }], answer: 1,
+      explain: { vi: "GitOps coi Git là nguồn sự thật; công cụ như ArgoCD/Flux tự đồng bộ cụm về đúng state khai báo trong Git.", en: "GitOps treats Git as the source of truth; tools like ArgoCD/Flux automatically sync the cluster to the state declared in Git." } },
+    { q: { vi: "Cách xử lý secrets (API key, mật khẩu) đúng đắn trong pipeline?", en: "The correct way to handle secrets (API keys, passwords) in a pipeline?" },
+      options: [{ vi: "Hardcode vào code cho tiện", en: "Hardcode them into the code for convenience" }, { vi: "In ra log để dễ debug", en: "Print them to logs for easy debugging" }, { vi: "Dùng secrets manager (Vault / CI secrets / KMS), inject lúc runtime", en: "Use a secrets manager (Vault / CI secrets / KMS), inject at runtime" }, { vi: "Commit vào một file .env trong repo", en: "Commit them to a .env file in the repo" }], answer: 2,
+      explain: { vi: "Không bao giờ hardcode hay log secret. Lưu trong secrets manager và inject lúc runtime để tránh rò rỉ.", en: "Never hardcode or log secrets. Store them in a secrets manager and inject at runtime to prevent leaks." } },
+  ],
+});
