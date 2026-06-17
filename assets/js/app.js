@@ -67,6 +67,7 @@
     lang: LS.get("lang", "vi"),
     mode: "learn",            // learn | cards | quiz
     topic: null,              // current topic id (learn mode)
+    track: LS.get("track", null),        // {role, level} or null
     progress: LS.get("progress", {}),   // {topicId:true}
     cards: LS.get("cards", {}),         // {cardKey:{due,interval,ease,reps}}
     quizBest: LS.get("quizBest", {}),   // {topicId: pct}
@@ -406,6 +407,12 @@
 
   function render() {
     const main = document.getElementById("content");
+    if (IP.onboarding.shouldShow()) {
+      main.innerHTML = IP.onboarding.render({ t, fa, ICON });
+      document.getElementById("sidebar").innerHTML = "";
+      window.scrollTo(0, 0);
+      return;
+    }
     if (State.mode === "cards") { main.innerHTML = renderCards(); updateCardProgress(); }
     else if (State.mode === "quiz") main.innerHTML = renderQuiz();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
@@ -463,6 +470,15 @@
      EVENTS
      ============================================================ */
   function bind() {
+    // onboarding pick callback
+    IP.onboarding.onPick(({ role, level }) => {
+      State.track = { role, level };
+      LS.set("track", State.track);
+      State.topic = null;
+      State.mode = "learn";
+      render();
+    });
+
     // language
     document.querySelectorAll(".lang-toggle button").forEach(b => b.onclick = () => {
       State.lang = b.dataset.lang; LS.set("lang", State.lang);
@@ -489,6 +505,13 @@
 
     // delegated clicks
     document.body.addEventListener("click", e => {
+      // onboarding — must be first
+      if (IP.onboarding.shouldShow()) {
+        const ob = IP.onboarding.handleClick(e.target);
+        if (ob === "rerender") { render(); return; }
+        if (ob === true) return;
+      }
+
       const topicEl = e.target.closest("[data-topic]");
       if (topicEl) return goTopic(topicEl.dataset.topic);
       const goEl = e.target.closest("[data-go]");
