@@ -188,3 +188,16 @@ Mỗi module trả lời được: *làm gì / dùng thế nào / phụ thuộc 
 
 ## 17. Câu hỏi mở
 Không còn. (Nội dung track ở 4.3 là đề xuất; người dùng có thể tinh chỉnh trong lúc triển khai mà không đổi kiến trúc.)
+
+## 18. Chiến lược commit (incremental theo feature)
+Theo yêu cầu: **commit dần theo từng feature**, không gộp một commit lớn. Mỗi commit để site vẫn **load được** (no-build). Thứ tự đề xuất (plan sẽ bám theo):
+1. `refactor: split app.js into IP.* modules` — store/i18n/render dưới `window.IP`, không đổi hành vi.
+2. `feat: self-hosted Font Awesome + map emoji→icon` (`assets/fonts/fontawesome/`).
+3. `feat: light/dark theme` — CSS variables, `data-theme`, toggle, `ip_theme`.
+4. `feat: complete EN/VI i18n` — mọi chuỗi UI mới qua `t()`, có fallback.
+5. `feat: tracks data model` — `PREP.roles`/`registerTrack`, `assets/data/tracks.js`, cờ `tier` + badge PRO (chỉ dữ liệu).
+6. `feat: onboarding (một màn, role→level)` — ghi `ip_track`.
+7. `feat: track-aware sidebar/nav` — thẻ track, tiến độ, "Tất cả chủ đề", reset/đổi.
+8. Tách phụ thành các commit riêng: `feat: continue + dashboard`, rồi `feat: bookmarks`, rồi `feat: streak`.
+
+Ràng buộc thứ tự: (1) trước tiên (để code sau gắn vào `IP.*`); (5) trước (6–7) (onboarding/nav dùng content model). Quy ước: conventional commits.
