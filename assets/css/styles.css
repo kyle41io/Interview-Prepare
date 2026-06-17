@@ -214,6 +214,7 @@ pre.code code{color:var(--txt);white-space:pre}
 .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
 .btn.green{background:var(--green)}
 .btn.subtle{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+.btn.bookmarked{background:var(--panel2);color:var(--accent);border:1px solid var(--accent)}
 .btn.lg{padding:13px 24px;font-size:15px}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 
