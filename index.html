@@ -8,6 +8,16 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
 <link rel="stylesheet" href="assets/fonts/fontawesome/css/all.min.css">
 <link rel="stylesheet" href="assets/css/styles.css">
+<meta name="theme-color" content="#0d1117">
+<script>
+  (function(){
+    try{
+      var p = JSON.parse(localStorage.getItem("ip_theme")) || "system";
+      var dark = (p==="dark") || (p!=="light" && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+    }catch(e){ document.documentElement.dataset.theme = "dark"; }
+  })();
+</script>
 </head>
 <body>
 
@@ -28,6 +38,7 @@
     <input id="search" type="text" placeholder="Tìm kiếm…" autocomplete="off">
     <kbd>/</kbd>
   </div>
+  <button class="icon-btn" id="themeBtn" title="Theme"><i class="fa-solid fa-moon"></i></button>
   <div class="lang-toggle">
     <button data-lang="vi">VI</button>
     <button data-lang="en">EN</button>
@@ -68,6 +79,7 @@
 <!-- ===== App ===== -->
 <script src="assets/js/store.js"></script>
 <script src="assets/js/i18n.js"></script>
+<script src="assets/js/theme.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>
