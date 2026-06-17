@@ -479,6 +479,13 @@
     document.getElementById("overlay").onclick = closeSidebar;
     document.getElementById("brand").onclick = goHome;
 
+    // theme
+    const themeBtn = document.getElementById("themeBtn");
+    if (themeBtn) themeBtn.onclick = () => {
+      IP.theme.toggle();
+      themeBtn.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
+    };
+
     // delegated clicks
     document.body.addEventListener("click", e => {
       const topicEl = e.target.closest("[data-topic]");
@@ -583,6 +590,9 @@
     document.documentElement.lang = State.lang;
     syncStaticText();
     bind();
+    IP.theme.apply();
+    const tb = document.getElementById("themeBtn");
+    if (tb) tb.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
     render();
   });
 })();
