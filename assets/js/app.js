@@ -298,6 +298,7 @@
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div></div>
         <div class="stat"><div class="num p">${totalCards}</div><div class="lbl">${L === "vi" ? "Thẻ ghi nhớ" : "Flashcards"}</div></div>
         <div class="stat"><div class="num o">${dueCount}</div><div class="lbl">${L === "vi" ? "Thẻ cần ôn" : "Cards due"}</div></div>
+        <div class="stat"><div class="num o">${fa(ICON.streak)} ${IP.streak.get().count}</div><div class="lbl">${L === "vi" ? "Ngày liên tiếp" : "Day streak"}</div></div>
       </div>
 
       <div class="section-title">${L === "vi" ? "Chủ đề" : "Topics"}</div>
@@ -684,6 +685,7 @@
       // learn buttons
       if (e.target.id === "learnBtn") {
         State.progress[State.topic] = !State.progress[State.topic];
+        if (State.progress[State.topic]) IP.streak.bump();
         LS.set("progress", State.progress); render(); return;
       }
       if (e.target.id === "bookmarkBtn") { IP.bookmarks.toggleStored(State.topic); render(); return; }
