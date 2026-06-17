@@ -24,6 +24,39 @@
     { id: "behavioral", icon: "🗣️", vi: "Phỏng vấn hành vi", en: "Behavioral" },
   ];
 
+  /* ---------- Icon map (Font Awesome classes) ---------- */
+  const ICON = {
+    brand: "fa-solid fa-bullseye",
+    home: "fa-solid fa-house",
+    learn: "fa-solid fa-book-open",
+    cards: "fa-regular fa-clone",
+    quiz: "fa-solid fa-pen-to-square",
+    search: "fa-solid fa-magnifying-glass",
+    menu: "fa-solid fa-bars",
+    check: "fa-solid fa-check",
+    allTopics: "fa-solid fa-layer-group",
+    change: "fa-solid fa-rotate",
+    profile: "fa-solid fa-circle-user",
+    themeDark: "fa-solid fa-moon",
+    themeLight: "fa-solid fa-sun",
+    bookmark: "fa-solid fa-bookmark",
+    bookmarkO: "fa-regular fa-bookmark",
+    streak: "fa-solid fa-fire",
+    pro: "fa-solid fa-crown",
+    cardsCount: "fa-regular fa-clone",
+    quizCount: "fa-solid fa-pen-to-square",
+    // categories
+    foundations: "fa-solid fa-brain", architecture: "fa-solid fa-sitemap",
+    api: "fa-solid fa-plug", data: "fa-solid fa-database",
+    frontend: "fa-solid fa-palette", backend: "fa-solid fa-gears",
+    devops: "fa-solid fa-cloud", project: "fa-solid fa-briefcase",
+    behavioral: "fa-solid fa-comments",
+    // roles
+    swe: "fa-solid fa-code", "ai-engineer": "fa-solid fa-robot",
+  };
+  function fa(cls) { return `<i class="${cls}"></i>`; }
+  function catIcon(tp) { return ICON[tp.category] || "fa-solid fa-book"; }
+
   /* ---------- State ---------- */
   const LS = {
     get: (k, d) => IP.store.get(k, d),
@@ -121,21 +154,21 @@
     }).join("");
 
     const counts = `<div class="tc-meta" style="margin-bottom:16px;color:var(--muted2);font-size:12px">
-      📇 ${(topic.flashcards || []).length} ${State.lang === "vi" ? "thẻ" : "cards"} ·
-      ✍️ ${(topic.quiz || []).length} ${State.lang === "vi" ? "câu hỏi" : "questions"}</div>`;
+      ${fa(ICON.cardsCount)} ${(topic.flashcards || []).length} ${State.lang === "vi" ? "thẻ" : "cards"} ·
+      ${fa(ICON.quizCount)} ${(topic.quiz || []).length} ${State.lang === "vi" ? "câu hỏi" : "questions"}</div>`;
 
     return `<div class="fade-in">
       <div class="page-head">
         <div class="eyebrow">${t(catOf(topic))}</div>
-        <h1>${topic.icon || "📘"} ${t(topic.title)}</h1>
+        <h1>${fa(catIcon(topic))} ${t(topic.title)}</h1>
         <div class="blurb">${t(topic.blurb)}</div>
       </div>
       ${counts}
       ${sections}
       <div class="learn-bar">
         <button class="btn ${done ? "green" : ""}" id="learnBtn">${done ? t(UI.markedLearned) : t(UI.markLearned)}</button>
-        <button class="btn subtle" id="goCards">📇 ${t(UI.cards)}</button>
-        <button class="btn subtle" id="goQuiz">✍️ ${t(UI.quiz)}</button>
+        <button class="btn subtle" id="goCards">${fa(ICON.cards)} ${t(UI.cards)}</button>
+        <button class="btn subtle" id="goQuiz">${fa(ICON.quiz)} ${t(UI.quiz)}</button>
       </div>
     </div>`;
   }
@@ -159,11 +192,11 @@
     const cards = PREP.order.map(id => {
       const tp = PREP.topics[id];
       return `<div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
-        <div class="tc-done">✓</div>
-        <div class="tc-icon">${tp.icon || "📘"}</div>
+        <div class="tc-done">${fa(ICON.check)}</div>
+        <div class="tc-icon">${fa(catIcon(tp))}</div>
         <h3>${t(tp.title)}</h3>
         <p>${t(tp.blurb)}</p>
-        <div class="tc-meta"><span>📇 ${(tp.flashcards || []).length}</span><span>✍️ ${(tp.quiz || []).length}</span></div>
+        <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
       </div>`;
     }).join("");
 
@@ -310,7 +343,7 @@
       const opts = `<option value="all">${t(UI.allTopics)}</option>` +
         PREP.order.map(id => `<option value="${id}">${t(PREP.topics[id].title)} (${(PREP.topics[id].quiz || []).length})</option>`).join("");
       return `<div class="quiz-wrap fade-in"><div class="quiz-q" style="text-align:center">
-        <h2>✍️ ${t(UI.quiz)}</h2>
+        <h2>${fa(ICON.quiz)} ${t(UI.quiz)}</h2>
         <p style="color:var(--muted);margin-bottom:18px">${L === "vi" ? "Chọn chủ đề rồi tự kiểm tra. Có giải thích cho mỗi câu." : "Pick a topic and test yourself. Every question has an explanation."}</p>
         <select class="fc-select" id="quizTopic" style="margin-bottom:18px">${opts}</select><br>
         <button class="btn lg" id="quizStart">${t(UI.startQuiz)} →</button>
@@ -339,8 +372,8 @@
     }).join("");
     const last = Quiz.pos === Quiz.questions.length - 1;
     return `<div class="quiz-wrap fade-in"><div class="quiz-q">
-      <div class="quiz-meta"><span>${PREP.topics[q._topic].icon} ${t(PREP.topics[q._topic].title)}</span>
-        <span>${Quiz.pos + 1} / ${Quiz.questions.length} · ✓ ${Quiz.correct}</span></div>
+      <div class="quiz-meta"><span>${fa(catIcon(PREP.topics[q._topic]))} ${t(PREP.topics[q._topic].title)}</span>
+        <span>${Quiz.pos + 1} / ${Quiz.questions.length} · ${fa(ICON.check)} ${Quiz.correct}</span></div>
       <h2>${t(q.q)}</h2>
       ${opts}
       <div class="quiz-explain ${Quiz.answered ? "show" : ""}"><b>${Quiz.picked === q.answer ? (L === "vi" ? "Chính xác! " : "Correct! ") : (L === "vi" ? "Chưa đúng. " : "Not quite. ")}</b>${t(q.explain)}</div>
@@ -354,16 +387,16 @@
   function renderSidebar() {
     const sb = document.getElementById("sidebar");
     let html = `<div class="nav-item ${State.mode === "learn" && !State.topic ? "active" : ""}" data-home="1">
-      <span class="ni-icon">🏠</span><span class="ni-label">${State.lang === "vi" ? "Trang chủ" : "Home"}</span></div>`;
+      <span class="ni-icon">${fa(ICON.home)}</span><span class="ni-label">${State.lang === "vi" ? "Trang chủ" : "Home"}</span></div>`;
     CATS.forEach(cat => {
       const topics = PREP.order.filter(id => PREP.topics[id].category === cat.id);
       if (!topics.length) return;
-      html += `<div class="cat"><div class="cat-label">${cat.icon} ${t(cat)}</div>`;
+      html += `<div class="cat"><div class="cat-label">${fa(ICON[cat.id] || "")} ${t(cat)}</div>`;
       topics.forEach(id => {
         const tp = PREP.topics[id];
         const active = State.mode === "learn" && State.topic === id;
         html += `<div class="nav-item ${active ? "active" : ""} ${State.progress[id] ? "done" : ""}" data-topic="${id}">
-          <span class="ni-icon">${tp.icon || "📘"}</span><span class="ni-label">${t(tp.title)}</span><span class="ni-check">✓</span></div>`;
+          <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span><span class="ni-check">${fa(ICON.check)}</span></div>`;
       });
       html += `</div>`;
     });
@@ -410,10 +443,10 @@
       }
     });
     if (!hits.length) { main.innerHTML = `<div class="empty-hint">${State.lang === "vi" ? "Không tìm thấy" : "No results"}: "${esc(qstr)}"</div>`; return; }
-    main.innerHTML = `<div class="fade-in"><div class="page-head"><h1>🔍 ${esc(qstr)}</h1>
+    main.innerHTML = `<div class="fade-in"><div class="page-head"><h1>${fa(ICON.search)} ${esc(qstr)}</h1>
       <div class="blurb">${hits.length} ${State.lang === "vi" ? "chủ đề khớp" : "matching topics"}</div></div>
       ${hits.map(h => `<div class="tcard" data-go="${h.tp.id}" style="margin-bottom:12px">
-        <div class="tc-icon">${h.tp.icon}</div><h3>${t(h.tp.title)}</h3>
+        <div class="tc-icon">${fa(catIcon(h.tp))}</div><h3>${t(h.tp.title)}</h3>
         <p>${t(h.tp.blurb)}</p>
         ${h.secs.length ? `<div style="margin-top:8px;font-size:12px;color:var(--muted2)">${h.secs.map(s => "• " + t(s.title)).join("<br>")}</div>` : ""}
       </div>`).join("")}</div>`;

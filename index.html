@@ -6,24 +6,25 @@
 <meta name="description" content="Bilingual (VI/EN) Software Engineer interview prep app — DSA, microservices, system design, databases, frontend/backend, DevOps & cloud, with flashcards and quizzes.">
 <title>Interview Prep · Ôn thi phỏng vấn SWE</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+<link rel="stylesheet" href="assets/fonts/fontawesome/css/all.min.css">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
 
 <div class="topbar">
-  <button class="icon-btn menu-btn" id="menuBtn">☰</button>
+  <button class="icon-btn menu-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
   <div class="brand" id="brand" style="cursor:pointer">
-    <span class="logo">🎯</span>
+    <span class="logo"><i class="fa-solid fa-bullseye"></i></span>
     <span class="grad">Interview Prep</span>
   </div>
   <div class="modes">
-    <button data-mode="learn" class="active">📖 <span>Học</span></button>
-    <button data-mode="cards">📇 <span>Thẻ ghi nhớ</span></button>
-    <button data-mode="quiz">✍️ <span>Trắc nghiệm</span></button>
+    <button data-mode="learn" class="active"><i class="fa-solid fa-book-open"></i> <span>Học</span></button>
+    <button data-mode="cards"><i class="fa-regular fa-clone"></i> <span>Thẻ ghi nhớ</span></button>
+    <button data-mode="quiz"><i class="fa-solid fa-pen-to-square"></i> <span>Trắc nghiệm</span></button>
   </div>
   <div class="spacer"></div>
   <div class="search-box">
-    <span class="si">🔍</span>
+    <span class="si"><i class="fa-solid fa-magnifying-glass"></i></span>
     <input id="search" type="text" placeholder="Tìm kiếm…" autocomplete="off">
     <kbd>/</kbd>
   </div>
