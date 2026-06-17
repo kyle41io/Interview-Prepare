@@ -26,8 +26,8 @@
 
   /* ---------- State ---------- */
   const LS = {
-    get(k, d) { try { return JSON.parse(localStorage.getItem("ip_" + k)) ?? d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem("ip_" + k, JSON.stringify(v)); } catch {} },
+    get: (k, d) => IP.store.get(k, d),
+    set: (k, v) => IP.store.set(k, v),
   };
   const State = {
     lang: LS.get("lang", "vi"),
