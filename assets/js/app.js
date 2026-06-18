@@ -97,6 +97,7 @@
     signOut: { vi: "Đăng xuất", en: "Sign out" },
     deleteAccount: { vi: "Xoá tài khoản", en: "Delete account" },
     confirmDelete: { vi: "Xoá tài khoản và toàn bộ dữ liệu? Không thể hoàn tác.", en: "Delete account and all data? This cannot be undone." },
+    settings: { vi: "Cài đặt tài khoản", en: "Account settings" },
     markLearned: { vi: "✓ Đánh dấu đã học", en: "✓ Mark as learned" },
     markedLearned: { vi: "✓ Đã học (bấm để bỏ)", en: "✓ Learned (click to undo)" },
     next: { vi: "Tiếp theo →", en: "Next →" },
@@ -231,6 +232,36 @@
         <div class="blurb">${ids.length} ${L === "vi" ? "chủ đề đã lưu" : "saved topics"}</div>
       </div>
       <div class="home-grid">${cards}</div>
+    </div>`;
+  }
+
+  function renderSettings() {
+    const L = State.lang;
+    const u = IP.auth ? IP.auth.getUser() : null;
+    const md = (u && u.user_metadata) || {};
+    const acct = u
+      ? `<div class="settings-acct">
+           ${md.avatar_url ? `<img class="settings-avatar" src="${md.avatar_url}" alt="" referrerpolicy="no-referrer">` : `<span style="font-size:40px;color:var(--muted)">${fa(ICON.profile)}</span>`}
+           <div><div class="sa-name">${esc(md.full_name || md.name || "")}</div><div class="sa-email">${esc(u.email || "")}</div></div>
+         </div>`
+      : `<div class="empty-hint">${L === "vi" ? "Bạn chưa đăng nhập. Đăng nhập với Google để đồng bộ tiến độ giữa các thiết bị." : "You're not signed in. Sign in with Google to sync your progress across devices."}</div>`;
+    const delItem = u
+      ? `<div class="danger-item">
+           <div><div class="di-title">${t(UI.deleteAccount)}</div><div class="di-desc">${L === "vi" ? "Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu trên máy chủ." : "Permanently delete your account and all server-side data."}</div></div>
+           <button class="btn danger-btn" id="deleteAccountBtn">${t(UI.deleteAccount)}</button>
+         </div>`
+      : "";
+    return `<div class="fade-in settings-page">
+      <div class="page-head"><h1>${fa("fa-solid fa-gear")} ${L === "vi" ? "Cài đặt tài khoản" : "Account settings"}</h1></div>
+      ${acct}
+      <div class="danger-zone">
+        <div class="dz-label">${L === "vi" ? "Vùng nguy hiểm" : "Danger zone"}</div>
+        <div class="danger-item">
+          <div><div class="di-title">${t(UI.clearData)}</div><div class="di-desc">${L === "vi" ? "Xoá dữ liệu học lưu trên trình duyệt này. Dữ liệu đã đồng bộ trên máy chủ không bị ảnh hưởng." : "Clear study data stored in this browser. Server-synced data is unaffected."}</div></div>
+          <button class="btn danger-btn" id="clearDataBtn">${t(UI.clearData)}</button>
+        </div>
+        ${delItem}
+      </div>
     </div>`;
   }
 
@@ -554,6 +585,7 @@
     if (State.mode === "cards") { main.innerHTML = renderCards(); updateCardProgress(); }
     else if (State.mode === "quiz") main.innerHTML = renderQuiz();
     else if (State.mode === "saved") main.innerHTML = renderSaved();
+    else if (State.mode === "settings") main.innerHTML = renderSettings();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
     // sync mode buttons
@@ -677,16 +709,11 @@
         } else if (action === "bookmarks") {
           State.mode = "saved"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
-        } else if (action === "clear") {
-          if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
-          pMenu.hidden = true;
+        } else if (action === "settings") {
+          State.mode = "settings"; State.topic = null;
+          pMenu.hidden = true; render(); toTop(); saveView();
         } else if (action === "signout") {
           pMenu.hidden = true; IP.auth.signOut();
-        } else if (action === "delete") {
-          pMenu.hidden = true;
-          if (confirm(t(UI.confirmDelete))) {
-            if (IP.account) IP.account.deleteAccount();
-          }
         }
       });
     }
@@ -731,6 +758,16 @@
       if (e.target.id === "bookmarkBtn") { IP.bookmarks.toggleStored(State.topic); render(); return; }
       if (e.target.id === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
       if (e.target.id === "goQuiz") { setMode("quiz"); buildQuiz(State.topic); render(); return; }
+
+      // settings page danger-zone actions
+      if (e.target.closest("#clearDataBtn")) {
+        if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
+        return;
+      }
+      if (e.target.closest("#deleteAccountBtn")) {
+        if (confirm(t(UI.confirmDelete))) { if (IP.account) IP.account.deleteAccount(); }
+        return;
+      }
 
       // flashcards
       if (e.target.closest("#flashcard") || e.target.id === "flipBtn") {
@@ -807,20 +844,27 @@
     const acctRow = document.getElementById("acctRow");
     const sep = document.getElementById("acctSep");
     const mOut = document.getElementById("menuSignout");
-    const mDel = document.getElementById("menuDelete");
     const on = !!user;
+    const md = (user && user.user_metadata) || {};
     if (signin) signin.hidden = on || !IP.auth.enabled();
-    [acctRow, sep, mOut, mDel].forEach(function (el) { if (el) el.hidden = !on; });
+    [acctRow, sep, mOut].forEach(function (el) { if (el) el.hidden = !on; });
+    // Topbar profile button: show the real avatar when signed in, else the icon.
+    const pBtn = document.getElementById("profileBtn");
+    if (pBtn) {
+      if (on && md.avatar_url) pBtn.innerHTML = '<img class="pfp" src="' + md.avatar_url + '" alt="" referrerpolicy="no-referrer">';
+      else pBtn.innerHTML = '<i class="' + ICON.profile + '"></i>';
+    }
     if (on && acctRow) {
-      const md = user.user_metadata || {};
       const nameEl = document.getElementById("acctName");
       if (nameEl) nameEl.textContent = md.full_name || md.name || user.email || "";
       const av = document.getElementById("acctAvatar");
       if (av) {
-        if (md.avatar_url) { av.src = md.avatar_url; av.style.display = ""; }
+        if (md.avatar_url) { av.referrerPolicy = "no-referrer"; av.src = md.avatar_url; av.style.display = ""; }
         else { av.style.display = "none"; }
       }
     }
+    // Keep an open settings page in sync with auth state.
+    if (State.mode === "settings") render();
   }
 
   /* ---------- static UI text (topbar) ---------- */
@@ -837,10 +881,9 @@
     }
     setI("changeTrack", UI.changeTrack);
     setI("saved", UI.saved);
-    setI("clearData", UI.clearData);
+    setI("settings", UI.settings);
     setI("signIn", UI.signIn);
     setI("signOut", UI.signOut);
-    setI("deleteAccount", UI.deleteAccount);
   }
 
   /* ---------- reloadFromStore ---------- */

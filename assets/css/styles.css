@@ -451,7 +451,27 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 
 /* Desktop collapsible sidebar (toggled by the topbar menu button) */
 html.sb-collapsed .sidebar{transform:translateX(-100%)}
-html.sb-collapsed .content{margin-left:0}
+/* When the sidebar is hidden, center the content column instead of leaving it
+   pinned left with a large empty gutter on the right. */
+html.sb-collapsed .content{margin-left:auto;margin-right:auto}
+
+/* Topbar profile picture (real avatar when signed in) */
+#profileBtn{overflow:hidden}
+#profileBtn img.pfp{width:24px;height:24px;border-radius:50%;object-fit:cover;display:block}
+
+/* Account settings page */
+.settings-page{max-width:680px}
+.settings-acct{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:22px}
+.settings-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.sa-name{font-weight:700;font-size:16px}
+.sa-email{color:var(--muted);font-size:13px;margin-top:2px}
+.danger-zone{border:1px solid var(--red);border-radius:12px;padding:6px 16px 14px}
+.dz-label{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--red);padding:12px 0 4px}
+.danger-item{display:flex;align-items:center;gap:16px;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}
+.di-title{font-weight:600}
+.di-desc{color:var(--muted);font-size:13px;margin-top:3px;max-width:440px}
+.danger-btn{background:var(--red);color:#fff;border:none;flex-shrink:0}
+.danger-btn:hover{filter:brightness(1.12)}
 
 /* Light theme overrides (profile menu shadow) */
 html[data-theme="light"] .profile-menu{
