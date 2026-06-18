@@ -76,7 +76,7 @@ PREP.register({
     },
     {
       id: "indexes",
-      title: { vi: "6. Index (chỉ mục)", en: "6. Indexes" },
+      title: { vi: "6. Index & đọc query plan (EXPLAIN)", en: "6. Indexes & query plans (EXPLAIN)" },
       blocks: [
         { type: "list", items: [
           { vi: "Cấu trúc dữ liệu (thường <b>B-tree</b>) giúp tìm hàng nhanh, không phải quét cả bảng (<b>full table scan</b>).", en: "A data structure (usually a <b>B-tree</b>) that finds rows fast, avoiding a <b>full table scan</b>." },
@@ -86,6 +86,19 @@ PREP.register({
           { vi: "Đọc query plan bằng <b>EXPLAIN / EXPLAIN ANALYZE</b> để xem có dùng index không.", en: "Inspect the query plan with <b>EXPLAIN / EXPLAIN ANALYZE</b> to see whether an index is used." },
         ] },
         { type: "callout", variant: "warning", vi: "Đừng đánh index bừa: mỗi index làm chậm ghi và tốn chỗ. Index cột <b>low-cardinality</b> (ít giá trị khác nhau, như boolean) thường vô dụng.", en: "Don't index everything: each index slows writes and costs space. Indexing a <b>low-cardinality</b> column (few distinct values, like a boolean) is usually useless." },
+        { type: "prose", vi: "<b>EXPLAIN</b> in ra <b>query plan</b> mà optimizer <b>dự định</b> chạy (kèm <b>cost</b> ước lượng và số hàng) — <b>không</b> chạy query. <b>EXPLAIN ANALYZE</b> thì <b>thực sự chạy</b> query rồi báo <b>thời gian thật</b> và <b>số hàng thật</b>, để so sánh ước lượng vs thực tế. Lưu ý: <code>ANALYZE</code> cũng chạy cả <code>INSERT/UPDATE/DELETE</code> → bọc trong transaction rồi <code>ROLLBACK</code> nếu không muốn đổi dữ liệu. Thêm <code>BUFFERS</code> (<code>EXPLAIN (ANALYZE, BUFFERS)</code>) để xem đọc từ cache (shared hit) hay từ đĩa (read).", en: "<b>EXPLAIN</b> prints the <b>query plan</b> the optimizer <b>intends</b> to run (with estimated <b>cost</b> and row counts) — it does <b>not</b> run the query. <b>EXPLAIN ANALYZE</b> <b>actually runs</b> it and reports the <b>real time</b> and <b>real row counts</b>, so you can compare estimate vs reality. Note: <code>ANALYZE</code> also executes <code>INSERT/UPDATE/DELETE</code> → wrap it in a transaction and <code>ROLLBACK</code> if you don't want the change. Add <code>BUFFERS</code> (<code>EXPLAIN (ANALYZE, BUFFERS)</code>) to see cache hits vs disk reads." },
+        { type: "code", code: "EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 42;\n\nSeq Scan on orders  (cost=0.00..1850.00 rows=12 width=64)\n                    (actual time=0.30..14.2 rows=11 loops=1)\n  Filter: (user_id = 42)\n  Rows Removed by Filter: 99989\nPlanning Time: 0.1 ms\nExecution Time: 14.3 ms", caption: { vi: "Seq Scan + 'Rows Removed by Filter' rất lớn → đang quét cả bảng vì thiếu index trên user_id. Thêm index → đổi thành Index Scan, Execution Time giảm mạnh.", en: "Seq Scan + a huge 'Rows Removed by Filter' → it scans the whole table because there's no index on user_id. Add one → it becomes an Index Scan and Execution Time drops sharply." } },
+        { type: "table",
+          headers: { vi: ["Thấy trong plan", "Nghĩa là"], en: ["Seen in the plan", "Means"] },
+          rows: [
+            { vi: ["<b>Seq Scan</b> (full scan)", "Quét cả bảng. OK với bảng nhỏ; <b>đáng lo</b> nếu bảng lớn + có WHERE/JOIN (thường là thiếu index)."], en: ["<b>Seq Scan</b> (full scan)", "Reads the whole table. Fine for small tables; <b>a red flag</b> on a large table with a WHERE/JOIN (usually a missing index)."] },
+            { vi: ["<b>Index Scan / Index Only Scan</b>", "Dùng index để tìm hàng (tốt). <b>Index Only Scan</b> = covering index, không cần đọc bảng (tốt nhất)."], en: ["<b>Index Scan / Index Only Scan</b>", "Uses an index to find rows (good). <b>Index Only Scan</b> = covering index, no table read (best)."] },
+            { vi: ["<b>cost=startup..total</b>, rows=…", "<b>Ước lượng</b> của optimizer (đơn vị tương đối, không phải ms); rows = số hàng dự đoán."], en: ["<b>cost=startup..total</b>, rows=…", "Optimizer <b>estimates</b> (relative units, not ms); rows = predicted row count."] },
+            { vi: ["<b>actual time / rows</b> (chỉ ANALYZE)", "Số liệu <b>thật</b>. Nếu rows ước lượng lệch nhiều so với actual → statistics cũ → chạy <code>ANALYZE &lt;table&gt;</code>."], en: ["<b>actual time / rows</b> (ANALYZE only)", "The <b>real</b> numbers. If estimated rows are far from actual → stale statistics → run <code>ANALYZE &lt;table&gt;</code>."] },
+            { vi: ["<b>Nested Loop / Hash Join / Merge Join</b>", "Kiểu join. Nested Loop trên nhiều hàng mà không có index ở cột join → chậm."], en: ["<b>Nested Loop / Hash Join / Merge Join</b>", "The join strategy. A Nested Loop over many rows with no index on the join column → slow."] },
+            { vi: ["<b>Sort/Hash … (external/disk)</b>", "Thao tác phải tràn ra đĩa vì thiếu RAM → tăng <code>work_mem</code> hoặc giảm dữ liệu cần xử lý."], en: ["<b>Sort/Hash … (external/disk)</b>", "Spilled to disk for lack of RAM → raise <code>work_mem</code> or process less data."] },
+          ] },
+        { type: "callout", variant: "soundbite", vi: "“EXPLAIN cho tôi xem plan dự kiến + cost ước lượng; EXPLAIN ANALYZE chạy thật và cho thời gian/row thực tế. Tôi soi <b>Seq Scan trên bảng lớn</b> (thiếu index), so <b>rows ước lượng vs thật</b> (lệch nhiều → ANALYZE để cập nhật stats), và xem <b>kiểu join</b>.”", en: "“EXPLAIN shows me the intended plan + estimated cost; EXPLAIN ANALYZE runs it and gives real time/rows. I look for a <b>Seq Scan on a large table</b> (missing index), compare <b>estimated vs actual rows</b> (a big gap → ANALYZE to refresh stats), and check the <b>join strategy</b>.”" },
       ],
     },
     {
