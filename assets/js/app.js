@@ -660,7 +660,7 @@
         } else if (action === "delete") {
           pMenu.hidden = true;
           if (confirm(t(UI.confirmDelete))) {
-            if (IP.account) IP.account.deleteAccount(); // Task 7: IP.account not yet created
+            if (IP.account) IP.account.deleteAccount();
           }
         }
       });
@@ -846,9 +846,11 @@
     IP.sync.setApplyCallback(reloadFromStore);
     IP.sync.start();
     updateAuthUI(IP.auth.getUser());
+    let _wasAuthed = false;
     IP.auth.onChange(function (user) {
       updateAuthUI(user);
-      if (user) IP.sync.onLogin();
+      if (user) { _wasAuthed = true; IP.sync.onLogin(); }
+      else if (_wasAuthed) { _wasAuthed = false; IP.store.clearAll(); location.reload(); }
     });
     IP.auth.init();
 
