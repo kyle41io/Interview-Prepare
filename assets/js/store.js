@@ -8,6 +8,7 @@
   "use strict";
   const PREFIX = "ip_";
   const SCHEMA_VERSION = 1;
+  let _listeners = [];
 
   function defaults() {
     return {
@@ -39,8 +40,29 @@
     } catch { return fallback; }
   }
 
-  function set(key, value) {
+  function _write(key, value) {
     try { localStorage.setItem(PREFIX + key, JSON.stringify(value)); } catch {}
+  }
+  function _notify(key) {
+    _listeners.forEach((f) => { try { f(key); } catch {} });
+  }
+  function set(key, value) { _write(key, value); _notify(key); }
+
+  function onChange(cb) {
+    _listeners.push(cb);
+    return function off() { _listeners = _listeners.filter((f) => f !== cb); };
+  }
+  function snapshot() {
+    const d = defaults();
+    const out = {};
+    Object.keys(d).forEach((k) => { out[k] = get(k, d[k]); });
+    return out;
+  }
+  function replaceAll(state, opts) {
+    const d = defaults();
+    const src = state && typeof state === "object" ? state : {};
+    Object.keys(d).forEach((k) => { if (k in src) _write(k, src[k]); });
+    if (!(opts && opts.silent)) _notify("*");
   }
 
   function reset(key) {
@@ -55,5 +77,5 @@
     } catch {}
   }
 
-  return { defaults, migrate, get, set, reset, clearAll, PREFIX, SCHEMA_VERSION };
+  return { defaults, migrate, get, set, reset, clearAll, snapshot, onChange, replaceAll, PREFIX, SCHEMA_VERSION };
 });
