@@ -818,6 +818,20 @@
     setI("deleteAccount", UI.deleteAccount);
   }
 
+  /* ---------- reloadFromStore ---------- */
+  function reloadFromStore() {
+    State.lang     = LS.get("lang", "vi");
+    State.track    = LS.get("track", null);
+    State.progress = LS.get("progress", {});
+    State.cards    = LS.get("cards", {});
+    State.quizBest = LS.get("quizBest", {});
+    document.querySelectorAll(".lang-toggle button").forEach(x => x.classList.toggle("active", x.dataset.lang === State.lang));
+    document.documentElement.lang = State.lang;
+    IP.theme.apply();
+    syncStaticText();
+    render();
+  }
+
   /* ---------- boot ---------- */
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".lang-toggle button").forEach(x => x.classList.toggle("active", x.dataset.lang === State.lang));
@@ -828,12 +842,13 @@
     const tb = document.getElementById("themeBtn");
     if (tb) tb.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
 
-    // Auth boot wiring
-    updateAuthUI(null); // initial state: logged out
+    // Auth + sync boot wiring (setApplyCallback + start BEFORE init)
+    IP.sync.setApplyCallback(reloadFromStore);
+    IP.sync.start();
+    updateAuthUI(IP.auth.getUser());
     IP.auth.onChange(function (user) {
       updateAuthUI(user);
-      // Task 6: IP.sync wiring (setApplyCallback / start / onLogin)
-      if (IP.sync && typeof IP.sync.onLogin === "function") IP.sync.onLogin(user);
+      if (user) IP.sync.onLogin();
     });
     IP.auth.init();
 
