@@ -56,5 +56,96 @@
     };
   }
 
-  return { merge };
+  /* ---------- runtime helpers (lazy, safe in Node) ---------- */
+  function _auth()  { return root.IP && root.IP.auth; }
+  function _store() { return root.IP && root.IP.store; }
+  function _loggedIn() {
+    const a = _auth();
+    return !!(a && a.getUser && a.getUser());
+  }
+
+  /* ---------- apply callback ---------- */
+  let _applyCb = null;
+  function setApplyCallback(cb) { _applyCb = cb; }
+
+  /* ---------- dirty flag (push failed while offline) ---------- */
+  let _dirty = false;
+
+  /* ---------- pull ---------- */
+  async function pull() {
+    try {
+      const a = _auth();
+      if (!a) return null;
+      const user = a.getUser && a.getUser();
+      if (!user) return null;
+      const client = a.client && a.client();
+      if (!client) return null;
+      const { data, error } = await client
+        .from("user_state")
+        .select("state")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) { console.warn("[sync] pull error", error.message); return null; }
+      return (data && data.state) ? data.state : null;
+    } catch (e) { console.warn("[sync] pull exception", e); return null; }
+  }
+
+  /* ---------- push ---------- */
+  async function push(state) {
+    try {
+      const a = _auth();
+      if (!a) return;
+      const user = a.getUser && a.getUser();
+      if (!user) return;
+      const client = a.client && a.client();
+      if (!client) return;
+      const { error } = await client
+        .from("user_state")
+        .upsert({ user_id: user.id, state: state, updated_at: new Date().toISOString() });
+      if (error) { console.warn("[sync] push error", error.message); _dirty = true; return; }
+      _dirty = false;
+    } catch (e) { console.warn("[sync] push exception", e); _dirty = true; }
+  }
+
+  /* ---------- schedulePush (debounce ~2500ms) ---------- */
+  let _pushTimer = null;
+  function schedulePush() {
+    if (!_loggedIn()) return;
+    clearTimeout(_pushTimer);
+    _pushTimer = setTimeout(function () {
+      const st = _store();
+      if (st && _loggedIn()) push(st.snapshot());
+    }, 2500);
+  }
+
+  /* ---------- onLogin ---------- */
+  async function onLogin() {
+    const st = _store();
+    if (!st) return;
+    const local = st.snapshot();
+    const server = await pull();
+    const merged = server ? merge(local, server) : local;
+    st.replaceAll(merged, { silent: true });
+    if (_applyCb) { try { _applyCb(); } catch (e) { console.warn("[sync] applyCb error", e); } }
+    await push(merged);
+  }
+
+  /* ---------- start ---------- */
+  function start() {
+    const st = _store();
+    if (!st || !st.onChange) return;
+    st.onChange(function (key) {
+      if (key !== "*" && _loggedIn()) schedulePush();
+    });
+    if (root.addEventListener) {
+      root.addEventListener("online", function () {
+        if (_dirty && _loggedIn()) {
+          const store = _store();
+          if (store) push(store.snapshot());
+        }
+      });
+    }
+  }
+
+  return { merge, pull, push, schedulePush, onLogin, start, setApplyCallback };
 });
