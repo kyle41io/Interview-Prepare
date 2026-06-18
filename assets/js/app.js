@@ -82,6 +82,10 @@
     saved: { vi: "Đã lưu", en: "Saved" },
     clearData: { vi: "Xoá dữ liệu", en: "Clear data" },
     confirmClear: { vi: "Xoá toàn bộ dữ liệu học? Không thể hoàn tác.", en: "Clear all study data? This cannot be undone." },
+    signIn: { vi: "Đăng nhập", en: "Sign in" },
+    signOut: { vi: "Đăng xuất", en: "Sign out" },
+    deleteAccount: { vi: "Xoá tài khoản", en: "Delete account" },
+    confirmDelete: { vi: "Xoá tài khoản và toàn bộ dữ liệu? Không thể hoàn tác.", en: "Delete account and all data? This cannot be undone." },
     markLearned: { vi: "✓ Đánh dấu đã học", en: "✓ Mark as learned" },
     markedLearned: { vi: "✓ Đã học (bấm để bỏ)", en: "✓ Learned (click to undo)" },
     next: { vi: "Tiếp theo →", en: "Next →" },
@@ -627,6 +631,10 @@
       themeBtn.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
     };
 
+    // sign-in button
+    const sBtn = document.getElementById("signinBtn");
+    if (sBtn) sBtn.onclick = () => IP.auth.signInWithGoogle();
+
     // profile menu toggle
     const pBtn = document.getElementById("profileBtn");
     const pMenu = document.getElementById("profileMenu");
@@ -647,6 +655,13 @@
         } else if (action === "clear") {
           if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
           pMenu.hidden = true;
+        } else if (action === "signout") {
+          pMenu.hidden = true; IP.auth.signOut();
+        } else if (action === "delete") {
+          pMenu.hidden = true;
+          if (confirm(t(UI.confirmDelete))) {
+            if (IP.account) IP.account.deleteAccount(); // Task 7: IP.account not yet created
+          }
         }
       });
     }
@@ -761,6 +776,28 @@
     render();
   }
 
+  /* ---------- auth UI ---------- */
+  function updateAuthUI(user) {
+    const signin = document.getElementById("signinBtn");
+    const acctRow = document.getElementById("acctRow");
+    const sep = document.getElementById("acctSep");
+    const mOut = document.getElementById("menuSignout");
+    const mDel = document.getElementById("menuDelete");
+    const on = !!user;
+    if (signin) signin.hidden = on || !IP.auth.enabled();
+    [acctRow, sep, mOut, mDel].forEach(function (el) { if (el) el.hidden = !on; });
+    if (on && acctRow) {
+      const md = user.user_metadata || {};
+      const nameEl = document.getElementById("acctName");
+      if (nameEl) nameEl.textContent = md.full_name || md.name || user.email || "";
+      const av = document.getElementById("acctAvatar");
+      if (av) {
+        if (md.avatar_url) { av.src = md.avatar_url; av.style.display = ""; }
+        else { av.style.display = "none"; }
+      }
+    }
+  }
+
   /* ---------- static UI text (topbar) ---------- */
   function syncStaticText() {
     const L = State.lang;
@@ -776,6 +813,9 @@
     setI("changeTrack", UI.changeTrack);
     setI("saved", UI.saved);
     setI("clearData", UI.clearData);
+    setI("signIn", UI.signIn);
+    setI("signOut", UI.signOut);
+    setI("deleteAccount", UI.deleteAccount);
   }
 
   /* ---------- boot ---------- */
@@ -787,6 +827,16 @@
     IP.theme.apply();
     const tb = document.getElementById("themeBtn");
     if (tb) tb.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
+
+    // Auth boot wiring
+    updateAuthUI(null); // initial state: logged out
+    IP.auth.onChange(function (user) {
+      updateAuthUI(user);
+      // Task 6: IP.sync wiring (setApplyCallback / start / onLogin)
+      if (IP.sync && typeof IP.sync.onLogin === "function") IP.sync.onLogin(user);
+    });
+    IP.auth.init();
+
     render();
   });
 })();

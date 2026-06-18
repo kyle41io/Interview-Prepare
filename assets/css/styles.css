@@ -460,3 +460,28 @@ html[data-theme="light"] .profile-menu{
 .cc-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden}
 .cc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--accent))}
 .cc-go{font-size:22px;color:var(--accent)}
+
+/* Sign-in button (topbar) */
+.signin-btn{
+  display:flex;align-items:center;gap:7px;
+  background:var(--accent);color:#fff;
+  border:none;border-radius:8px;
+  padding:7px 14px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:.15s;white-space:nowrap;flex-shrink:0;
+}
+.signin-btn:hover{background:var(--accent-d);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}
+.signin-btn[hidden]{display:none}
+
+/* Account row inside profile menu */
+.acct-row{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 12px 6px;
+}
+.acct-row[hidden]{display:none}
+.acct-avatar{
+  width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;
+}
+.acct-name{
+  font-size:13px;font-weight:600;color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;
+}

@@ -43,12 +43,20 @@
     <button data-lang="vi">VI</button>
     <button data-lang="en">EN</button>
   </div>
+  <button class="signin-btn" id="signinBtn" hidden><i class="fa-solid fa-right-to-bracket"></i> <span data-i18n="signIn">Sign in</span></button>
   <div class="profile-wrap">
     <button class="icon-btn" id="profileBtn" title="Profile"><i class="fa-solid fa-circle-user"></i></button>
     <div class="profile-menu" id="profileMenu" hidden>
+      <div class="acct-row" id="acctRow" hidden>
+        <img class="acct-avatar" id="acctAvatar" src="" alt="" style="display:none">
+        <span class="acct-name" id="acctName"></span>
+      </div>
+      <hr id="acctSep" hidden>
       <button data-menu="change-track"><i class="fa-solid fa-rotate"></i> <span data-i18n="changeTrack">Đổi lộ trình</span></button>
       <button data-menu="bookmarks"><i class="fa-solid fa-bookmark"></i> <span data-i18n="saved">Đã lưu</span></button>
       <hr>
+      <button data-menu="signout" id="menuSignout" hidden><i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="signOut">Sign out</span></button>
+      <button data-menu="delete" id="menuDelete" class="danger" hidden><i class="fa-solid fa-trash-can"></i> <span data-i18n="deleteAccount">Delete account</span></button>
       <button data-menu="clear" class="danger"><i class="fa-solid fa-trash-can"></i> <span data-i18n="clearData">Xoá dữ liệu</span></button>
     </div>
   </div>
