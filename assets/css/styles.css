@@ -108,7 +108,7 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
   border-radius:9px;cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.15s;
 }
 .icon-btn:hover{color:var(--txt);border-color:var(--line2)}
-.menu-btn{display:none}
+.menu-btn{display:grid}
 
 /* ============================================================
    LAYOUT
@@ -117,6 +117,7 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
 .sidebar{
   position:fixed;top:var(--topbar-h);bottom:0;left:0;width:var(--sidebar-w);overflow-y:auto;
   border-right:1px solid var(--line);padding:16px 12px 60px;background:color-mix(in srgb, var(--bg) 80%, transparent);z-index:40;
+  transition:transform .22s ease;
 }
 .cat{margin-bottom:6px}
 .cat-label{
@@ -135,7 +136,7 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
 .nav-item.done .ni-check{opacity:1}
 .nav-item.done .ni-label{color:var(--muted)}
 
-.content{margin-left:var(--sidebar-w);flex:1;min-width:0;padding:32px 40px 90px;max-width:1000px}
+.content{margin-left:var(--sidebar-w);flex:1;min-width:0;padding:32px 40px 90px;max-width:1000px;transition:margin-left .22s ease}
 @media(max-width:1100px){.content{padding:28px 26px 80px}}
 
 /* ============================================================
@@ -443,6 +444,14 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 .profile-menu button.danger{color:var(--red)}
 .profile-menu button.danger:hover{background:#f8514912}
 .profile-menu hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+/* The `hidden` attribute must win over the display:flex rules above
+   (equal specificity → later author rule wins, so add explicit overrides). */
+.profile-menu[hidden]{display:none}
+.profile-menu button[hidden]{display:none}
+
+/* Desktop collapsible sidebar (toggled by the topbar menu button) */
+html.sb-collapsed .sidebar{transform:translateX(-100%)}
+html.sb-collapsed .content{margin-left:0}
 
 /* Light theme overrides (profile menu shadow) */
 html[data-theme="light"] .profile-menu{

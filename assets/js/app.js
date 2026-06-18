@@ -63,6 +63,17 @@
     get: (k, d) => IP.store.get(k, d),
     set: (k, v) => IP.store.set(k, v),
   };
+
+  /* ---- device-local UI prefs (raw localStorage; bypass IP.store so they
+     never sync to the server and never trigger a sync push) ---- */
+  function uiGet(k, d) { try { const v = localStorage.getItem("ip_" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+  function uiSet(k, v) { try { localStorage.setItem("ip_" + k, JSON.stringify(v)); } catch (e) {} }
+  function saveView() {
+    if (IP.onboarding.shouldShow()) return;
+    uiSet("view", { mode: State.mode, topic: State.topic, scrollY: window.scrollY || 0 });
+  }
+  function loadView() { return uiGet("view", null); }
+
   const State = {
     lang: LS.get("lang", "vi"),
     mode: "learn",            // learn | cards | quiz
@@ -548,17 +559,20 @@
     // sync mode buttons
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
     renderSidebar();
-    document.getElementById("content").scrollTop = 0;
-    window.scrollTo(0, 0);
+    // NOTE: do not force scroll here — render() also runs for in-place updates
+    // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
+    // only on real navigation (goTopic/goHome/setMode) via toTop().
   }
 
-  function goTopic(id) { State.mode = "learn"; State.topic = id; closeSidebar(); render(); }
-  function goHome() { State.mode = "learn"; State.topic = null; closeSidebar(); render(); }
+  function toTop() { document.getElementById("content").scrollTop = 0; window.scrollTo(0, 0); }
+
+  function goTopic(id) { State.mode = "learn"; State.topic = id; closeSidebar(); render(); toTop(); saveView(); }
+  function goHome() { State.mode = "learn"; State.topic = null; closeSidebar(); render(); toTop(); saveView(); }
   function setMode(m) {
     State.mode = m;
     if (m === "cards") { buildCardQueue(); }
     if (m === "quiz") { Quiz.topic = null; }
-    closeSidebar(); render();
+    closeSidebar(); render(); toTop(); saveView();
   }
 
   /* ============================================================
@@ -593,6 +607,17 @@
      ============================================================ */
   function openSidebar() { document.getElementById("sidebar").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
   function closeSidebar() { document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("show"); }
+  // Menu button: mobile → slide-in drawer; desktop → collapse/expand (persisted).
+  function toggleSidebar() {
+    if (window.matchMedia && window.matchMedia("(max-width:900px)").matches) {
+      const sb = document.getElementById("sidebar"), ov = document.getElementById("overlay");
+      const open = sb.classList.toggle("open");
+      if (ov) ov.classList.toggle("show", open);
+    } else {
+      const collapsed = document.documentElement.classList.toggle("sb-collapsed");
+      uiSet("sbCollapsed", collapsed);
+    }
+  }
 
   /* ============================================================
      EVENTS
@@ -620,7 +645,7 @@
     const si = document.getElementById("search");
     si.oninput = () => doSearch(si.value);
     // mobile menu
-    document.getElementById("menuBtn").onclick = openSidebar;
+    document.getElementById("menuBtn").onclick = toggleSidebar;
     document.getElementById("overlay").onclick = closeSidebar;
     document.getElementById("brand").onclick = goHome;
 
@@ -651,7 +676,7 @@
           pMenu.hidden = true; render();
         } else if (action === "bookmarks") {
           State.mode = "saved"; State.topic = null;
-          pMenu.hidden = true; render();
+          pMenu.hidden = true; render(); toTop(); saveView();
         } else if (action === "clear") {
           if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
           pMenu.hidden = true;
@@ -854,6 +879,26 @@
     });
     IP.auth.init();
 
+    // Restore device-local UI state: collapsed sidebar + last view + scroll.
+    if (uiGet("sbCollapsed", false)) document.documentElement.classList.add("sb-collapsed");
+    const _v = loadView();
+    if (_v && typeof _v === "object" && !IP.onboarding.shouldShow()) {
+      if (_v.mode === "cards") { State.mode = "cards"; buildCardQueue(); }
+      else if (_v.mode === "quiz") { State.mode = "quiz"; Quiz.topic = null; }
+      else if (_v.mode === "saved") { State.mode = "saved"; }
+      else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
+    }
+
     render();
+    if (_v && _v.scrollY) window.scrollTo(0, _v.scrollY);
+
+    // Persist scroll position + current view so a reload/return restores place.
+    let _svTimer = null;
+    window.addEventListener("scroll", function () {
+      if (_svTimer) return;
+      _svTimer = setTimeout(function () { _svTimer = null; saveView(); }, 400);
+    }, { passive: true });
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") saveView(); });
+    window.addEventListener("pagehide", saveView);
   });
 })();
