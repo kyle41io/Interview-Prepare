@@ -222,7 +222,7 @@ pre.code code{color:var(--txt);white-space:pre}
    HOME / DASHBOARD
    ============================================================ */
 .hero{
-  background:linear-gradient(135deg,#161b22,#1c2330);border:1px solid var(--line);border-radius:18px;
+  background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:18px;
   padding:30px 32px;margin-bottom:22px;position:relative;overflow:hidden;
 }
 .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;
@@ -272,15 +272,15 @@ pre.code code{color:var(--txt);white-space:pre}
 .fc-face{
   position:absolute;inset:0;backface-visibility:hidden;border-radius:18px;padding:30px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  border:1px solid var(--line);
+  border:1px solid #2d3748;color:#e6edf3;
 }
 .fc-front{background:linear-gradient(135deg,#161b22,#1c2330)}
 .fc-back{background:linear-gradient(135deg,#15233a,#1a2f4a);transform:rotateY(180deg);overflow-y:auto}
-.fc-face .fc-topic{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:700}
+.fc-face .fc-topic{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#58a6ff;font-weight:700}
 .fc-face .fc-q{font-size:21px;font-weight:700;line-height:1.4}
 .fc-face .fc-a{font-size:15.5px;color:#d8e2ee;text-align:left;line-height:1.6}
 .fc-face .fc-a strong{color:#fff}
-.fc-hint{color:var(--muted2);font-size:12px;margin-top:6px}
+.fc-hint{color:#8b97a7;font-size:12px;margin-top:6px}
 .fc-rate{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
 .fc-rate button{border:none;border-radius:9px;padding:12px 8px;font-weight:700;font-size:13px;cursor:pointer;color:#1a1a2e;transition:.15s}
 .fc-rate button small{display:block;font-weight:500;font-size:10px;opacity:.8;margin-top:2px}
