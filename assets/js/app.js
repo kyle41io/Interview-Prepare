@@ -14,6 +14,7 @@
   /* ---------- Categories (sidebar grouping + order) ---------- */
   const CATS = [
     { id: "foundations", icon: "🧠", vi: "Nền tảng", en: "Foundations" },
+    { id: "cs", icon: "🖥️", vi: "Khoa học máy tính", en: "Computer Science" },
     { id: "architecture", icon: "🏗️", vi: "Kiến trúc", en: "Architecture" },
     { id: "api", icon: "🔌", vi: "Giao tiếp API", en: "APIs" },
     { id: "data", icon: "💾", vi: "Dữ liệu", en: "Data" },
@@ -46,7 +47,7 @@
     cardsCount: "fa-regular fa-clone",
     quizCount: "fa-solid fa-pen-to-square",
     // categories
-    foundations: "fa-solid fa-brain", architecture: "fa-solid fa-sitemap",
+    foundations: "fa-solid fa-brain", cs: "fa-solid fa-microchip", architecture: "fa-solid fa-sitemap",
     api: "fa-solid fa-plug", data: "fa-solid fa-database",
     frontend: "fa-solid fa-palette", backend: "fa-solid fa-gears",
     devops: "fa-solid fa-cloud", project: "fa-solid fa-briefcase",
