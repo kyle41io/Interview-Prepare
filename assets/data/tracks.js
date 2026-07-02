@@ -2,7 +2,7 @@
 PREP.roles = [
   { id: "swe", icon: "fa-solid fa-code", title: { vi: "Software Engineer", en: "Software Engineer" }, levels: ["fresher", "junior", "senior"] },
   { id: "devops", icon: "fa-solid fa-server", title: { vi: "DevOps", en: "DevOps" }, levels: [] },
-  { id: "ai-engineer", icon: "fa-solid fa-robot", title: { vi: "AI Engineer", en: "AI Engineer" }, levels: [], comingSoon: true },
+  { id: "ai-engineer", icon: "fa-solid fa-robot", title: { vi: "AI Engineer", en: "AI Engineer" }, levels: [] },
 ];
 PREP.levels = {
   fresher: { vi: "Fresher", en: "Fresher" },
@@ -28,6 +28,6 @@ PREP.levels = {
     items: ["docker-k8s", "cicd", "aws", "networking", "logging", "system-design", "databases", "behavioral"] },
   { id: "ai-engineer", role: "ai-engineer", level: "",
     title: { vi: "AI Engineer", en: "AI Engineer" },
-    blurb: { vi: "Đang xây dựng nội dung.", en: "Content in progress." },
-    items: [], comingSoon: true },
+    blurb: { vi: "Nền tảng AI thực chiến: Python, ML và Deep Learning/NLP — sẽ mở rộng thêm.", en: "Practical AI foundations: Python, ML and Deep Learning/NLP — more coming." },
+    items: ["python-ai", "ml-foundations", "dl-nlp", "system-design", "behavioral"] },
 ].forEach((trk) => PREP.registerTrack(trk));
