@@ -239,6 +239,17 @@ pre.code code{color:var(--txt);white-space:pre}
 .progress-track{height:9px;background:var(--panel3);border-radius:6px;overflow:hidden;margin-top:10px}
 .progress-fill{height:100%;background:linear-gradient(90deg,#3fb950,#58a6ff);border-radius:6px;transition:width .6s ease}
 
+.hero-slim{padding:18px 22px;margin-bottom:18px}
+.hero-slim h1{font-size:22px;margin-bottom:4px}
+.hero-slim p{font-size:13.5px;color:var(--muted);margin:0}
+.stat-grid.compact{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+.stat-grid.compact .stat{flex:1;min-width:120px;padding:12px 14px}
+.stat-grid.compact .num{font-size:20px}
+.home-cat{margin-bottom:26px}
+.home-cat-head{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.home-cat-head i{color:var(--accent)}
+.hc-count{font-size:11px;background:var(--panel2);border-radius:99px;padding:1px 8px;color:var(--muted2)}
+
 .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:18px}
 .tcard{
   background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;transition:.18s;position:relative;
