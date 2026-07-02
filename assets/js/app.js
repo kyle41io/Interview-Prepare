@@ -144,7 +144,8 @@
         return `<table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
       }
       case "code":
-        return `<pre class="code"><code>${esc(b.code)}</code></pre>` +
+        return `<div class="code-wrap"><pre class="code"><code>${esc(b.code)}</code></pre>` +
+          `<button class="code-copy" title="Copy">${fa("fa-regular fa-copy")}</button></div>` +
           (b.caption ? `<div class="code-cap">${t(b.caption)}</div>` : "");
       case "callout": {
         const v = b.variant || "tip";
@@ -180,11 +181,26 @@
       </div>`;
     }).join("");
 
+    const tocItems = (topic.sections || []).map((s, i) =>
+      `<a class="toc-item" data-toc="${i}">${i + 1}. ${t(s.title)}</a>`).join("");
+    const toc = (topic.sections || []).length >= 4
+      ? `<nav class="topic-toc" id="topicToc"><div class="toc-label">${State.lang === "vi" ? "TRONG BÀI NÀY" : "ON THIS PAGE"}</div>${tocItems}</nav>` : "";
+
     const counts = `<div class="tc-meta" style="margin-bottom:16px;color:var(--muted2);font-size:12px">
       ${fa(ICON.cardsCount)} ${(topic.flashcards || []).length} ${State.lang === "vi" ? "thẻ" : "cards"} ·
       ${fa(ICON.quizCount)} ${(topic.quiz || []).length} ${State.lang === "vi" ? "câu hỏi" : "questions"}</div>`;
 
-    return `<div class="fade-in">
+    const track = currentTrack();
+    const navItems = track ? IP.tracks.resolveItems(track, PREP.order) : PREP.order;
+    const navIdx = navItems.indexOf(id);
+    const prevId = navIdx > 0 ? navItems[navIdx - 1] : null;
+    const nextId = navIdx >= 0 && navIdx < navItems.length - 1 ? navItems[navIdx + 1] : null;
+    const topicNav = (prevId || nextId) ? `<div class="topic-nav">
+        ${prevId ? `<div class="tn prev" data-go="${prevId}">${t(UI.prev)}<br>${t(PREP.topics[prevId].title)}</div>` : `<div></div>`}
+        ${nextId ? `<div class="tn next" data-go="${nextId}">${t(UI.next)}<br>${t(PREP.topics[nextId].title)}</div>` : `<div></div>`}
+      </div>` : "";
+
+    return `<div class="fade-in topic-layout"><div class="topic-main">
       <div class="page-head">
         <div class="eyebrow">${t(catOf(topic))}</div>
         <h1>${fa(catIcon(topic))} ${t(topic.title)}</h1>${proBadge(topic)}
@@ -201,7 +217,8 @@
           return `<button class="btn ${bSaved ? "bookmarked" : "subtle"}" id="bookmarkBtn">${fa(bSaved ? ICON.bookmark : ICON.bookmarkO)} ${bSaved ? (State.lang === "vi" ? "Đã lưu" : "Saved") : (State.lang === "vi" ? "Lưu" : "Save")}</button>`;
         })()}
       </div>
-    </div>`;
+      ${topicNav}
+    </div>${toc}</div>`;
   }
 
   function catOf(topic) {
@@ -634,12 +651,27 @@
     // sync mode buttons
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
     renderSidebar();
+    setupToc();
     // NOTE: do not force scroll here — render() also runs for in-place updates
     // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
     // only on real navigation (goTopic/goHome/setMode) via toTop().
   }
 
   function toTop() { document.getElementById("content").scrollTop = 0; window.scrollTo(0, 0); }
+
+  let _tocObserver = null;
+  function setupToc() {
+    if (_tocObserver) { _tocObserver.disconnect(); _tocObserver = null; }
+    const toc = document.getElementById("topicToc");
+    if (!toc) return;
+    const secs = document.querySelectorAll(".section[data-sec]");
+    _tocObserver = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if (en.isIntersecting) {
+        toc.querySelectorAll(".toc-item").forEach(a => a.classList.toggle("active", a.dataset.toc === en.target.dataset.sec));
+      }});
+    }, { rootMargin: "-15% 0px -70% 0px" });
+    secs.forEach(s => _tocObserver.observe(s));
+  }
 
   function goTopic(id) { State.mode = "learn"; State.topic = id; closeSidebar(); render(); toTop(); saveView(); }
   function goHome() { State.mode = "learn"; State.topic = null; closeSidebar(); render(); toTop(); saveView(); }
@@ -778,6 +810,23 @@
       const goEl = e.target.closest("[data-go]");
       if (goEl) { si.value = ""; return goTopic(goEl.dataset.go); }
       if (e.target.closest("[data-home]")) return goHome();
+
+      if (e.target.closest("[data-toc]")) {
+        const i = e.target.closest("[data-toc]").dataset.toc;
+        const sec = document.querySelector(`.section[data-sec="${i}"]`);
+        if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+
+      if (e.target.closest(".code-copy")) {
+        const btn = e.target.closest(".code-copy");
+        const code = btn.closest(".code-wrap")?.querySelector("code")?.innerText || "";
+        navigator.clipboard.writeText(code).then(() => {
+          btn.innerHTML = fa("fa-solid fa-check");
+          setTimeout(() => { btn.innerHTML = fa("fa-regular fa-copy"); }, 1500);
+        });
+        return;
+      }
 
       // track nav branches
       if (e.target.closest("[data-browse-all]")) {
