@@ -357,15 +357,19 @@
     let totalCards = 0, totalQuiz = 0;
     PREP.order.forEach(id => { totalCards += (PREP.topics[id].flashcards || []).length; totalQuiz += (PREP.topics[id].quiz || []).length; });
 
-    const cards = PREP.order.map(id => {
-      const tp = PREP.topics[id];
-      return `<div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
+    const groupsHtml = CATS.map(cat => {
+      const ids = PREP.order.filter(id => PREP.topics[id].category === cat.id);
+      if (!ids.length) return "";
+      const cardsHtml = ids.map(id => { const tp = PREP.topics[id]; return `
+      <div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
         <div class="tc-done">${fa(ICON.check)}</div>
         <div class="tc-icon">${fa(catIcon(tp))}</div>
         <h3>${t(tp.title)}</h3>${proBadge(tp)}
         <p>${t(tp.blurb)}</p>
         <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
-      </div>`;
+      </div>`; }).join("");
+      return `<div class="home-cat"><div class="home-cat-head">${fa(ICON[cat.id] || "fa-solid fa-book")} <span>${t(cat)}</span><span class="hc-count">${ids.length}</span></div>
+        <div class="home-grid">${cardsHtml}</div></div>`;
     }).join("");
 
     const L = State.lang;
@@ -386,14 +390,12 @@
     }
     return `<div class="fade-in">
       ${continueHtml}
-      <div class="hero">
+      <div class="hero hero-slim">
         <h1>${L === "vi" ? "Sẵn sàng cho buổi phỏng vấn 🚀" : "Get interview-ready 🚀"}</h1>
-        <p>${L === "vi"
-          ? "Toàn bộ kiến thức bạn cần — DSA, kiến trúc, hệ thống, frontend/backend, cloud và chính dự án của bạn — gói trong một app song ngữ. Học, lật thẻ ghi nhớ, và tự kiểm tra."
-          : "Everything you need — DSA, architecture, system design, frontend/backend, cloud and your own project — in one bilingual app. Read, flip flashcards, and quiz yourself."}</p>
+        <p>${L === "vi" ? "Học theo lộ trình, lật thẻ ghi nhớ, tự kiểm tra — song ngữ." : "Follow your track, flip flashcards, quiz yourself — bilingual."}</p>
       </div>
 
-      <div class="stat-grid">
+      <div class="stat-grid compact">
         <div class="stat"><div class="num a">${total}</div><div class="lbl">${L === "vi" ? "Chủ đề" : "Topics"}</div></div>
         <div class="stat"><div class="num g">${learned}/${total}</div><div class="lbl">${L === "vi" ? "Đã học" : "Learned"}</div>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div></div>
@@ -402,8 +404,7 @@
         <div class="stat"><div class="num o">${fa(ICON.streak)} ${IP.streak.get().count}</div><div class="lbl">${L === "vi" ? "Ngày liên tiếp" : "Day streak"}</div></div>
       </div>
 
-      <div class="section-title">${L === "vi" ? "Chủ đề" : "Topics"}</div>
-      <div class="home-grid">${cards}</div>
+      ${groupsHtml}
 
       <div class="cheat-cta" data-go-cheat="1">
         <span class="cc-ic">🎯</span>
