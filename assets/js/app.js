@@ -118,6 +118,7 @@
     studyAgain: { vi: "Ôn lại tất cả", en: "Study all again" },
     cheatTitle: { vi: "🎯 Cheat sheet ngày phỏng vấn", en: "🎯 Interview-day cheat sheet" },
     cheatSub: { vi: "Những câu nói \"ăn điểm\" — đọc lướt 5 phút trước khi vào phỏng vấn.", en: "Soundbites to skim 5 minutes before you walk in." },
+    cheat: { vi: "Cheat sheet", en: "Cheat sheet" },
   });
 
   /* ============================================================
@@ -238,6 +239,33 @@
     </div>`;
   }
 
+  function renderCheatsheet() {
+    const L = State.lang;
+    const trackOnly = State.track ? uiGet("cheatTrackOnly", true) : false;
+    const groups = collectCheats(trackOnly);
+    const totalN = groups.reduce((n, g) => n + g.items.length, 0);
+    const open = uiGet("cheatOpen", {});
+    const rows = groups.map(g => `
+      <div class="cheat-group ${open[g.id] ? "open" : ""}" data-cheat-group="${g.id}">
+        <button class="cg-head" data-cheat-toggle="${g.id}">
+          <span class="cg-ic">${fa(g.icon)}</span><span class="cg-title">${t(g.title)}</span>
+          <span class="cg-count">${g.items.length}</span><span class="cg-chev">${fa("fa-solid fa-chevron-down")}</span>
+        </button>
+        <div class="cg-body">${g.items.map(b => `<div class="cheat-text">"${t(b)}"</div>`).join("")}</div>
+      </div>`).join("");
+    return `<div class="fade-in cheat-page">
+      <div class="page-head"><h1>🎯 ${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</h1>
+        <div class="blurb">${totalN} ${L === "vi" ? "câu \"ăn điểm\" — đọc lướt trước khi vào phỏng vấn." : "soundbites — skim before you walk in."}</div></div>
+      <div class="cheat-bar">
+        ${State.track ? `<label class="cheat-filter"><input type="checkbox" id="cheatTrackOnly" ${trackOnly ? "checked" : ""}> ${L === "vi" ? "Chỉ lộ trình của tôi" : "My track only"}</label>` : ""}
+        <span class="spacer"></span>
+        <button class="btn subtle" id="cheatExpandAll">${L === "vi" ? "Mở tất cả" : "Expand all"}</button>
+        <button class="btn subtle" id="cheatCollapseAll">${L === "vi" ? "Gập tất cả" : "Collapse all"}</button>
+      </div>
+      ${rows || `<div class="empty-hint">${L === "vi" ? "Chưa có câu nào." : "Nothing here yet."}</div>`}
+    </div>`;
+  }
+
   function renderSettings() {
     const L = State.lang;
     const u = IP.auth ? IP.auth.getUser() : null;
@@ -285,6 +313,23 @@
   }
 
   /* ============================================================
+     CHEAT SHEET — collect soundbite callouts across topics
+     ============================================================ */
+  function collectCheats(trackOnly) {
+    const ids = (trackOnly && State.track) ? IP.tracks.resolveItems(currentTrack(), PREP.order) : PREP.order;
+    const groups = [];
+    ids.forEach(id => {
+      const tp = PREP.topics[id]; if (!tp) return;
+      const items = [];
+      (tp.sections || []).forEach(s => (s.blocks || []).forEach(b => {
+        if (b.type === "callout" && b.variant === "soundbite") items.push(b);
+      }));
+      if (items.length) groups.push({ id, title: tp.title, icon: catIcon(tp), items });
+    });
+    return groups;
+  }
+
+  /* ============================================================
      RENDER: home dashboard
      ============================================================ */
   function renderHome() {
@@ -305,16 +350,6 @@
         <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
       </div>`;
     }).join("");
-
-    // cheat sheet = collect soundbites
-    const cheats = [];
-    PREP.order.forEach(id => {
-      const tp = PREP.topics[id];
-      (tp.sections || []).forEach(s => (s.blocks || []).forEach(b => {
-        if (b.type === "callout" && b.variant === "soundbite") cheats.push({ topic: tp.title, text: b });
-      }));
-    });
-    const cheatHtml = cheats.map(c => `<div class="cheat"><div class="cheat-topic">${t(c.topic)}</div><div class="cheat-text">"${t(c.text)}"</div></div>`).join("");
 
     const L = State.lang;
     let continueHtml = "";
@@ -353,8 +388,12 @@
       <div class="section-title">${L === "vi" ? "Chủ đề" : "Topics"}</div>
       <div class="home-grid">${cards}</div>
 
-      ${cheats.length ? `<div class="section-title">${t(UI.cheatTitle)}</div>
-        <p style="color:var(--muted);font-size:14px;margin-bottom:10px">${t(UI.cheatSub)}</p>${cheatHtml}` : ""}
+      <div class="cheat-cta" data-go-cheat="1">
+        <span class="cc-ic">🎯</span>
+        <span class="cc-txt"><b>${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</b>
+        <span class="cc-sub">${collectCheats(false).reduce((n,g)=>n+g.items.length,0)} ${L === "vi" ? "câu ăn điểm" : "soundbites"}</span></span>
+        <span class="cc-arrow">${fa("fa-solid fa-arrow-right")}</span>
+      </div>
     </div>`;
   }
 
@@ -589,6 +628,7 @@
     else if (State.mode === "quiz") main.innerHTML = renderQuiz();
     else if (State.mode === "saved") main.innerHTML = renderSaved();
     else if (State.mode === "settings") main.innerHTML = renderSettings();
+    else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
     // sync mode buttons
@@ -712,6 +752,9 @@
         } else if (action === "bookmarks") {
           State.mode = "saved"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
+        } else if (action === "cheat") {
+          State.mode = "cheat"; State.topic = null;
+          pMenu.hidden = true; render(); toTop(); saveView();
         } else if (action === "settings") {
           State.mode = "settings"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
@@ -759,6 +802,16 @@
         LS.set("progress", State.progress); render(); return;
       }
       if (e.target.id === "bookmarkBtn") { IP.bookmarks.toggleStored(State.topic); render(); return; }
+      if (e.target.closest("[data-cheat-toggle]")) {
+        const id = e.target.closest("[data-cheat-toggle]").dataset.cheatToggle;
+        const open = uiGet("cheatOpen", {}); open[id] = !open[id]; uiSet("cheatOpen", open); render(); return;
+      }
+      if (e.target.closest("#cheatExpandAll") || e.target.closest("#cheatCollapseAll")) {
+        const all = {}; if (e.target.closest("#cheatExpandAll")) collectCheats(false).forEach(g => all[g.id] = true);
+        uiSet("cheatOpen", all); render(); return;
+      }
+      if (e.target.id === "cheatTrackOnly") { uiSet("cheatTrackOnly", e.target.checked); render(); return; }
+      if (e.target.closest("[data-go-cheat]")) { State.mode = "cheat"; State.topic = null; render(); toTop(); saveView(); return; }
       if (e.target.id === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
       if (e.target.id === "goQuiz") { setMode("quiz"); buildQuiz(State.topic); render(); return; }
 
@@ -884,6 +937,7 @@
     }
     setI("changeTrack", UI.changeTrack);
     setI("saved", UI.saved);
+    setI("cheat", UI.cheat);
     setI("settings", UI.settings);
     setI("signIn", UI.signIn);
     setI("signOut", UI.signOut);
@@ -932,6 +986,7 @@
       if (_v.mode === "cards") { State.mode = "cards"; buildCardQueue(); }
       else if (_v.mode === "quiz") { State.mode = "quiz"; Quiz.topic = null; }
       else if (_v.mode === "saved") { State.mode = "saved"; }
+      else if (_v.mode === "cheat") { State.mode = "cheat"; }
       else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
     }
 
