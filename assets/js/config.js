@@ -5,4 +5,5 @@
 window.IP_CONFIG = {
   SUPABASE_URL: "https://tbihofgqjrwfgjtfjyrg.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_VRbWfTmVWD8WmQ51tRaPHw_GpqMpXvF",
+  ADMIN_UIDS: [],  // public UI-gating; real enforcement is the Edge Function secret
 };
