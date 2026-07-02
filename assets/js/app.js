@@ -116,8 +116,6 @@
     retry: { vi: "Làm lại", en: "Retry" },
     noCards: { vi: "Tuyệt vời! Không còn thẻ nào cần ôn lúc này.", en: "All done! No cards due right now." },
     studyAgain: { vi: "Ôn lại tất cả", en: "Study all again" },
-    cheatTitle: { vi: "🎯 Cheat sheet ngày phỏng vấn", en: "🎯 Interview-day cheat sheet" },
-    cheatSub: { vi: "Những câu nói \"ăn điểm\" — đọc lướt 5 phút trước khi vào phỏng vấn.", en: "Soundbites to skim 5 minutes before you walk in." },
     cheat: { vi: "Cheat sheet", en: "Cheat sheet" },
   });
 
@@ -822,10 +820,12 @@
       if (e.target.closest(".code-copy")) {
         const btn = e.target.closest(".code-copy");
         const code = btn.closest(".code-wrap")?.querySelector("code")?.innerText || "";
-        navigator.clipboard.writeText(code).then(() => {
-          btn.innerHTML = fa("fa-solid fa-check");
-          setTimeout(() => { btn.innerHTML = fa("fa-regular fa-copy"); }, 1500);
-        });
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(code).then(() => {
+            btn.innerHTML = fa("fa-solid fa-check");
+            setTimeout(() => { btn.innerHTML = fa("fa-regular fa-copy"); }, 1500);
+          }).catch(() => {});
+        }
         return;
       }
 
