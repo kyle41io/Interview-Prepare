@@ -29,5 +29,5 @@ PREP.levels = {
   { id: "ai-engineer", role: "ai-engineer", level: "",
     title: { vi: "AI Engineer", en: "AI Engineer" },
     blurb: { vi: "Nền tảng AI thực chiến: Python, ML và Deep Learning/NLP — sẽ mở rộng thêm.", en: "Practical AI foundations: Python, ML and Deep Learning/NLP — more coming." },
-    items: ["python-ai", "ml-foundations", "dl-nlp", "system-design", "behavioral"] },
+    items: ["python-ai", "ml-foundations", "dl-nlp", "llms", "system-design", "behavioral"] },
 ].forEach((trk) => PREP.registerTrack(trk));
