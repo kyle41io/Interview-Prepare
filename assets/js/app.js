@@ -20,6 +20,7 @@
     { id: "data", icon: "💾", vi: "Dữ liệu", en: "Data" },
     { id: "frontend", icon: "🎨", vi: "Frontend", en: "Frontend" },
     { id: "backend", icon: "⚙️", vi: "Backend", en: "Backend" },
+    { id: "ai", icon: "🤖", vi: "AI & Data", en: "AI & Data" },
     { id: "devops", icon: "☁️", vi: "DevOps & Cloud", en: "DevOps & Cloud" },
     { id: "project", icon: "💼", vi: "Dự án của tôi", en: "My Project" },
     { id: "behavioral", icon: "🗣️", vi: "Phỏng vấn hành vi", en: "Behavioral" },
@@ -51,6 +52,7 @@
     api: "fa-solid fa-plug", data: "fa-solid fa-database",
     frontend: "fa-solid fa-palette", backend: "fa-solid fa-gears",
     devops: "fa-solid fa-cloud", project: "fa-solid fa-briefcase",
+    ai: "fa-solid fa-robot",
     behavioral: "fa-solid fa-comments",
     // roles
     swe: "fa-solid fa-code", "ai-engineer": "fa-solid fa-robot",
