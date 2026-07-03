@@ -49,14 +49,21 @@ Chi tiết từng bước: `docs/superpowers/DEPLOY-PHASE-C.md`
 
 ---
 
-## 4. Phase E — Gmail Intelligence (chưa code)
+## 4. Phase E — Gmail Intelligence (code XONG, chờ deploy)
 
-| Cần | Ghi chú | Nơi đặt |
-|-----|---------|---------|
-| **GOOGLE_CLIENT_ID** / **GOOGLE_CLIENT_SECRET** | dùng lại OAuth client của Phase B | Edge secret |
-| Bật scope `gmail.readonly` trong Google Console (Testing mode) | + thêm email test users | Google Cloud Console |
-| Bật `pg_cron` + `pg_net` extension | để quét mail định kỳ | Supabase Dashboard → Database → Extensions |
-| Deploy `gmail-scan`, `gmail-connect`, `gmail-status` | | `supabase functions deploy ...` |
+Chi tiết từng bước: `docs/superpowers/DEPLOY-PHASE-E.md`
+
+- [ ] SQL Editor: chạy `supabase/migrations/0004_gmail.sql`
+- [ ] Google Console: bật Gmail API + thêm scope `gmail.readonly` (consent screen Testing) + thêm test users
+- [ ] `supabase secrets set GOOGLE_CLIENT_ID=<...> GOOGLE_CLIENT_SECRET=<...> CRON_SECRET=<random>`
+- [ ] `supabase functions deploy gmail-connect gmail-status gmail-scan`
+- [ ] SQL Editor: chạy `supabase/seed/cron_gmail.sql` (thay PROJECT_REF=`tbihofgqjrwfgjtfjyrg` + CRON_SECRET) — quét 15'/lần
+- [ ] Test: Kết nối Gmail → mail mời PV → chuông + lịch nhắc + xuất .ics
+
+| Cần | Ghi chú | Nơi đặt | Giá trị |
+|-----|---------|---------|----|
+| **GOOGLE_CLIENT_ID** / **SECRET** | dùng lại OAuth client Phase B | Edge secret | `________` |
+| **CRON_SECRET** | chuỗi ngẫu nhiên (`openssl rand -hex 24`) — gate cho gmail-scan | Edge secret + trong cron_gmail.sql | `________` |
 
 ---
 
