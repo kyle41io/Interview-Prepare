@@ -117,6 +117,14 @@
     noCards: { vi: "Tuyệt vời! Không còn thẻ nào cần ôn lúc này.", en: "All done! No cards due right now." },
     studyAgain: { vi: "Ôn lại tất cả", en: "Study all again" },
     cheat: { vi: "Cheat sheet", en: "Cheat sheet" },
+    upgrade: { vi: "Nâng cấp Pro", en: "Upgrade to Pro" },
+    proActiveUntil: { vi: "Pro của bạn có hiệu lực đến", en: "Your Pro is active until" },
+    payStep1: { vi: "Quét QR & chuyển khoản đúng nội dung", en: "Scan the QR & transfer with the exact note" },
+    iPaid: { vi: "Tôi đã chuyển khoản", en: "I have transferred" },
+    waitingApproval: { vi: "Đang chờ duyệt (thường trong vài giờ)", en: "Awaiting approval (usually within hours)" },
+    payRejected: { vi: "Bị từ chối", en: "Rejected" },
+    signInFirst: { vi: "Đăng nhập để nâng cấp Pro", en: "Sign in to upgrade" },
+    copy: { vi: "Sao chép", en: "Copy" },
   });
 
   /* ============================================================
@@ -308,6 +316,102 @@
         </div>
         ${delItem}
       </div>
+    </div>`;
+  }
+
+  /* ---------- Pro upgrade (VietQR) ---------- */
+  const Upgrade = { reqs: null, ent: null, loading: false };
+  async function loadUpgradeData() {
+    const u = IP.auth ? IP.auth.getUser() : null;
+    const c = IP.auth ? IP.auth.client() : null;
+    if (u && c) {
+      try {
+        const { data, error } = await c.from("payment_requests").select("*").order("created_at", { ascending: false });
+        Upgrade.reqs = error ? [] : (data || []);
+      } catch (e) { Upgrade.reqs = []; }
+      try {
+        const { data, error } = await c.from("entitlements").select("*").maybeSingle();
+        Upgrade.ent = error ? null : (data || null);
+      } catch (e) { Upgrade.ent = null; }
+    } else {
+      Upgrade.reqs = null;
+      Upgrade.ent = null;
+    }
+    await IP.pro.refresh();
+    render();
+  }
+
+  function renderUpgrade() {
+    const L = State.lang;
+    const u = IP.auth ? IP.auth.getUser() : null;
+    const head = `<div class="page-head"><h1>${fa(ICON.pro)} ${t(UI.upgrade)}</h1></div>`;
+
+    const history = (Upgrade.reqs && Upgrade.reqs.length)
+      ? `<table class="tbl">
+           <thead><tr><th>${L === "vi" ? "Mã" : "Code"}</th><th>${L === "vi" ? "Ngày" : "Date"}</th><th>${L === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
+           <tbody>${Upgrade.reqs.map(r => `<tr><td>${esc(r.code)}</td><td>${new Date(r.created_at).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US")}</td><td><span class="status-pill ${r.status}">${r.status}</span></td></tr>`).join("")}</tbody>
+         </table>`
+      : "";
+
+    if (!u) {
+      return `<div class="fade-in upgrade-page">${head}
+        <div class="empty-hint">${t(UI.signInFirst)}</div>
+        <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${t(UI.signIn)}</button>
+      </div>`;
+    }
+
+    if (IP.pro.isPro()) {
+      const ent = Upgrade.ent;
+      const until = ent && ent.expires_at ? new Date(ent.expires_at).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US") : "";
+      return `<div class="fade-in upgrade-page">${head}
+        <div class="qr-card">
+          <div>${fa(ICON.pro)} <b>${t(UI.proActiveUntil)}${until ? ": " + until : ""}</b></div>
+        </div>
+        ${history}
+      </div>`;
+    }
+
+    const pending = (Upgrade.reqs || []).find(r => r.status === "pending");
+    const submitted = (Upgrade.reqs || []).find(r => r.status === "submitted");
+
+    if (pending) {
+      return `<div class="fade-in upgrade-page">${head}
+        <div class="qr-card">
+          <div class="blurb">${t(UI.payStep1)}</div>
+          <img src="${IP.pro.vietqrUrl(pending.amount, pending.code)}" alt="VietQR" onerror="this.hidden=true;document.getElementById('qrFallback').hidden=false">
+          <table class="tbl" id="qrFallback" hidden>
+            <tbody>
+              <tr><td>${L === "vi" ? "Ngân hàng" : "Bank"}</td><td>Techcombank</td></tr>
+              <tr><td>${L === "vi" ? "Số tài khoản" : "Account number"}</td><td>19036335023019 <button class="btn subtle" data-copy="19036335023019">${t(UI.copy)}</button></td></tr>
+              <tr><td>${L === "vi" ? "Số tiền" : "Amount"}</td><td>49.000đ</td></tr>
+              <tr><td>${L === "vi" ? "Nội dung" : "Note"}</td><td>${esc(pending.code)} <button class="btn subtle" data-copy="${esc(pending.code)}">${t(UI.copy)}</button></td></tr>
+            </tbody>
+          </table>
+          <div class="pay-row"><span>${L === "vi" ? "Mã" : "Code"}</span><span>${esc(pending.code)} <button class="btn subtle" data-copy="${esc(pending.code)}">${t(UI.copy)}</button></span></div>
+          <button class="btn lg" id="iPaidBtn">${t(UI.iPaid)}</button>
+        </div>
+        ${history}
+      </div>`;
+    }
+
+    if (submitted) {
+      return `<div class="fade-in upgrade-page">${head}
+        <div class="qr-card">
+          <div class="empty-hint">${t(UI.waitingApproval)}</div>
+        </div>
+        ${history}
+      </div>`;
+    }
+
+    return `<div class="fade-in upgrade-page">${head}
+      <div class="blurb">${L === "vi"
+        ? "Mở khoá nội dung chuyên sâu cho từng chủ đề (sắp tới: chat AI)."
+        : "Unlock in-depth sections for every topic (coming soon: AI chat)."}</div>
+      <div class="qr-card">
+        <div><b>${IP.pro.PRICE_VND.toLocaleString(L === "vi" ? "vi-VN" : "en-US")}đ / ${IP.pro.PLAN_DAYS} ${L === "vi" ? "ngày" : "days"}</b></div>
+        <button class="btn lg" id="startUpgradeBtn">${t(UI.upgrade)}</button>
+      </div>
+      ${history}
     </div>`;
   }
 
@@ -645,6 +749,7 @@
     else if (State.mode === "saved") main.innerHTML = renderSaved();
     else if (State.mode === "settings") main.innerHTML = renderSettings();
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
+    else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
     // sync mode buttons
@@ -786,6 +891,10 @@
         } else if (action === "cheat") {
           State.mode = "cheat"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
+        } else if (action === "upgrade") {
+          State.mode = "upgrade"; State.topic = null;
+          pMenu.hidden = true; render(); toTop(); saveView();
+          loadUpgradeData();
         } else if (action === "settings") {
           State.mode = "settings"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
@@ -875,6 +984,32 @@
         return;
       }
 
+      // pro upgrade page actions
+      if (e.target.closest("#startUpgradeBtn")) {
+        (async () => {
+          const c = IP.auth.client(); const u = IP.auth.getUser();
+          if (!c || !u) return;
+          const code = IP.pro.genProCode();
+          await c.from("payment_requests").insert({ user_id: u.id, code, amount: IP.pro.PRICE_VND, plan: "pro-month", status: "pending" });
+          await loadUpgradeData();
+        })();
+        return;
+      }
+      if (e.target.closest("#iPaidBtn")) {
+        (async () => {
+          const c = IP.auth.client(); const req = (Upgrade.reqs || []).find(r => r.status === "pending");
+          if (!c || !req) return;
+          await c.from("payment_requests").update({ status: "submitted" }).eq("id", req.id);
+          await loadUpgradeData();
+        })();
+        return;
+      }
+      if (e.target.closest("[data-copy]")) {
+        const v = e.target.closest("[data-copy]").dataset.copy;
+        if (navigator.clipboard) navigator.clipboard.writeText(v).catch(() => {});
+        return;
+      }
+
       // flashcards
       if (e.target.closest("#flashcard") || e.target.id === "flipBtn") {
         if (!Cards.flipped) { Cards.flipped = true; render(); } return;
@@ -959,6 +1094,7 @@
     if (pBtn) {
       if (on && md.avatar_url) pBtn.innerHTML = '<img class="pfp" src="' + md.avatar_url + '" alt="" referrerpolicy="no-referrer">';
       else pBtn.innerHTML = '<i class="' + ICON.profile + '"></i>';
+      pBtn.classList.toggle("pro", on && IP.pro.isPro());
     }
     if (on && acctRow) {
       const nameEl = document.getElementById("acctName");
@@ -988,6 +1124,7 @@
     setI("changeTrack", UI.changeTrack);
     setI("saved", UI.saved);
     setI("cheat", UI.cheat);
+    setI("upgrade", UI.upgrade);
     setI("settings", UI.settings);
     setI("signIn", UI.signIn);
     setI("signOut", UI.signOut);
@@ -1024,7 +1161,7 @@
     let _wasAuthed = false;
     IP.auth.onChange(function (user) {
       updateAuthUI(user);
-      if (user) { _wasAuthed = true; IP.sync.onLogin(); }
+      if (user) { _wasAuthed = true; IP.sync.onLogin(); IP.pro.init().then(() => updateAuthUI(user)); }
       else if (_wasAuthed) { _wasAuthed = false; IP.store.clearAll(); location.reload(); }
     });
     IP.auth.init();
@@ -1037,6 +1174,7 @@
       else if (_v.mode === "quiz") { State.mode = "quiz"; Quiz.topic = null; }
       else if (_v.mode === "saved") { State.mode = "saved"; }
       else if (_v.mode === "cheat") { State.mode = "cheat"; }
+      else if (_v.mode === "upgrade") { State.mode = "upgrade"; loadUpgradeData(); }
       else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
     }
 
