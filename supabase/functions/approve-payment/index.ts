@@ -17,19 +17,26 @@ function extendExpiry(nowMs: number, currentIso: string | null, days: number): s
 }
 
 async function applyApproval(admin: ReturnType<typeof createClient>, paymentId: string) {
-  const { data: pay, error } = await admin.from("payment_requests").select("*").eq("id", paymentId).single();
-  if (error || !pay) return { error: "payment not found" };
-  if (pay.status === "approved") return { ok: true }; // idempotent
-  const { data: ent } = await admin.from("entitlements").select("expires_at").eq("user_id", pay.user_id).maybeSingle();
+  // Atomically claim the request: only a pending/submitted row flips to approved.
+  // Conditional update + row check makes concurrent double-approve safe — the
+  // second caller claims nothing and never re-grants the entitlement.
+  const { data: claimed, error: ce } = await admin.from("payment_requests")
+    .update({ status: "approved", decided_at: new Date().toISOString() })
+    .eq("id", paymentId).in("status", ["pending", "submitted"])
+    .select("user_id").maybeSingle();
+  if (ce) return { error: ce.message };
+  if (!claimed) {
+    const { data: existing } = await admin.from("payment_requests").select("status").eq("id", paymentId).maybeSingle();
+    if (existing?.status === "approved") return { ok: true }; // idempotent: already granted
+    return { error: "payment not found or not claimable" };
+  }
+  const { data: ent } = await admin.from("entitlements").select("expires_at").eq("user_id", claimed.user_id).maybeSingle();
   const expires = extendExpiry(Date.now(), ent?.expires_at ?? null, 30);
   const { error: e1 } = await admin.from("entitlements").upsert({
-    user_id: pay.user_id, tier: "pro", status: "active",
+    user_id: claimed.user_id, tier: "pro", status: "active",
     expires_at: expires, source: "manual", updated_at: new Date().toISOString(),
   });
   if (e1) return { error: e1.message };
-  const { error: e2 } = await admin.from("payment_requests")
-    .update({ status: "approved", decided_at: new Date().toISOString() }).eq("id", paymentId);
-  if (e2) return { error: e2.message };
   return { ok: true, expires_at: expires };
 }
 
