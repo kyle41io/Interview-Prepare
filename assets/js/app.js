@@ -125,6 +125,11 @@
     payRejected: { vi: "Bị từ chối", en: "Rejected" },
     signInFirst: { vi: "Đăng nhập để nâng cấp Pro", en: "Sign in to upgrade" },
     copy: { vi: "Sao chép", en: "Copy" },
+    admin: { vi: "Quản trị", en: "Admin" },
+    approve: { vi: "Duyệt", en: "Approve" },
+    reject: { vi: "Từ chối", en: "Reject" },
+    noRequests: { vi: "Không có yêu cầu nào đang chờ.", en: "No pending requests." },
+    notAuthorized: { vi: "Bạn không có quyền truy cập.", en: "Not authorized." },
   });
 
   /* ============================================================
@@ -413,6 +418,58 @@
       </div>
       ${history}
     </div>`;
+  }
+
+  /* ---------- Admin approval page ---------- */
+  const Admin = { reqs: null, loading: false, error: null };
+  async function loadAdminData() {
+    const c = IP.auth ? IP.auth.client() : null;
+    if (!c) return;
+    Admin.loading = true;
+    try {
+      const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "list" } });
+      Admin.reqs = (data && data.requests) || [];
+      Admin.error = error ? (error.message || "error") : ((data && data.error) || null);
+    } catch (e) {
+      Admin.reqs = Admin.reqs || [];
+      Admin.error = (e && e.message) || "error";
+    }
+    Admin.loading = false;
+    render();
+  }
+
+  function renderAdmin() {
+    const L = State.lang;
+    const u = IP.auth ? IP.auth.getUser() : null;
+    if (!IP.pro.isAdmin(u && u.id, (window.IP_CONFIG || {}).ADMIN_UIDS)) {
+      return `<div class="fade-in"><div class="empty-hint">${t(UI.notAuthorized)}</div></div>`;
+    }
+    const head = `<div class="page-head"><h1>${fa("fa-solid fa-user-shield")} ${t(UI.admin)}</h1></div>`;
+    const errHtml = Admin.error ? `<div class="empty-hint">${esc(Admin.error)}</div>` : "";
+    const reqs = Admin.reqs || [];
+    const rows = reqs.map(r => {
+      const who = esc((r.profiles && (r.profiles.email || r.profiles.display_name)) || r.user_id);
+      const amount = (r.amount || 0).toLocaleString("vi-VN") + "đ";
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US") : "";
+      const actions = r.status === "submitted"
+        ? `<button class="btn green" data-approve="${r.id}">${t(UI.approve)}</button> <button class="btn danger-btn" data-reject="${r.id}">${t(UI.reject)}</button>`
+        : "";
+      return `<tr>
+        <td>${who}</td>
+        <td>${esc(r.code)}</td>
+        <td>${amount}</td>
+        <td>${date}</td>
+        <td><span class="status-pill ${r.status}">${r.status}</span></td>
+        <td>${actions}</td>
+      </tr>`;
+    }).join("");
+    const table = reqs.length
+      ? `<table class="tbl admin-table">
+           <thead><tr><th>${L === "vi" ? "Người dùng" : "User"}</th><th>${L === "vi" ? "Mã" : "Code"}</th><th>${L === "vi" ? "Số tiền" : "Amount"}</th><th>${L === "vi" ? "Ngày" : "Date"}</th><th>${L === "vi" ? "Trạng thái" : "Status"}</th><th></th></tr></thead>
+           <tbody>${rows}</tbody>
+         </table>`
+      : `<div class="empty-hint">${t(UI.noRequests)}</div>`;
+    return `<div class="fade-in">${head}${errHtml}${table}</div>`;
   }
 
   /* ---------- Track helpers (Step 1) ---------- */
@@ -750,6 +807,7 @@
     else if (State.mode === "settings") main.innerHTML = renderSettings();
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
+    else if (State.mode === "admin") main.innerHTML = renderAdmin();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
     // sync mode buttons
@@ -895,6 +953,10 @@
           State.mode = "upgrade"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
           loadUpgradeData();
+        } else if (action === "admin") {
+          State.mode = "admin"; State.topic = null;
+          pMenu.hidden = true; render(); toTop(); saveView();
+          loadAdminData();
         } else if (action === "settings") {
           State.mode = "settings"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
@@ -1010,6 +1072,32 @@
         return;
       }
 
+      // admin approval actions
+      if (e.target.closest("[data-approve]")) {
+        const id = e.target.closest("[data-approve]").dataset.approve;
+        if (!confirm(t(UI.approve) + "?")) return;
+        (async () => {
+          const c = IP.auth.client();
+          if (!c) return;
+          const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "approve", payment_id: id } });
+          if (error || (data && data.error)) alert((error && error.message) || (data && data.error) || "error");
+          await loadAdminData();
+        })();
+        return;
+      }
+      if (e.target.closest("[data-reject]")) {
+        const id = e.target.closest("[data-reject]").dataset.reject;
+        if (!confirm(t(UI.reject) + "?")) return;
+        (async () => {
+          const c = IP.auth.client();
+          if (!c) return;
+          const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "reject", payment_id: id } });
+          if (error || (data && data.error)) alert((error && error.message) || (data && data.error) || "error");
+          await loadAdminData();
+        })();
+        return;
+      }
+
       // flashcards
       if (e.target.closest("#flashcard") || e.target.id === "flipBtn") {
         if (!Cards.flipped) { Cards.flipped = true; render(); } return;
@@ -1105,6 +1193,8 @@
         else { av.style.display = "none"; }
       }
     }
+    const ma = document.getElementById("menuAdmin");
+    if (ma) ma.hidden = !(user && IP.pro.isAdmin(user.id, (window.IP_CONFIG || {}).ADMIN_UIDS));
     // Keep an open settings page in sync with auth state.
     if (State.mode === "settings") render();
   }
@@ -1125,6 +1215,7 @@
     setI("saved", UI.saved);
     setI("cheat", UI.cheat);
     setI("upgrade", UI.upgrade);
+    setI("admin", UI.admin);
     setI("settings", UI.settings);
     setI("signIn", UI.signIn);
     setI("signOut", UI.signOut);
@@ -1175,6 +1266,7 @@
       else if (_v.mode === "saved") { State.mode = "saved"; }
       else if (_v.mode === "cheat") { State.mode = "cheat"; }
       else if (_v.mode === "upgrade") { State.mode = "upgrade"; loadUpgradeData(); }
+      else if (_v.mode === "admin") { State.mode = "admin"; loadAdminData(); }
       else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
     }
 
