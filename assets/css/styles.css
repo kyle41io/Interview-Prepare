@@ -632,3 +632,43 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
    Toast
    ============================================================ */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel3);border:1px solid var(--line2);color:var(--txt);padding:10px 16px;border-radius:10px;z-index:100;box-shadow:var(--shadow);font-size:13.5px}
+
+/* ============================================================
+   Notification bell + dropdown
+   ============================================================ */
+#bellBtn{position:relative}
+.bell-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:99px;display:grid;place-items:center;padding:0 4px}
+.notif-menu{position:absolute;top:52px;right:120px;width:340px;max-height:70vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:6px}
+.notif-menu[hidden]{display:none}
+.notif-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-weight:700;font-size:13px}
+.link-btn{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:0}
+.link-btn:hover{text-decoration:underline}
+.notif-item{display:flex;gap:10px;padding:10px;border-radius:8px;cursor:pointer}
+.notif-item:hover{background:var(--panel2)}
+.notif-item.unread{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.ni-ic{font-size:16px;line-height:1}
+.ni-title{font-size:13.5px;font-weight:600}
+.ni-sub{font-size:12px;color:var(--muted)}
+
+/* ============================================================
+   Reminders page
+   ============================================================ */
+.reminders-page{max-width:720px}
+.rem-day{margin-bottom:18px}
+.rem-day-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);padding:6px 2px}
+.rem-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;flex-wrap:wrap}
+.rem-kind{font-size:18px;line-height:1;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:var(--panel2);flex-shrink:0}
+.rem-kind.interview{background:color-mix(in srgb,var(--accent) 20%,transparent)}
+.rem-kind.test{background:color-mix(in srgb,var(--yellow) 20%,transparent)}
+.rem-body{flex:1;min-width:160px}
+.rem-title{font-size:14px;font-weight:600}
+.rem-sub{font-size:12.5px;color:var(--muted)}
+.rem-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ============================================================
+   Gmail settings block
+   ============================================================ */
+.settings-block{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0}
+.sb-head h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.gmail-connected-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.gmail-meta{font-size:12.5px;color:var(--muted)}
