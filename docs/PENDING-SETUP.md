@@ -12,7 +12,7 @@
 | **Access Token** (cho `supabase login` / CLI deploy) | supabase.com → Account → Access Tokens → Generate | Máy bạn / đưa tôi tạm khi deploy | `________` |
 | **SERVICE_ROLE_KEY** | Dashboard → Project Settings → API → `service_role` secret | Edge Function secret (KHÔNG vào repo) | `________` |
 | **Project ref** | Dashboard URL `https://<ref>.supabase.co` | (đã có: `tbihofgqjrwfgjtfjyrg`) | ✅ tbihofgqjrwfgjtfjyrg |
-| **UUID tài khoản của bạn** (để làm admin) | Dashboard → Authentication → Users → copy `id` | Edge secret `ADMIN_UIDS` + `assets/js/config.js` (public) | `________` |
+| **UUID tài khoản của bạn** (để làm admin) | Dashboard → Authentication → Users → copy `id` | Edge secret `ADMIN_UIDS` + `assets/js/config.js` (public) | ✅ `2c2cc2cf-9ced-4642-bdda-dcf7182b3f3a` (đã thêm vào config.js; vẫn cần set làm secret `ADMIN_UIDS`) |
 
 ---
 
