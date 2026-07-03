@@ -203,7 +203,7 @@
     }).join("");
 
     const tocItems = (topic.sections || []).map((s, i) =>
-      `<a class="toc-item" data-toc="${i}">${i + 1}. ${t(s.title)}</a>`).join("");
+      `<a class="toc-item" data-toc="${i}">${i + 1}. ${t(s.title).replace(/^\s*\d+\.\s*/, "")}</a>`).join("");
     const toc = (topic.sections || []).length >= 4
       ? `<nav class="topic-toc" id="topicToc"><div class="toc-label">${State.lang === "vi" ? "TRONG BÀI NÀY" : "ON THIS PAGE"}</div>${tocItems}</nav>` : "";
 
