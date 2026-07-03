@@ -549,11 +549,11 @@ html[data-theme="light"] .profile-menu{
 .cheat-cta .cc-arrow{color:var(--accent)}
 
 /* Topic layout + TOC */
-.topic-layout{display:flex;gap:28px;align-items:flex-start}
+.topic-layout{display:flex;gap:22px;align-items:flex-start}
 .topic-main{flex:1;min-width:0}
-.topic-toc{position:sticky;top:calc(var(--topbar-h) + 24px);width:220px;flex-shrink:0;max-height:calc(100vh - var(--topbar-h) - 48px);overflow-y:auto;padding-left:14px;border-left:1px solid var(--line)}
+.topic-toc{position:sticky;top:calc(var(--topbar-h) + 24px);width:172px;flex-shrink:0;max-height:calc(100vh - var(--topbar-h) - 48px);overflow-y:auto;padding-left:14px;border-left:1px solid var(--line)}
 .toc-label{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted2);margin-bottom:8px}
-.toc-item{display:block;font-size:12.5px;color:var(--muted);padding:4px 0;cursor:pointer;line-height:1.45;border-left:2px solid transparent;margin-left:-15px;padding-left:13px}
+.toc-item{display:block;font-size:12px;color:var(--muted);padding:4px 0;cursor:pointer;line-height:1.4;border-left:2px solid transparent;margin-left:-15px;padding-left:13px}
 .toc-item:hover{color:var(--txt)}
 .toc-item.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
 @media(max-width:1279px){.topic-toc{display:none}}
