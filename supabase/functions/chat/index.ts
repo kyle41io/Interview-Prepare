@@ -36,20 +36,21 @@ Deno.serve(async (req) => {
     const isPro = !!ent && ent.status === "active" && ent.expires_at && Date.parse(ent.expires_at) > Date.now();
     const limit = isPro ? 50 : 3;
 
-    // atomic quota bump
-    const day = new Date().toISOString().slice(0, 10);
-    const { data: newCount, error: qe } = await admin.rpc("bump_chat_usage", { p_user: uid, p_day: day, p_limit: limit });
-    if (qe) return json({ error: "quota-check-failed" }, 500);
-    if (newCount === -1) return json({ error: "quota", remaining: 0 }, 429);
-    const remaining = Math.max(0, limit - (newCount as number));
-
-    // messages (server-side clamp)
+    // messages (server-side clamp) — validated BEFORE the quota bump so a
+    // malformed/empty request never consumes the user's daily allowance.
     const body = await req.json().catch(() => ({}));
     const raw = Array.isArray(body.messages) ? body.messages : [];
     const messages = raw.slice(-MAX_TURNS)
       .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
       .map((m: any) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
     if (!messages.length || messages[messages.length - 1].role !== "user") return json({ error: "no-message" }, 400);
+
+    // atomic quota bump (only after we know there's a real message to answer)
+    const day = new Date().toISOString().slice(0, 10);
+    const { data: newCount, error: qe } = await admin.rpc("bump_chat_usage", { p_user: uid, p_day: day, p_limit: limit });
+    if (qe) return json({ error: "quota-check-failed" }, 500);
+    if (newCount === -1) return json({ error: "quota", remaining: 0 }, 429);
+    const remaining = Math.max(0, limit - (newCount as number));
 
     const { text } = await aiComplete({ system: SYSTEM, messages, maxTokens: 1024 });
     return json({ text, remaining });
