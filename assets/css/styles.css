@@ -593,3 +593,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .status-pill.approved{background:color-mix(in srgb,var(--green) 20%,transparent);color:var(--green)}
 .status-pill.rejected{background:color-mix(in srgb,var(--red) 20%,transparent);color:var(--red)}
 #profileBtn.pro{border-color:var(--yellow);box-shadow:0 0 0 2px color-mix(in srgb,var(--yellow) 30%,transparent)}
+
+/* ============================================================
+   Admin approval page
+   ============================================================ */
+.admin-table td,.admin-table th{vertical-align:middle}
+.admin-table .btn{padding:5px 12px;font-size:12.5px;margin-right:6px}
+.admin-table .btn.green{color:#fff;border:none}
