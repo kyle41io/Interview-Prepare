@@ -140,6 +140,18 @@
     chatEmpty: { vi: "Trợ lý IT — hỏi về lập trình, thuật toán, phỏng vấn, CV. Chỉ hỗ trợ chủ đề CNTT.", en: "IT assistant — ask about coding, algorithms, interviews, CV. IT topics only." },
     chatError: { vi: "Có lỗi, thử lại.", en: "Something went wrong, try again." },
     chatUnavailable: { vi: "Chat AI chưa được cấu hình.", en: "AI Chat is not configured yet." },
+    reminders: { vi: "Lịch nhắc", en: "Reminders" },
+    notifications: { vi: "Thông báo", en: "Notifications" },
+    noNotifs: { vi: "Chưa có thông báo.", en: "No notifications." },
+    noReminders: { vi: "Chưa có lịch nhắc nào.", en: "No reminders yet." },
+    markAllRead: { vi: "Đánh dấu đã đọc hết", en: "Mark all read" },
+    exportIcs: { vi: "Xuất .ics", en: "Export .ics" },
+    markDone: { vi: "Xong", en: "Done" },
+    dismiss: { vi: "Bỏ qua", en: "Dismiss" },
+    gmailConnect: { vi: "Kết nối Gmail", en: "Connect Gmail" },
+    gmailDisconnect: { vi: "Ngắt kết nối", en: "Disconnect" },
+    gmailConnected: { vi: "Đã kết nối Gmail", en: "Gmail connected" },
+    gmailBlurb: { vi: "Tự động phát hiện email tuyển dụng (bài test, phỏng vấn, offer) và nhắc lịch.", en: "Auto-detect recruiting emails (tests, interviews, offers) and remind you." },
   });
 
   /* ============================================================
@@ -346,9 +358,24 @@
            <button class="btn danger-btn" id="deleteAccountBtn">${t(UI.deleteAccount)}</button>
          </div>`
       : "";
+    const gmailBlock = u ? (() => {
+      if (!GmailSettings.loaded) loadGmailStatus();
+      const st = GmailSettings.status;
+      const connected = !!(st && st.connected);
+      const scanTxt = st && st.last_scan ? new Date(st.last_scan).toLocaleString(L === "vi" ? "vi-VN" : "en-US") : (L === "vi" ? "chưa quét" : "not yet");
+      return `<div class="settings-block gmail-block">
+        <div class="sb-head"><h2>${fa("fa-brands fa-google")} Gmail</h2></div>
+        <div class="di-desc">${t(UI.gmailBlurb)}</div>
+        ${connected
+          ? `<div class="gmail-connected-row"><span class="status-pill approved">${t(UI.gmailConnected)}</span> <span class="gmail-meta">${esc(st.email || "")} · ${L === "vi" ? "quét lần cuối" : "last scan"} ${esc(scanTxt)}</span></div>
+             <button class="btn danger-btn" id="gmailDisconnectBtn">${t(UI.gmailDisconnect)}</button>`
+          : `<button class="btn" id="gmailConnectBtn">${fa("fa-brands fa-google")} ${t(UI.gmailConnect)}</button>`}
+      </div>`;
+    })() : "";
     return `<div class="fade-in settings-page">
       <div class="page-head"><h1>${fa("fa-solid fa-gear")} ${L === "vi" ? "Cài đặt tài khoản" : "Account settings"}</h1></div>
       ${acct}
+      ${gmailBlock}
       <div class="danger-zone">
         <div class="dz-label">${L === "vi" ? "Vùng nguy hiểm" : "Danger zone"}</div>
         <div class="danger-item">
@@ -552,6 +579,75 @@
          </table>`
       : `<div class="empty-hint">${t(UI.noRequests)}</div>`;
     return `<div class="fade-in">${head}${errHtml}${table}</div>`;
+  }
+
+  /* ---------- Notifications (bell) ---------- */
+  async function refreshBell() {
+    if (!(IP.auth && IP.auth.getUser && IP.auth.getUser())) return;
+    const list = await IP.gmail.fetchNotifications();
+    const unread = (list || []).filter((n) => !n.read).length;
+    const badge = document.getElementById("bellBadge");
+    if (badge) { badge.hidden = unread === 0; badge.textContent = unread > 9 ? "9+" : String(unread); }
+    const menu = document.getElementById("notifMenu");
+    if (menu) {
+      menu.innerHTML = `<div class="notif-head">${t(UI.notifications)}<button class="link-btn" id="notifReadAll">${t(UI.markAllRead)}</button></div>` +
+        ((list || []).length
+          ? list.slice(0, 12).map((n) => `<div class="notif-item ${n.read ? "" : "unread"}" data-notif="${n.id}"><span class="ni-ic">${IP.gmail.notifIcon(n.type)}</span><div class="ni-body"><div class="ni-title">${esc(n.title)}</div><div class="ni-sub">${esc(n.body || "")}</div></div></div>`).join("")
+          : `<div class="empty-hint">${t(UI.noNotifs)}</div>`);
+    }
+  }
+
+  /* ---------- Gmail settings ---------- */
+  const GmailSettings = { status: null, loaded: false };
+  async function loadGmailStatus() {
+    GmailSettings.status = await IP.gmail.status();
+    GmailSettings.loaded = true;
+    if (State.mode === "settings") render();
+  }
+
+  /* ---------- Reminders page ---------- */
+  const Reminders = { list: null };
+  async function loadReminders() {
+    Reminders.list = await IP.gmail.fetchReminders();
+    if (State.mode === "reminders") render();
+  }
+  function renderReminders() {
+    const L = State.lang;
+    const head = `<div class="page-head"><h1>${fa("fa-solid fa-calendar-check")} ${t(UI.reminders)}</h1></div>`;
+    const list = Reminders.list || [];
+    let body;
+    if (!list.length) {
+      body = `<div class="empty-hint">${t(UI.noReminders)}</div>`;
+    } else {
+      const groups = {};
+      const order = [];
+      list.forEach((r) => {
+        const when = r.due_at || r.deadline_at;
+        const day = when ? new Date(when).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US") : "—";
+        if (!groups[day]) { groups[day] = []; order.push(day); }
+        groups[day].push(r);
+      });
+      body = order.map((day) => {
+        const items = groups[day].map((r) => {
+          const when = r.due_at || r.deadline_at;
+          const time = when ? new Date(when).toLocaleString(L === "vi" ? "vi-VN" : "en-US") : "";
+          return `<div class="rem-item" data-rem="${r.id}">
+            <span class="rem-kind ${esc(r.kind || "")}">${IP.gmail.notifIcon(r.kind)}</span>
+            <div class="rem-body">
+              <div class="rem-title">${esc(r.title)}</div>
+              <div class="rem-sub">${esc(r.company || "")}${r.company ? " · " : ""}${esc(time)}</div>
+            </div>
+            <div class="rem-actions">
+              <button class="btn" data-ics="${r.id}">${t(UI.exportIcs)}</button>
+              <button class="btn green" data-rem-done="${r.id}">${t(UI.markDone)}</button>
+              <button class="btn danger-btn" data-rem-dismiss="${r.id}">${t(UI.dismiss)}</button>
+            </div>
+          </div>`;
+        }).join("");
+        return `<div class="rem-day"><div class="rem-day-label">${esc(day)}</div>${items}</div>`;
+      }).join("");
+    }
+    return `<div class="fade-in reminders-page">${head}${body}</div>`;
   }
 
   /* ---------- Track helpers (Step 1) ---------- */
@@ -890,6 +986,7 @@
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
+    else if (State.mode === "reminders") main.innerHTML = renderReminders();
     else if (State.mode === "chat") main.innerHTML = renderChat();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
@@ -1019,7 +1116,11 @@
     const pMenu = document.getElementById("profileMenu");
     if (pBtn && pMenu) {
       pBtn.onclick = (e) => { e.stopPropagation(); pMenu.hidden = !pMenu.hidden; };
-      document.addEventListener("click", () => { if (pMenu) pMenu.hidden = true; });
+      document.addEventListener("click", () => {
+        if (pMenu) pMenu.hidden = true;
+        const nMenu = document.getElementById("notifMenu");
+        if (nMenu) nMenu.hidden = true;
+      });
       pMenu.addEventListener("click", (e) => {
         const b = e.target.closest("[data-menu]");
         if (!b) return;
@@ -1034,6 +1135,10 @@
         } else if (action === "cheat") {
           State.mode = "cheat"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
+        } else if (action === "reminders") {
+          State.mode = "reminders"; State.topic = null;
+          pMenu.hidden = true; render(); toTop(); saveView();
+          loadReminders();
         } else if (action === "upgrade") {
           State.mode = "upgrade"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
@@ -1193,6 +1298,60 @@
         return;
       }
 
+      // Gmail settings
+      if (e.target.closest("#gmailConnectBtn")) {
+        IP.gmail.connect();
+        return;
+      }
+      if (e.target.closest("#gmailDisconnectBtn")) {
+        (async () => { await IP.gmail.disconnect(); GmailSettings.loaded = false; await loadGmailStatus(); })();
+        return;
+      }
+
+      // notifications bell
+      if (e.target.closest("#bellBtn")) {
+        e.stopPropagation();
+        const menu = document.getElementById("notifMenu");
+        if (menu) { menu.hidden = !menu.hidden; if (!menu.hidden) refreshBell(); }
+        return;
+      }
+      if (e.target.closest("#notifMenu")) e.stopPropagation();
+      if (e.target.closest("#notifReadAll")) {
+        (async () => { await IP.gmail.markAllRead(); await refreshBell(); })();
+        return;
+      }
+      if (e.target.closest("[data-notif]")) {
+        const id = e.target.closest("[data-notif]").dataset.notif;
+        (async () => { await IP.gmail.markRead(id); await refreshBell(); })();
+        return;
+      }
+
+      // reminders page actions
+      if (e.target.closest("[data-ics]")) {
+        const id = e.target.closest("[data-ics]").dataset.ics;
+        const r = (Reminders.list || []).find((x) => String(x.id) === String(id));
+        if (r && window.Blob && window.URL && document.createElement) {
+          const ics = IP.gmail.buildICS(r);
+          const blob = new Blob([ics], { type: "text/calendar" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = "reminder.ics";
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+        }
+        return;
+      }
+      if (e.target.closest("[data-rem-done]")) {
+        const id = e.target.closest("[data-rem-done]").dataset.remDone;
+        (async () => { await IP.gmail.setReminderStatus(id, "done"); await loadReminders(); })();
+        return;
+      }
+      if (e.target.closest("[data-rem-dismiss]")) {
+        const id = e.target.closest("[data-rem-dismiss]").dataset.remDismiss;
+        (async () => { await IP.gmail.setReminderStatus(id, "dismissed"); await loadReminders(); })();
+        return;
+      }
+
       // flashcards
       if (e.target.closest("#flashcard") || e.target.id === "flipBtn") {
         if (!Cards.flipped) { Cards.flipped = true; render(); } return;
@@ -1292,6 +1451,9 @@
     }
     const ma = document.getElementById("menuAdmin");
     if (ma) ma.hidden = !(user && IP.pro.isAdmin(user.id, (window.IP_CONFIG || {}).ADMIN_UIDS));
+    const bell = document.getElementById("bellBtn");
+    if (bell) bell.hidden = !on;
+    if (on) refreshBell();
     // Keep an open settings page in sync with auth state.
     if (State.mode === "settings") render();
   }
@@ -1311,6 +1473,7 @@
     setI("changeTrack", UI.changeTrack);
     setI("saved", UI.saved);
     setI("cheat", UI.cheat);
+    setI("reminders", UI.reminders);
     setI("upgrade", UI.upgrade);
     setI("admin", UI.admin);
     setI("settings", UI.settings);
@@ -1350,7 +1513,19 @@
     let _wasAuthed = false;
     IP.auth.onChange(function (user) {
       updateAuthUI(user);
-      if (user) { _wasAuthed = true; IP.sync.onLogin(); IP.pro.init().then(() => updateAuthUI(user)); }
+      if (user) {
+        _wasAuthed = true; IP.sync.onLogin(); IP.pro.init().then(() => updateAuthUI(user));
+        refreshBell();
+        IP.gmail.subscribeRealtime((payload) => {
+          refreshBell();
+          const n = payload && payload.new;
+          if (n) {
+            toast(IP.gmail.notifIcon(n.type) + " " + n.title);
+            if (window.Notification && Notification.permission === "granted") new Notification(n.title, { body: n.body || "" });
+          }
+        });
+        if (window.Notification && Notification.permission === "default") Notification.requestPermission();
+      }
       else if (_wasAuthed) { _wasAuthed = false; IP.store.clearAll(); location.reload(); }
     });
     IP.auth.init();
@@ -1365,6 +1540,7 @@
       else if (_v.mode === "cheat") { State.mode = "cheat"; }
       else if (_v.mode === "upgrade") { State.mode = "upgrade"; loadUpgradeData(); }
       else if (_v.mode === "admin") { State.mode = "admin"; loadAdminData(); }
+      else if (_v.mode === "reminders") { State.mode = "reminders"; loadReminders(); }
       else if (_v.mode === "chat") { State.mode = "chat"; }
       else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
     }
