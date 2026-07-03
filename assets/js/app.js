@@ -130,6 +130,16 @@
     reject: { vi: "Từ chối", en: "Reject" },
     noRequests: { vi: "Không có yêu cầu nào đang chờ.", en: "No pending requests." },
     notAuthorized: { vi: "Bạn không có quyền truy cập.", en: "Not authorized." },
+    chatAI: { vi: "Chat AI", en: "AI Chat" },
+    chatPlaceholder: { vi: "Hỏi về lập trình, phỏng vấn, CV…", en: "Ask about coding, interviews, CV…" },
+    chatSend: { vi: "Gửi", en: "Send" },
+    chatSignIn: { vi: "Đăng nhập để dùng Chat AI", en: "Sign in to use AI Chat" },
+    chatQuota: { vi: "Còn lại hôm nay", en: "Left today" },
+    chatQuotaOut: { vi: "Đã hết lượt hôm nay.", en: "Out of messages for today." },
+    chatUpgradeCta: { vi: "Nâng cấp Pro để chat nhiều hơn (50/ngày)", en: "Upgrade to Pro for more (50/day)" },
+    chatEmpty: { vi: "Trợ lý IT — hỏi về lập trình, thuật toán, phỏng vấn, CV. Chỉ hỗ trợ chủ đề CNTT.", en: "IT assistant — ask about coding, algorithms, interviews, CV. IT topics only." },
+    chatError: { vi: "Có lỗi, thử lại.", en: "Something went wrong, try again." },
+    chatUnavailable: { vi: "Chat AI chưa được cấu hình.", en: "AI Chat is not configured yet." },
   });
 
   /* ============================================================
@@ -349,6 +359,52 @@
       </div>
     </div>`;
   }
+
+  /* ---------- Toast ---------- */
+  function toast(msg) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  /* ---------- AI Chat ---------- */
+  const Chat = { sending: false };
+  function renderChat() {
+    if (!(IP.auth && IP.auth.getUser())) {
+      return `<div class="fade-in chat-page">
+        <div class="empty-hint">${t(UI.chatSignIn)}</div>
+        <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${t(UI.signIn)}</button>
+      </div>`;
+    }
+    const msgs = IP.chat.getHistory();
+    const bubbles = msgs.length ? msgs.map(m => `
+      <div class="chat-msg ${m.role}">
+        <div class="chat-bubble">${m.role === "assistant" ? IP.chat.mdLite(m.content) : esc(m.content)}</div>
+      </div>`).join("") : `<div class="chat-empty">${t(UI.chatEmpty)}</div>`;
+    return `<div class="fade-in chat-page">
+      <div class="chat-scroll" id="chatScroll">${bubbles}
+        ${Chat.sending ? `<div class="chat-msg assistant"><div class="chat-bubble typing"><span></span><span></span><span></span></div></div>` : ""}
+      </div>
+      <div class="chat-input-bar">
+        <textarea id="chatInput" rows="1" placeholder="${t(UI.chatPlaceholder)}" ${Chat.sending ? "disabled" : ""}></textarea>
+        <button class="btn" id="chatSendBtn" ${Chat.sending ? "disabled" : ""}>${fa("fa-solid fa-paper-plane")}</button>
+      </div>
+    </div>`;
+  }
+  async function sendChat() {
+    const ta = document.getElementById("chatInput"); if (!ta) return;
+    const text = ta.value.trim(); if (!text || Chat.sending) return;
+    Chat.sending = true; render(); scrollChat();
+    const res = await IP.chat.send(text);
+    Chat.sending = false; render(); scrollChat();
+    if (res.error === "not-signed-in") return;
+    if (res.error === "quota") { toast(t(UI.chatQuotaOut) + (IP.pro.isPro() ? "" : " " + t(UI.chatUpgradeCta))); return; }
+    if (res.error === "ai-unavailable") { toast(t(UI.chatUnavailable)); return; }
+    if (res.error) { toast(t(UI.chatError)); return; }
+  }
+  function scrollChat() { const s = document.getElementById("chatScroll"); if (s) s.scrollTop = s.scrollHeight; }
 
   /* ---------- Pro upgrade (VietQR) ---------- */
   const Upgrade = { reqs: null, ent: null, loading: false };
@@ -834,6 +890,7 @@
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
+    else if (State.mode === "chat") main.innerHTML = renderChat();
     else if (State.topic) main.innerHTML = renderTopic(State.topic);
     else main.innerHTML = renderHome();
     // sync mode buttons
@@ -841,6 +898,7 @@
     renderSidebar();
     setupToc();
     hydrateProSections();
+    if (State.mode === "chat") scrollChat();
     // NOTE: do not force scroll here — render() also runs for in-place updates
     // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
     // only on real navigation (goTopic/goHome/setMode) via toTop().
@@ -1150,6 +1208,7 @@
       if (e.target.id === "quizNext") { nextQuiz(); return; }
       if (e.target.id === "quizRetry") { buildQuiz(Quiz.topic); render(); return; }
       if (e.target.id === "quizBack") { Quiz.topic = null; render(); return; }
+      if (e.target.closest("#chatSendBtn")) { sendChat(); return; }
     });
 
     // flashcard topic select (change)
@@ -1159,6 +1218,7 @@
 
     // keyboard
     document.addEventListener("keydown", e => {
+      if (e.target.id === "chatInput" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); return; }
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") {
         if (e.key === "Escape") e.target.blur();
         return;
@@ -1256,6 +1316,7 @@
     setI("settings", UI.settings);
     setI("signIn", UI.signIn);
     setI("signOut", UI.signOut);
+    setI("chatAI", UI.chatAI);
   }
 
   /* ---------- reloadFromStore ---------- */
@@ -1304,6 +1365,7 @@
       else if (_v.mode === "cheat") { State.mode = "cheat"; }
       else if (_v.mode === "upgrade") { State.mode = "upgrade"; loadUpgradeData(); }
       else if (_v.mode === "admin") { State.mode = "admin"; loadAdminData(); }
+      else if (_v.mode === "chat") { State.mode = "chat"; }
       else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
     }
 
