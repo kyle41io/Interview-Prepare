@@ -76,7 +76,7 @@
 
   /* Stateful: count of unread notifications from the local cache */
   function unreadCount() {
-    return (_notifications || []).filter(function (n) { return !n.read_at; }).length;
+    return (_notifications || []).filter(function (n) { return !n.read; }).length;
   }
 
   /* Stateful: mark a single notification read */
@@ -84,9 +84,9 @@
     var c = _client();
     if (!c) return false;
     try {
-      await c.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+      await c.from("notifications").update({ read: true }).eq("id", id);
       _notifications = (_notifications || []).map(function (n) {
-        return n.id === id ? Object.assign({}, n, { read_at: new Date().toISOString() }) : n;
+        return n.id === id ? Object.assign({}, n, { read: true }) : n;
       });
       return true;
     } catch (e) {
@@ -99,9 +99,9 @@
     var c = _client();
     if (!c) return false;
     try {
-      await c.from("notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
+      await c.from("notifications").update({ read: true }).eq("read", false);
       _notifications = (_notifications || []).map(function (n) {
-        return Object.assign({}, n, { read_at: n.read_at || new Date().toISOString() });
+        return Object.assign({}, n, { read: true });
       });
       return true;
     } catch (e) {
