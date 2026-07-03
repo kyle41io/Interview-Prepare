@@ -65,7 +65,19 @@
     // Hydrate from existing session (e.g. redirect back after OAuth)
     try {
       const { data } = await c.auth.getSession();
-      _notify(data && data.session ? data.session.user : null);
+      const session = data && data.session;
+      _notify(session ? session.user : null);
+      // A Gmail refresh token is only returned right after the consent redirect.
+      // Capture it once and hand it to the server (never kept client-side).
+      if (session && session.provider_refresh_token) {
+        try {
+          await c.functions.invoke("gmail-connect", { body: {
+            action: "store",
+            refresh_token: session.provider_refresh_token,
+            email: session.user && session.user.email,
+          } });
+        } catch (e) { /* server not deployed / offline — ignore */ }
+      }
     } catch (e) { /* network error – stay logged out */ }
   }
 
@@ -75,6 +87,18 @@
     try { await c.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href.split("#")[0] } }); } catch (e) { /* offline / provider misconfig — stay logged out */ }
   }
 
+  /* ---- connectGmail(): OAuth with gmail.readonly + offline (captures refresh token) ---- */
+  async function connectGmail() {
+    const c = client(); if (!c) return;
+    try {
+      await c.auth.signInWithOAuth({ provider: "google", options: {
+        scopes: "https://www.googleapis.com/auth/gmail.readonly",
+        redirectTo: location.href.split("#")[0],
+        queryParams: { access_type: "offline", prompt: "consent" },
+      } });
+    } catch (e) { /* stay disconnected */ }
+  }
+
   /* ---- signOut() ---- */
   async function signOut() {
     const c = client();
@@ -82,5 +106,5 @@
     try { await c.auth.signOut(); } catch (e) { /* ignore */ }
   }
 
-  return { enabled, client, getUser, onChange, init, signInWithGoogle, signOut };
+  return { enabled, client, getUser, onChange, init, signInWithGoogle, connectGmail, signOut };
 });
