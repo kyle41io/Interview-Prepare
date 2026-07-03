@@ -219,6 +219,7 @@
       </div>
       ${counts}
       ${sections}
+      <div id="proSections" data-topic="${id}"></div>
       <div class="learn-bar">
         <button class="btn ${done ? "green" : ""}" id="learnBtn">${done ? t(UI.markedLearned) : t(UI.markLearned)}</button>
         <button class="btn subtle" id="goCards">${fa(ICON.cards)} ${t(UI.cards)}</button>
@@ -230,6 +231,31 @@
       </div>
       ${topicNav}
     </div>${toc}</div>`;
+  }
+
+  async function hydrateProSections() {
+    const host = document.getElementById("proSections");
+    if (!host) return;
+    const topicId = host.dataset.topic;
+    const cat = await IP.pro.catalog(topicId);           // [{position,title}] or []
+    if (document.getElementById("proSections")?.dataset.topic !== topicId) return;
+    if (!cat.length) return;
+    if (IP.pro.isPro()) {
+      const secs = await IP.pro.sections(topicId);
+      if (document.getElementById("proSections")?.dataset.topic !== topicId) return;
+      if (!secs) return;
+      host.innerHTML = secs.map((s, i) => `
+        <div class="section pro-section" data-sec="pro${i}">
+          <div class="section-head"><h2>${t(s.title)} <span class="pro-badge">${fa(ICON.pro)} PRO</span></h2></div>
+          <div class="section-body">${(s.blocks || []).map(renderBlock).join("")}</div>
+        </div>`).join("");
+    } else {
+      host.innerHTML = cat.map(c => `
+        <div class="section pro-locked">
+          <div class="section-head"><h2>${fa("fa-solid fa-lock")} ${t(c.title)} <span class="pro-badge">${fa(ICON.pro)} PRO</span></h2>
+          <button class="btn" data-menu-go="upgrade">${t(UI.upgrade)}</button></div>
+        </div>`).join("");
+    }
   }
 
   function catOf(topic) {
@@ -814,6 +840,7 @@
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
     renderSidebar();
     setupToc();
+    hydrateProSections();
     // NOTE: do not force scroll here — render() also runs for in-place updates
     // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
     // only on real navigation (goTopic/goHome/setMode) via toTop().
@@ -973,6 +1000,16 @@
         const ob = IP.onboarding.handleClick(e.target);
         if (ob === "rerender") { render(); return; }
         if (ob === true) return;
+      }
+
+      if (e.target.closest("[data-menu-go]")) {
+        const m = e.target.closest("[data-menu-go]").dataset.menuGo;
+        if (m === "upgrade") {
+          State.mode = "upgrade"; State.topic = null;
+          render(); toTop(); saveView();
+          if (typeof loadUpgradeData === "function") loadUpgradeData();
+        }
+        return;
       }
 
       const topicEl = e.target.closest("[data-topic]");
