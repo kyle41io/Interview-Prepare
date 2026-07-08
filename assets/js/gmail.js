@@ -42,11 +42,14 @@
       "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Interview Prep//EN", "BEGIN:VEVENT",
       "UID:" + (r.id || (r.source || "rem") + "@interviewprep"),
       "DTSTAMP:" + icsDate(new Date(0).toISOString()),
-      "DTSTART:" + icsDate(when),
+    ];
+    // Only emit DTSTART when we actually have a date (avoid DTSTART:NaN...).
+    if (when) lines.push("DTSTART:" + icsDate(when));
+    lines.push(
       "SUMMARY:" + esc(r.title),
       "DESCRIPTION:" + esc((r.company ? r.company + " — " : "") + (r.kind || "")),
-      "END:VEVENT", "END:VCALENDAR",
-    ];
+      "END:VEVENT", "END:VCALENDAR"
+    );
     return lines.join("\r\n");
   }
 

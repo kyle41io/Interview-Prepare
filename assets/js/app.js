@@ -1511,20 +1511,27 @@
     IP.sync.start();
     updateAuthUI(IP.auth.getUser());
     let _wasAuthed = false;
+    let _notifSubbed = false;
     IP.auth.onChange(function (user) {
       updateAuthUI(user);
       if (user) {
         _wasAuthed = true; IP.sync.onLogin(); IP.pro.init().then(() => updateAuthUI(user));
         refreshBell();
-        IP.gmail.subscribeRealtime((payload) => {
-          refreshBell();
-          const n = payload && payload.new;
-          if (n) {
-            toast(IP.gmail.notifIcon(n.type) + " " + n.title);
-            if (window.Notification && Notification.permission === "granted") new Notification(n.title, { body: n.body || "" });
-          }
-        });
-        if (window.Notification && Notification.permission === "default") Notification.requestPermission();
+        // onChange fires on every auth event (INITIAL_SESSION, SIGNED_IN,
+        // hourly TOKEN_REFRESHED). Subscribe + prompt only once per session,
+        // else channels stack and one notification fires N toasts.
+        if (!_notifSubbed) {
+          _notifSubbed = true;
+          IP.gmail.subscribeRealtime((payload) => {
+            refreshBell();
+            const n = payload && payload.new;
+            if (n) {
+              toast(IP.gmail.notifIcon(n.type) + " " + n.title);
+              if (window.Notification && Notification.permission === "granted") new Notification(n.title, { body: n.body || "" });
+            }
+          });
+          if (window.Notification && Notification.permission === "default") Notification.requestPermission();
+        }
       }
       else if (_wasAuthed) { _wasAuthed = false; IP.store.clearAll(); location.reload(); }
     });
