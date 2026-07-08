@@ -21,18 +21,14 @@ Giá trị cần có sẵn (lấy từ Dashboard → Project Settings → API):
 4. `supabase/migrations/0004_gmail.sql` — Gmail (accounts, notifications, reminders) + realtime
 5. `supabase/seed/pro_content_seed.sql` — 4 section Pro mẫu
 
-## 2. Secrets — một lệnh (thay <...> bằng giá trị thật)
+## 2. Secrets — điền `.env` rồi nạp một phát
 ```bash
-supabase secrets set \
-  SERVICE_ROLE_KEY=<service_role key> \
-  ADMIN_UIDS=2c2cc2cf-9ced-4642-bdda-dcf7182b3f3a \
-  AI_PROVIDER=anthropic \
-  ANTHROPIC_API_KEY=<anthropic key>          # HOẶC: AI_PROVIDER=openai OPENAI_API_KEY=<...> \
-  GOOGLE_CLIENT_ID=743270219955-apnj1bi0640t00r98289q46fhb4fk473.apps.googleusercontent.com \
-  GOOGLE_CLIENT_SECRET=<google client secret> \
-  CRON_SECRET=$(openssl rand -hex 24)        # LƯU LẠI giá trị này cho bước 4
+cp .env.example .env          # rồi mở .env điền giá trị thật (file này đã gitignore)
+supabase secrets set --env-file ./.env
 ```
+`.env` cần điền: `SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (hoặc đổi sang OpenAI), `GOOGLE_CLIENT_SECRET`, `CRON_SECRET` (chạy `openssl rand -hex 24` — **lưu lại** cho bước 4). `ADMIN_UIDS` + `GOOGLE_CLIENT_ID` đã điền sẵn trong template.
 > Chỉ cần **một** AI key (Anthropic *hoặc* OpenAI). Chat mặc định `claude-haiku-4-5` (rẻ).
+> ⚠️ `.env` KHÔNG được commit (đã trong `.gitignore`). Muốn test function local: `supabase functions serve --env-file ./.env`.
 
 ## 3. Deploy tất cả Edge Functions
 ```bash

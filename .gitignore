@@ -3,3 +3,9 @@ node_modules/
 *.log
 .playwright-mcp/
 .superpowers/
+
+# Secrets — NEVER commit. Copy .env.example → .env and fill it in locally.
+.env
+.env.*
+!.env.example
+supabase/functions/.env
