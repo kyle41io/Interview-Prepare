@@ -686,6 +686,35 @@
   /* ============================================================
      RENDER: home dashboard
      ============================================================ */
+  function renderLanding() {
+    const L = State.lang;
+    const feats = L === "vi" ? [
+      ["fa-solid fa-route", "Lộ trình theo vai trò", "SWE (Fresher→Senior), DevOps, AI Engineer — học có hệ thống."],
+      ["fa-regular fa-clone", "Thẻ ghi nhớ & Trắc nghiệm", "Ôn nhanh bằng flashcard spaced-repetition và quiz."],
+      ["fa-solid fa-comments", "Trợ lý AI", "Hỏi đáp về lập trình, phỏng vấn, CV — song ngữ Việt/Anh."],
+      ["fa-solid fa-bell", "Nhắc lịch tuyển dụng", "Tự phát hiện email mời phỏng vấn/bài test và nhắc lịch."],
+    ] : [
+      ["fa-solid fa-route", "Role-based tracks", "SWE (Fresher→Senior), DevOps, AI Engineer — structured prep."],
+      ["fa-regular fa-clone", "Flashcards & Quizzes", "Review fast with spaced-repetition cards and quizzes."],
+      ["fa-solid fa-comments", "AI assistant", "Ask about coding, interviews, CV — bilingual VI/EN."],
+      ["fa-solid fa-bell", "Recruiting reminders", "Auto-detect interview/test emails and remind you."],
+    ];
+    return `<div class="fade-in landing">
+      <div class="landing-hero">
+        <div class="landing-logo">${fa("fa-solid fa-bullseye")}</div>
+        <h1>${L === "vi" ? "Ôn thi phỏng vấn IT, bài bản & song ngữ" : "Ace your IT interviews — structured & bilingual"}</h1>
+        <p>${L === "vi"
+          ? "Interview Prep giúp bạn ôn kiến thức phỏng vấn theo lộ trình, luyện flashcard/quiz, hỏi trợ lý AI và không bỏ lỡ lịch tuyển dụng."
+          : "Interview Prep helps you study by track, drill flashcards & quizzes, ask an AI assistant, and never miss a recruiting deadline."}</p>
+        <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${fa("fa-brands fa-google")} ${L === "vi" ? "Đăng nhập với Google để bắt đầu" : "Sign in with Google to start"}</button>
+        <div class="landing-note">${L === "vi" ? "Miễn phí. Đăng nhập để lưu tiến độ và đồng bộ nhiều thiết bị." : "Free. Sign in to save progress and sync across devices."}</div>
+      </div>
+      <div class="landing-feats">
+        ${feats.map(f => `<div class="landing-feat"><div class="lf-ic">${fa(f[0])}</div><div><b>${f[1]}</b><span>${f[2]}</span></div></div>`).join("")}
+      </div>
+    </div>`;
+  }
+
   function renderHome() {
     const total = PREP.order.length;
     const learned = PREP.order.filter(id => State.progress[id]).length;
@@ -973,6 +1002,14 @@
 
   function render() {
     const main = document.getElementById("content");
+    // Logged-out gate: when a backend is configured but nobody is signed in,
+    // show only a small intro landing — no track picker, no learning UI.
+    if (IP.auth.enabled() && !IP.auth.getUser()) {
+      main.innerHTML = renderLanding();
+      document.getElementById("sidebar").innerHTML = "";
+      window.scrollTo(0, 0);
+      return;
+    }
     if (IP.onboarding.shouldShow()) {
       main.innerHTML = IP.onboarding.render({ t, fa, ICON });
       document.getElementById("sidebar").innerHTML = "";
@@ -1454,8 +1491,15 @@
     const bell = document.getElementById("bellBtn");
     if (bell) bell.hidden = !on;
     if (on) refreshBell();
-    // Keep an open settings page in sync with auth state.
-    if (State.mode === "settings") render();
+    // Logged-out: hide the profile button, learning tabs, search + hint bar —
+    // only the Sign in button (+ theme/lang) remain. Show them when signed in.
+    const gated = IP.auth.enabled() && !on;
+    if (pBtn) pBtn.hidden = gated;
+    const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
+    const searchBox = document.querySelector(".search-box"); if (searchBox) searchBox.hidden = gated;
+    const kbdHelp = document.querySelector(".kbd-help"); if (kbdHelp) kbdHelp.hidden = gated;
+    // Switch the page between the landing intro and the app whenever auth flips.
+    render();
   }
 
   /* ---------- static UI text (topbar) ---------- */
