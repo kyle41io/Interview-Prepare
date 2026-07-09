@@ -1002,6 +1002,10 @@
 
   function render() {
     const main = document.getElementById("content");
+    // Hamburger toggles the topic sidebar, which only exists in Learn mode.
+    // Hide it on the landing, during onboarding, and in cards/quiz/chat/etc.
+    const _mb = document.getElementById("menuBtn");
+    if (_mb) _mb.hidden = (IP.auth.enabled() && !IP.auth.getUser()) || IP.onboarding.shouldShow() || State.mode !== "learn";
     // Logged-out gate: when a backend is configured but nobody is signed in,
     // show only a small intro landing — no track picker, no learning UI.
     if (IP.auth.enabled() && !IP.auth.getUser()) {
