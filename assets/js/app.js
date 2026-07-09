@@ -364,12 +364,12 @@
       const connected = !!(st && st.connected);
       const scanTxt = st && st.last_scan ? new Date(st.last_scan).toLocaleString(L === "vi" ? "vi-VN" : "en-US") : (L === "vi" ? "chưa quét" : "not yet");
       return `<div class="settings-block gmail-block">
-        <div class="sb-head"><h2>${fa("fa-brands fa-google")} Gmail</h2></div>
+        <div class="sb-head"><h2>${fa("fa-solid fa-envelope")} Gmail</h2></div>
         <div class="di-desc">${t(UI.gmailBlurb)}</div>
         ${connected
           ? `<div class="gmail-connected-row"><span class="status-pill approved">${t(UI.gmailConnected)}</span> <span class="gmail-meta">${esc(st.email || "")} · ${L === "vi" ? "quét lần cuối" : "last scan"} ${esc(scanTxt)}</span></div>
              <button class="btn danger-btn" id="gmailDisconnectBtn">${t(UI.gmailDisconnect)}</button>`
-          : `<button class="btn" id="gmailConnectBtn">${fa("fa-brands fa-google")} ${t(UI.gmailConnect)}</button>`}
+          : `<button class="btn" id="gmailConnectBtn">${fa("fa-solid fa-envelope")} ${t(UI.gmailConnect)}</button>`}
       </div>`;
     })() : "";
     return `<div class="fade-in settings-page">
@@ -706,7 +706,7 @@
         <p>${L === "vi"
           ? "Interview Prep giúp bạn ôn kiến thức phỏng vấn theo lộ trình, luyện flashcard/quiz, hỏi trợ lý AI và không bỏ lỡ lịch tuyển dụng."
           : "Interview Prep helps you study by track, drill flashcards & quizzes, ask an AI assistant, and never miss a recruiting deadline."}</p>
-        <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${fa("fa-brands fa-google")} ${L === "vi" ? "Đăng nhập với Google để bắt đầu" : "Sign in with Google to start"}</button>
+        <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${fa("fa-solid fa-right-to-bracket")} ${L === "vi" ? "Đăng nhập với Google để bắt đầu" : "Sign in with Google to start"}</button>
         <div class="landing-note">${L === "vi" ? "Miễn phí. Đăng nhập để lưu tiến độ và đồng bộ nhiều thiết bị." : "Free. Sign in to save progress and sync across devices."}</div>
       </div>
       <div class="landing-feats">
