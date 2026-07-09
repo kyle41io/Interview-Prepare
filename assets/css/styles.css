@@ -571,10 +571,15 @@ html[data-theme="light"] .profile-menu{
 .toc-item{display:block;font-size:12.5px;color:var(--muted);padding:5px 0;cursor:pointer;line-height:1.45;border-left:2px solid transparent;padding-left:11px}
 .toc-item:hover{color:var(--txt)}
 .toc-item.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
-/* Reserve the right rail via margin-right on the flex content item so its box
-   shrinks and text never slides under the fixed rail. Only when a TOC exists. */
-@media(min-width:1240px){ .content:has(.topic-toc){ margin-right:264px } }
-/* Below that there isn't room for the rail beside the content column — hide it. */
+/* Topic pages with a TOC: let content FILL the space between the left sidebar
+   and the fixed right rail (drop the 1100 cap, reserve the rail via margin-right).
+   The sb-collapsed variant is more specific so it beats the centering rule. */
+@media(min-width:1240px){
+  .content:has(.topic-toc){ max-width:none; margin-right:264px }
+  html.sb-collapsed .content:has(.topic-toc){ margin-left:0; margin-right:264px; max-width:none }
+}
+/* Below that there isn't room for the rail beside the content column — hide it
+   and let content behave normally (no reserved gutter). */
 @media(max-width:1239px){ .topic-toc{display:none} }
 /* Code copy */
 .code-wrap{position:relative}
@@ -602,7 +607,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* ============================================================
    Pro upgrade page (VietQR)
    ============================================================ */
-.upgrade-page{max-width:640px}
+.upgrade-page{max-width:560px;margin:40px auto 0;text-align:center}
+.upgrade-page .page-head{text-align:center}
+.upgrade-page .page-head h1{justify-content:center}
+.upgrade-page .btn{margin:0 auto}
 .qr-card{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}
 .qr-card img{width:min(300px,80vw);border-radius:10px}
 .pay-row{display:flex;justify-content:space-between;gap:10px;width:100%;font-size:13.5px;padding:7px 0;border-bottom:1px dashed var(--line)}
