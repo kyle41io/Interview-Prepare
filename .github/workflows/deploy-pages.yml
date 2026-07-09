@@ -16,11 +16,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # Split build (uploads the artifact once) from deploy so that re-running the
+  # deploy job never creates a second "github-pages" artifact.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,6 +29,14 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "."
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
