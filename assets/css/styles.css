@@ -709,3 +709,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .landing-feat b{display:block;font-size:14px;margin-bottom:3px}
 .landing-feat span{color:var(--muted);font-size:13px;line-height:1.5}
 @media(max-width:640px){.landing-feats{grid-template-columns:1fr}}
+
+/* Logged-out landing: no sidebar, content spans the full viewport (centered). */
+body.logged-out .sidebar{display:none}
+body.logged-out .content{margin-left:0;max-width:none}

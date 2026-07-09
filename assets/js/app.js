@@ -1494,6 +1494,9 @@
     // Logged-out: hide the profile button, learning tabs, search + hint bar —
     // only the Sign in button (+ theme/lang) remain. Show them when signed in.
     const gated = IP.auth.enabled() && !on;
+    // Logged-out landing: drop the empty sidebar column + its reserved gutter
+    // so the intro centers on the full viewport.
+    document.body.classList.toggle("logged-out", gated);
     if (pBtn) pBtn.hidden = gated;
     const menuBtn = document.getElementById("menuBtn"); if (menuBtn) menuBtn.hidden = gated;
     const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
