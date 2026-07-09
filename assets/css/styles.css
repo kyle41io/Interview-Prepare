@@ -556,20 +556,22 @@ html[data-theme="light"] .profile-menu{
    viewport's right edge, independent of the content column. */
 .topic-layout{display:block}
 .topic-main{min-width:0}
+/* Right rail: a full-height fixed column flush to the viewport's right edge,
+   mirroring the left sidebar (fixed, edge-anchored, own border). */
 .topic-toc{
-  position:fixed;top:calc(var(--topbar-h) + 28px);right:24px;width:244px;z-index:30;
-  max-height:calc(100vh - var(--topbar-h) - 56px);overflow-y:auto;
-  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
-  box-shadow:var(--shadow);
+  position:fixed;top:var(--topbar-h);right:0;bottom:0;width:264px;z-index:30;
+  overflow-y:auto;padding:24px 20px 40px;
+  border-left:1px solid var(--line);
+  background:color-mix(in srgb, var(--bg) 80%, transparent);
 }
-.toc-label{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted2);margin-bottom:10px}
+.toc-label{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted2);margin-bottom:12px}
 .toc-item{display:block;font-size:12.5px;color:var(--muted);padding:5px 0;cursor:pointer;line-height:1.45;border-left:2px solid transparent;padding-left:11px}
 .toc-item:hover{color:var(--txt)}
 .toc-item.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
-/* Reserve a right rail on topic pages so the fixed TOC never overlaps text.
-   Only when a TOC is actually rendered (topics with ≥4 sections). */
-@media(min-width:1240px){ .content:has(.topic-toc){ padding-right:292px } }
-/* Below that the rail can't fit beside the content column — hide it. */
+/* Reserve the right rail via margin-right on the flex content item so its box
+   shrinks and text never slides under the fixed rail. Only when a TOC exists. */
+@media(min-width:1240px){ .content:has(.topic-toc){ margin-right:264px } }
+/* Below that there isn't room for the rail beside the content column — hide it. */
 @media(max-width:1239px){ .topic-toc{display:none} }
 /* Code copy */
 .code-wrap{position:relative}
