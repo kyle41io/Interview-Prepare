@@ -340,8 +340,11 @@ pre.code code{color:var(--txt);white-space:pre}
 .kbd-help{position:fixed;bottom:16px;right:18px;font-size:11px;color:var(--muted2);background:var(--panel);
   border:1px solid var(--line);padding:6px 12px;border-radius:8px;z-index:30}
 .kbd-help kbd{border:1px solid var(--line2);border-radius:4px;padding:0 5px;background:var(--bg);color:var(--muted)}
-.fade-in{animation:fadeIn .35s ease both}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* opacity-only: a `transform` here would create a containing block that traps
+   position:fixed descendants (e.g. .topic-toc), pinning them to .content
+   instead of the viewport. Keep it transform-free. */
+.fade-in{animation:fadeIn .3s ease both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .overlay{display:none;position:fixed;inset:0;background:#0008;z-index:39}
 .overlay.show{display:block}
 
