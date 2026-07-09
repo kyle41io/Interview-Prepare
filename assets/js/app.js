@@ -1495,6 +1495,7 @@
     // only the Sign in button (+ theme/lang) remain. Show them when signed in.
     const gated = IP.auth.enabled() && !on;
     if (pBtn) pBtn.hidden = gated;
+    const menuBtn = document.getElementById("menuBtn"); if (menuBtn) menuBtn.hidden = gated;
     const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
     const searchBox = document.querySelector(".search-box"); if (searchBox) searchBox.hidden = gated;
     const kbdHelp = document.querySelector(".kbd-help"); if (kbdHelp) kbdHelp.hidden = gated;
