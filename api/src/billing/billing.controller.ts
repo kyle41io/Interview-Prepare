@@ -14,6 +14,8 @@ export class BillingController {
   create(@CurrentUser() u: AuthUser, @Body() b: CreatePaymentDto) { return this.svc.createPayment(u.id, b.plan); }
   @Post("payment/:code/submit")
   submit(@CurrentUser() u: AuthUser, @Param("code") code: string) { return this.svc.submitPayment(u.id, code); }
+  @Get("payment/current")
+  current(@CurrentUser() u: AuthUser) { return this.svc.getCurrentPayment(u.id); }
 
   @Get("admin/payments")
   @UseGuards(JwtAuthGuard, AdminGuard)
