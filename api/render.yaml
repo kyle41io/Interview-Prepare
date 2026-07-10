@@ -3,10 +3,16 @@ services:
     name: interview-prep-api
     runtime: node
     rootDir: api
-    buildCommand: npm install && npx prisma generate --schema src/prisma/schema.prisma && npm run build
+    buildCommand: npm install && npm run build
     startCommand: node dist/main.js
     envVars:
-      - key: DATABASE_URL
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: DDB_TABLE
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
