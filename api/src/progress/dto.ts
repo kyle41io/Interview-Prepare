@@ -31,8 +31,3 @@ export class SettingsDto {
   @IsOptional() @IsString() track_role?: string;
   @IsOptional() @IsString() track_level?: string;
 }
-
-// Accepts a Snapshot-shaped body for /sync; validated loosely (structure enforced by mergeSnapshot).
-export class SyncDto {
-  [k: string]: any;
-}

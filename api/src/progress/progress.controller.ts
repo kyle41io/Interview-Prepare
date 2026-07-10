@@ -2,7 +2,8 @@ import { Body, Controller, Get, Param, Post, Put, UseGuards } from "@nestjs/comm
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
 import { ProgressService } from "./progress.service";
-import { TopicDto, FlashcardDto, QuizDto, BookmarkDto, StreakDto, SettingsDto, SyncDto } from "./dto";
+import { TopicDto, FlashcardDto, QuizDto, BookmarkDto, StreakDto, SettingsDto } from "./dto";
+import { Snapshot } from "./merge";
 
 @UseGuards(JwtAuthGuard)
 @Controller("v1/progress")
@@ -15,7 +16,11 @@ export class ProgressController {
   }
 
   @Post("sync")
-  sync(@CurrentUser() u: AuthUser, @Body() b: SyncDto) {
+  // Typed as the Snapshot interface (erases to `Object`), so the global
+  // whitelisting ValidationPipe passes the full body through untouched. A
+  // decorated DTO here would be stripped to {} (no per-field validators), so
+  // do NOT switch this to a class DTO. mergeSnapshot() normalizes partial input.
+  sync(@CurrentUser() u: AuthUser, @Body() b: Snapshot) {
     return this.svc.sync(u.id, b as any);
   }
 
