@@ -57,7 +57,7 @@ CORS: cho phép origin GitHub Pages (`https://kyle41io.github.io`) + `http://loc
 
 ## 7. Frontend đổi (giữ no-build, vanilla JS)
 - Thêm `assets/js/api.js` (`IP.api`): base URL từ `IP_CONFIG.API_URL` (public, trong config.js); `IP.api.get/post/put(path, body)` tự đính `Authorization: Bearer <token>` lấy từ `IP.auth.client().auth.getSession()`. Lỗi mạng → reject; caller degrade (app vẫn chạy local nếu API/backend chưa cấu hình — `API_URL` rỗng ⇒ dùng local-only như cũ).
-- **`IP.sync`**: thay pull/push Supabase bằng `IP.api` (`GET /v1/progress` khi login → apply; các thay đổi cục bộ → gọi endpoint tương ứng, debounce). Giữ hàm `merge` thuần (đã có + test) nhưng merge chính giờ ở server; client merge chỉ cho lần sync đầu.
+- **`IP.sync`**: khi `IP.api.configured()` → route `pull`/`push` qua `IP.api` (`GET /v1/progress` khi login; push debounce qua `POST /v1/progress/sync`, server merge). Khi API_URL rỗng → GIỮ NGUYÊN pull/push Supabase cũ (không regression cho user đang dùng trước khi API deploy). Vì shape store (frontend) và Snapshot API khác nhau, thêm **adapter thuần** `toApiSnapshot`/`fromApiSnapshot` (anti-corruption layer, có test round-trip): `progress↔topics`, `cards.due↔due_at`, `streak{count,lastActiveDate,dailyGoal}↔{current,longest,last_day}` (dailyGoal chỉ ở client, longest chỉ ở API), `lang/theme/track{role,level}↔settings{...,track_role,track_level}`. Giữ hàm `merge` thuần (đã có + test).
 - Các module `IP.store/bookmarks/streak` giữ localStorage làm cache tức thời (UX offline-first), nhưng nguồn chân lý là server; đồng bộ qua `IP.api`.
 - **KHÔNG đổi** `IP.pro/chat/gmail` ở F1 (vẫn gọi Supabase Edge Functions).
 - `config.js` thêm `API_URL: ""` (điền URL Render khi deploy; rỗng = local-only, không phá site khi chưa deploy).

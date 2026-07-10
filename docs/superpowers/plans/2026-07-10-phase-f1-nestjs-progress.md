@@ -595,14 +595,58 @@ test("rejects when not configured", async () => {
 
 ## Task 7: Refactor `IP.sync` to use the API (fallback local)
 
-**Files:** Modify `assets/js/sync.js`; keep/adjust its tests.
-**Interfaces:** Consumes `IP.api`. When `IP.api.configured()`: `pull()` = `GET /v1/progress` → apply via existing applyCallback; `push`/change handlers → call the matching `IP.api` endpoint (debounced); first login with empty server + local data → `POST /v1/progress/sync` once. When NOT configured: behave exactly as today (local-only; no network). Keep the pure `merge` function + its tests (server now authoritative, but merge still used for the one-time sync payload/back-compat).
+**Files:** Modify `assets/js/sync.js`; add cases to `tests/sync.test.js` (or its existing merge test file).
+**Interfaces:** Consumes `IP.api` (`configured()`, `get`, `post`). Produces two pure exported adapters (anti-corruption layer) tested in isolation: `toApiSnapshot(local)` and `fromApiSnapshot(api, localForGoal)`. Keeps the existing pure `merge(local, server)` and its tests unchanged.
 
-- [ ] **Step 1:** Read `assets/js/sync.js`; identify `pull`, `push`, `onLogin`, `schedulePush`, `setApplyCallback`. Gate the Supabase-specific data calls behind `if (IP.api && IP.api.configured())` → route to `IP.api`; else fall through to existing behavior (or no-op network). Do NOT remove the pure `merge` export.
-- [ ] **Step 2:** Map state changes to endpoints: topic learned → `PUT /v1/progress/topic/:id {learned}`; flashcard review → `POST /v1/progress/flashcard/:key {...}`; quiz best → `PUT /v1/progress/quiz/:id {pct}`; bookmark → `PUT /v1/progress/bookmark/:id {on}`; streak → `PUT /v1/progress/streak {...}`; settings (lang/theme/track) → `PUT /v1/settings`. Debounce rapid changes (reuse existing schedulePush timer; batch not required for F1 — per-change PUT is fine at this scale).
-- [ ] **Step 3: `onLogin`** → `await IP.api.get("/v1/progress")`; if server snapshot is empty AND local has data → `IP.api.post("/v1/progress/sync", localSnapshot)` then apply merged; else apply server snapshot.
-- [ ] **Step 4: Verify** — `node --check assets/js/sync.js`; `node --test tests/` (merge tests + api tests green, 63). Manual: `API_URL` empty → app works local-only (no network errors); set `API_URL` to a running local API + logged in → changes hit endpoints (verify in API logs / DB). (Full end-to-end needs the deployed API — covered in Task 8 checklist.)
-- [ ] **Step 5: Commit** — `git add assets/js/sync.js tests/ && git commit -m "refactor(web): IP.sync uses API for progress (local-only fallback)"`
+> **DESIGN NOTE (shape mismatch — resolved here).** The frontend store snapshot and the API's normalized `Snapshot` are DIFFERENT shapes; they must be translated by an adapter, not passed through. Do NOT change either shape — add the adapter.
+> | frontend (store.snapshot) | API Snapshot (`/v1/progress`) |
+> |---|---|
+> | `progress: {[id]: bool}` | `topics: {[id]: true}` (only truthy) |
+> | `cards: {[k]: {interval, ease, reps, due}}` (`due` = number) | `cards: {[k]: {due_at, interval, ease, reps}}` (`due`↔`due_at`) |
+> | `quizBest: {[id]: pct}` | `quizBest: {[id]: pct}` (1:1) |
+> | `bookmarks: [id]` | `bookmarks: [id]` (1:1) |
+> | `streak: {count, lastActiveDate, dailyGoal}` | `streak: {current, longest, last_day} \| null` |
+> | `lang`, `theme`, `track:{role,level}` (top-level) | `settings: {lang, theme, track_role, track_level}` |
+> Asymmetric fields: `dailyGoal` is FRONTEND-ONLY (preserve from local on the way back; never sent/lost); `longest` is API-ONLY (derive `max(server longest, count)` on push; dropped on pull). `due`(number)↔`due_at` (keep the number, just rename the field).
+
+- [ ] **Step 1: adapters (pure, exported, TDD).** Add to `sync.js`:
+```js
+function toApiSnapshot(s) {
+  s = s || {};
+  const topics = {};
+  Object.keys(s.progress || {}).forEach((id) => { if (s.progress[id]) topics[id] = true; });
+  const cards = {};
+  Object.keys(s.cards || {}).forEach((k) => { const c = s.cards[k] || {};
+    cards[k] = { due_at: (c.due != null ? c.due : null), interval: Number(c.interval) || 0, ease: Number(c.ease) || 2.5, reps: Number(c.reps) || 0 }; });
+  const tr = s.track || {};
+  const streak = s.streak
+    ? { current: Number(s.streak.count) || 0, longest: Math.max(Number(s.streak.longest) || 0, Number(s.streak.count) || 0), last_day: s.streak.lastActiveDate || null }
+    : null;
+  return { topics, cards, quizBest: Object.assign({}, s.quizBest || {}), bookmarks: (s.bookmarks || []).slice(),
+    streak, settings: { lang: s.lang, theme: s.theme, track_role: tr.role, track_level: tr.level } };
+}
+function fromApiSnapshot(a, localForGoal) {
+  a = a || {};
+  const progress = {};
+  Object.keys(a.topics || {}).forEach((id) => { progress[id] = true; });
+  const cards = {};
+  Object.keys(a.cards || {}).forEach((k) => { const c = a.cards[k] || {};
+    cards[k] = { interval: Number(c.interval) || 0, ease: Number(c.ease) || 2.5, reps: Number(c.reps) || 0, due: (c.due_at != null ? c.due_at : 0) }; });
+  const set = a.settings || {};
+  const dailyGoal = (localForGoal && localForGoal.streak && localForGoal.streak.dailyGoal) || 1;
+  const track = (set.track_role || set.track_level) ? { role: set.track_role || null, level: set.track_level || null } : null;
+  return { lang: set.lang, theme: set.theme, track, progress, cards,
+    quizBest: Object.assign({}, a.quizBest || {}), bookmarks: (a.bookmarks || []).slice(),
+    streak: a.streak ? { count: Number(a.streak.current) || 0, lastActiveDate: a.streak.last_day || null, dailyGoal } : { count: 0, lastActiveDate: null, dailyGoal },
+    schemaVersion: 1 };
+}
+```
+Write tests FIRST: round-trip `fromApiSnapshot(toApiSnapshot(local))` preserves progress/cards(due↔due_at)/quizBest/bookmarks/streak.count/lang/theme/track and keeps a local `dailyGoal`; empty inputs → all-empty shapes (no throw).
+- [ ] **Step 2: gate `pull()`.** At the top: `if (IP.api && IP.api.configured()) { const apiSnap = await IP.api.get("/v1/progress").catch(() => null); return apiSnap ? fromApiSnapshot(apiSnap, (_store() && _store().snapshot())) : null; }` then the existing Supabase pull remains as the else branch (do NOT delete it — it's the no-regression fallback when `API_URL` is empty).
+- [ ] **Step 3: gate `push(state)`.** At the top: `if (IP.api && IP.api.configured()) { try { await IP.api.post("/v1/progress/sync", toApiSnapshot(state)); _dirty = false; } catch (e) { console.warn("[sync] api push failed", e); _dirty = true; } return; }` then the existing Supabase upsert remains as the else branch. (Routing the debounced push through `/v1/progress/sync` — the server-merge endpoint — is correct and idempotent; server preserves `attempts`/`learned_at` per T4. Granular per-field endpoints exist server-side and can be adopted as a later optimization; not needed for F1.)
+- [ ] **Step 4:** `onLogin`, `schedulePush`, `start`, `setApplyCallback` are UNCHANGED — they call `pull`/`push`, which now branch internally. Confirm `onLogin`'s existing `merge(local, server)` still works (server is now `fromApiSnapshot(...)`), so first-login (empty server + local data) still merges and pushes exactly once. Do NOT remove the pure `merge` export.
+- [ ] **Step 5: Verify** — `node --check assets/js/sync.js`; `node --test tests/` (merge + api + new adapter tests green; ≥72). Assert: adapters round-trip; `API_URL` empty ⇒ `pull`/`push` take the Supabase branch (mock `IP.api.configured→false`, assert no `IP.api.get/post` call); `configured→true` ⇒ `pull` calls `IP.api.get("/v1/progress")` and `push` calls `IP.api.post("/v1/progress/sync", <adapted>)` (mock `IP.api`, assert the adapted body). Manual e2e against a running local API is in the Task 8 checklist.
+- [ ] **Step 6: Commit** — `git add assets/js/sync.js tests/ && git commit -m "refactor(web): IP.sync routes progress through API via snapshot adapter (Supabase fallback when API_URL empty)"`
 
 ## Task 8: Backfill script + deploy guide
 
