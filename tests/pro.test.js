@@ -131,3 +131,23 @@ test("not configured => no IP.api calls (Supabase fallback path)", async () => {
   await pro.init().catch(() => {});
   assert.strictEqual(calls.length, 0);
 });
+
+test("adminListPayments Supabase fallback unwraps {requests} and honors status", async () => {
+  const calls = [];
+  const fakeClient = {
+    functions: {
+      invoke: async (name, opts) => {
+        calls.push([name, opts]);
+        return {
+          data: { requests: [{ code: "A", status: "pending" }, { code: "B", status: "submitted" }] },
+          error: null,
+        };
+      },
+    },
+  };
+  withApi(false, calls, { client: fakeClient });
+  const list = await pro.adminListPayments("submitted");
+  assert.ok(Array.isArray(list));
+  assert.strictEqual(list.length, 1);
+  assert.strictEqual(list[0].code, "B");
+});

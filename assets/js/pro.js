@@ -236,12 +236,14 @@
     return _supabaseSubmit(code);
   }
 
-  async function _supabaseAdminList() {
+  async function _supabaseAdminList(status) {
     const c = _client();
     if (!c) return Promise.reject(new Error("not-signed-in"));
     const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "list" } });
     if (error) throw error;
-    return data;
+    // edge fn responds { requests: [...] } (pending+submitted); unwrap to an array and honor status
+    const list = (data && data.requests) || [];
+    return status ? list.filter(function (r) { return r.status === status; }) : list;
   }
 
   async function adminListPayments(status) {
