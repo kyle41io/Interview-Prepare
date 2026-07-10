@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
 import { BillingService } from "./billing.service";
-import { CreatePaymentDto } from "./dto";
+import { CreatePaymentDto, AdminDecideDto, AdminListQueryDto } from "./dto";
+import { AdminGuard } from "./admin.guard";
 @Controller("v1/billing")
 @UseGuards(JwtAuthGuard)
 export class BillingController {
@@ -13,4 +14,14 @@ export class BillingController {
   create(@CurrentUser() u: AuthUser, @Body() b: CreatePaymentDto) { return this.svc.createPayment(u.id, b.plan); }
   @Post("payment/:code/submit")
   submit(@CurrentUser() u: AuthUser, @Param("code") code: string) { return this.svc.submitPayment(u.id, code); }
+
+  @Get("admin/payments")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  adminList(@Query() q: AdminListQueryDto) { return this.svc.listPayments(q.status); }
+  @Post("admin/payment/approve")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  adminApprove(@Body() b: AdminDecideDto) { return this.svc.approve(b); }
+  @Post("admin/payment/reject")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  adminReject(@Body() b: AdminDecideDto) { return this.svc.reject(b); }
 }

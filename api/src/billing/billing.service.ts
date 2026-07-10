@@ -1,10 +1,10 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { DynamoService } from "../db/dynamo.service";
 import { userPk } from "../db/keys";
 import { ENTITLEMENT_SK, paymentSk, payStatusPk } from "./billing-keys";
-import { toView, Entitlement } from "./entitlement";
+import { toView, Entitlement, extendExpiry } from "./entitlement";
 import { genProCode, buildVietqrUrl } from "./vietqr";
 @Injectable()
 export class BillingService {
@@ -48,5 +48,55 @@ export class BillingService {
       if (e.name === "ConditionalCheckFailedException") throw new BadRequestException("payment not pending");
       throw e;
     }
+  }
+
+  async listPayments(status: string) {
+    const r = await this.dyn.doc.send(new QueryCommand({
+      TableName: this.t(), IndexName: "status-index",
+      KeyConditionExpression: "gsi1pk = :s",
+      ExpressionAttributeValues: { ":s": payStatusPk(status) },
+    }));
+    return (r.Items || []).map((it: any) => ({
+      userId: String(it.pk).replace(/^USER#/, ""), code: it.code, amount: it.amount,
+      status: it.status, created_at: it.created_at, note: it.note ?? null,
+    }));
+  }
+
+  private async claim(userId: string, code: string, next: "approved" | "rejected") {
+    try {
+      await this.dyn.doc.send(new UpdateCommand({
+        TableName: this.t(), Key: { pk: userPk(userId), sk: paymentSk(code) },
+        UpdateExpression: "SET #s = :next, gsi1pk = :gpk, decided_at = :now",
+        ConditionExpression: "#s IN (:pending, :submitted)",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: { ":next": next, ":gpk": payStatusPk(next), ":now": this.now(), ":pending": "pending", ":submitted": "submitted" },
+      }));
+      return "claimed" as const;
+    } catch (e: any) {
+      if (e.name !== "ConditionalCheckFailedException") throw e;
+      const r = await this.dyn.doc.send(new GetCommand({ TableName: this.t(), Key: { pk: userPk(userId), sk: paymentSk(code) } }));
+      const cur = (r.Item as any)?.status;
+      if (cur === next) return "already" as const; // idempotent
+      throw new BadRequestException(cur ? `payment is ${cur}` : "payment not found");
+    }
+  }
+
+  async approve({ userId, code }: { userId: string; code: string }) {
+    const res = await this.claim(userId, code, "approved");
+    if (res === "already") return { ok: true };
+    const days = Number(this.config.get("PLAN_DAYS") || 30);
+    const g = await this.dyn.doc.send(new GetCommand({ TableName: this.t(), Key: { pk: userPk(userId), sk: ENTITLEMENT_SK } }));
+    const cur = (g.Item as Entitlement) || null;
+    const expires_at = extendExpiry(this.now(), cur?.expires_at ?? null, days);
+    await this.dyn.doc.send(new PutCommand({
+      TableName: this.t(),
+      Item: { pk: userPk(userId), sk: ENTITLEMENT_SK, tier: "pro", status: "active", expires_at, source: "manual", updated_at: this.now() },
+    }));
+    return { ok: true, expires_at };
+  }
+
+  async reject({ userId, code }: { userId: string; code: string }) {
+    const res = await this.claim(userId, code, "rejected");
+    return { ok: true, idempotent: res === "already" };
   }
 }
