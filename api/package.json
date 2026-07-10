@@ -10,7 +10,9 @@
     "test": "jest",
     "test:e2e": "jest --config test/jest-e2e.json",
     "backfill": "ts-node scripts/backfill.ts",
-    "create-table": "ts-node scripts/create-table.ts"
+    "backfill-billing": "ts-node scripts/backfill-billing.ts",
+    "create-table": "ts-node scripts/create-table.ts",
+    "create-billing-table": "ts-node scripts/create-billing-table.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

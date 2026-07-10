@@ -8,6 +8,7 @@ export class DynamoService implements OnModuleDestroy {
   private readonly client: DynamoDBClient;
   readonly doc: DynamoDBDocumentClient;
   readonly table: string;
+  readonly billingTable: string;
 
   constructor(config: ConfigService) {
     const region = config.get<string>("AWS_REGION") || "us-east-1";
@@ -15,6 +16,7 @@ export class DynamoService implements OnModuleDestroy {
     const accessKeyId = config.get<string>("AWS_ACCESS_KEY_ID");
     const secretAccessKey = config.get<string>("AWS_SECRET_ACCESS_KEY");
     this.table = config.get<string>("DDB_TABLE") || "ip_progress";
+    this.billingTable = config.get<string>("DDB_BILLING_TABLE") || "ip_billing";
     this.client = new DynamoDBClient({
       region,
       ...(endpoint ? { endpoint } : {}),
