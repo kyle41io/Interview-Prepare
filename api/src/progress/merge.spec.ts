@@ -1,7 +1,7 @@
 import { mergeSnapshot } from "./merge";
 import type { Snapshot } from "./merge";
 
-const empty: Snapshot = { topics: {}, cards: {}, quizBest: {}, bookmarks: [], streak: null, settings: null };
+const empty: Snapshot = { topics: {}, cards: {}, quizBest: {}, bookmarks: [], streak: null, settings: {} };
 
 test("union topics + bookmarks", () => {
   const out = mergeSnapshot(
@@ -60,7 +60,15 @@ test("settings: local overrides server on conflicting keys, server keys retained
   expect(out.settings).toEqual({ lang: "fr", theme: "dark" });
 });
 
-test("settings: both null -> null", () => {
+test("settings: both empty -> {}", () => {
   const out = mergeSnapshot(empty, empty);
-  expect(out.settings).toBeNull();
+  expect(out.settings).toEqual({});
+});
+
+test("flashcard: same due_at (tie) keeps server record's due_at/interval/ease, reps still maxed", () => {
+  const s: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 2, ease: 2.5, reps: 3 } } };
+  const l: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 5, ease: 2.4, reps: 1 } } };
+  const out = mergeSnapshot(s, l);
+  // Tie on due_at: mergeSnapshot's `>` comparison is false on equality, so the server record wins.
+  expect(out.cards.k).toEqual({ due_at: "2026-07-10T00:00:00Z", interval: 2, ease: 2.5, reps: 3 });
 });

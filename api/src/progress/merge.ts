@@ -6,7 +6,7 @@ export interface Snapshot {
   quizBest: Record<string, number>;
   bookmarks: string[];
   streak: { current: number; longest: number; last_day: string | null } | null;
-  settings: { lang?: string; theme?: string; track_role?: string; track_level?: string } | null;
+  settings: { lang?: string; theme?: string; track_role?: string; track_level?: string };
 }
 
 export function mergeSnapshot(server: Snapshot, local: Snapshot): Snapshot {
@@ -37,5 +37,5 @@ export function mergeSnapshot(server: Snapshot, local: Snapshot): Snapshot {
 
   const settings = { ...(server.settings || {}), ...(local.settings || {}) };
 
-  return { topics, cards, quizBest, bookmarks, streak, settings: Object.keys(settings).length ? settings : null };
+  return { topics, cards, quizBest, bookmarks, streak, settings };
 }
