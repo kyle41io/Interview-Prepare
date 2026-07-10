@@ -1,4 +1,6 @@
-export type Card = { due_at: string | null; interval: number; ease: number; reps: number };
+// due_at is an epoch-millisecond number (the frontend store's SM-2 `due`, passed
+// through by toApiSnapshot). It is NOT an ISO string — do not Date.parse() it.
+export type Card = { due_at: number | null; interval: number; ease: number; reps: number };
 
 export interface Snapshot {
   topics: Record<string, true>;
@@ -37,7 +39,8 @@ export function mergeSnapshot(serverIn: Partial<Snapshot> | null | undefined, lo
   for (const [k, lc] of Object.entries(local.cards)) {
     const sc = cards[k];
     if (!sc) { cards[k] = lc; continue; }
-    const later = Date.parse(lc.due_at || "0") > Date.parse(sc.due_at || "0") ? lc : sc;
+    // due_at is epoch-ms (number); compare numerically. Later due_at wins; tie keeps server.
+    const later = (Number(lc.due_at) || 0) > (Number(sc.due_at) || 0) ? lc : sc;
     cards[k] = { due_at: later.due_at, interval: later.interval, ease: later.ease, reps: Math.max(sc.reps, lc.reps) };
   }
 

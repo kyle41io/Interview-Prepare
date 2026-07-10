@@ -5,7 +5,7 @@ export class TopicDto {
 }
 
 export class FlashcardDto {
-  @IsOptional() @IsString() due_at?: string;
+  @IsOptional() @IsNumber() due_at?: number; // epoch-ms (SM-2 due), NOT an ISO string
   @IsInt() interval!: number;
   @IsNumber() ease!: number;
   @IsInt() reps!: number;

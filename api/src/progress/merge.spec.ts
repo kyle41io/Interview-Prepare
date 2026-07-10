@@ -17,11 +17,11 @@ test("quizBest takes max per topic (conflicting values)", () => {
   expect(out.quizBest).toEqual({ t: 80, u: 90 });
 });
 
-test("flashcard keeps later due_at and higher reps (conflict)", () => {
-  const s: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 2, ease: 2.5, reps: 3 } } };
-  const l: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-20T00:00:00Z", interval: 5, ease: 2.4, reps: 2 } } };
+test("flashcard keeps later due_at and higher reps (conflict) — due_at is epoch-ms (regression: Date.parse would NaN)", () => {
+  const s: Snapshot = { ...empty, cards: { k: { due_at: 1720000000000, interval: 2, ease: 2.5, reps: 3 } } };
+  const l: Snapshot = { ...empty, cards: { k: { due_at: 1730000000000, interval: 5, ease: 2.4, reps: 2 } } };
   const out = mergeSnapshot(s, l);
-  expect(out.cards.k.due_at).toBe("2026-07-20T00:00:00Z");
+  expect(out.cards.k.due_at).toBe(1730000000000);
   expect(out.cards.k.reps).toBe(3);
   expect(out.cards.k.interval).toBe(5);
   expect(out.cards.k.ease).toBe(2.4);
@@ -29,9 +29,9 @@ test("flashcard keeps later due_at and higher reps (conflict)", () => {
 
 test("flashcard: new card only present locally is added as-is", () => {
   const s: Snapshot = { ...empty };
-  const l: Snapshot = { ...empty, cards: { n: { due_at: "2026-07-11T00:00:00Z", interval: 1, ease: 2.5, reps: 0 } } };
+  const l: Snapshot = { ...empty, cards: { n: { due_at: 1725000000000, interval: 1, ease: 2.5, reps: 0 } } };
   const out = mergeSnapshot(s, l);
-  expect(out.cards.n).toEqual({ due_at: "2026-07-11T00:00:00Z", interval: 1, ease: 2.5, reps: 0 });
+  expect(out.cards.n).toEqual({ due_at: 1725000000000, interval: 1, ease: 2.5, reps: 0 });
 });
 
 test("streak takes max current/longest and latest last_day (conflict)", () => {
@@ -79,9 +79,17 @@ test("partial/undefined input does not throw (external body may omit fields)", (
 });
 
 test("flashcard: same due_at (tie) keeps server record's due_at/interval/ease, reps still maxed", () => {
-  const s: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 2, ease: 2.5, reps: 3 } } };
-  const l: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 5, ease: 2.4, reps: 1 } } };
+  const s: Snapshot = { ...empty, cards: { k: { due_at: 1720000000000, interval: 2, ease: 2.5, reps: 3 } } };
+  const l: Snapshot = { ...empty, cards: { k: { due_at: 1720000000000, interval: 5, ease: 2.4, reps: 1 } } };
   const out = mergeSnapshot(s, l);
   // Tie on due_at: mergeSnapshot's `>` comparison is false on equality, so the server record wins.
-  expect(out.cards.k).toEqual({ due_at: "2026-07-10T00:00:00Z", interval: 2, ease: 2.5, reps: 3 });
+  expect(out.cards.k).toEqual({ due_at: 1720000000000, interval: 2, ease: 2.5, reps: 3 });
+});
+
+test("flashcard: due_at of 0 is a valid epoch and not coerced away on conflict", () => {
+  const s: Snapshot = { ...empty, cards: { k: { due_at: 0, interval: 1, ease: 2.5, reps: 1 } } };
+  const l: Snapshot = { ...empty, cards: { k: { due_at: 5000, interval: 2, ease: 2.4, reps: 1 } } };
+  const out = mergeSnapshot(s, l);
+  // local due_at (5000) is later than server (0) → local wins its schedule fields.
+  expect(out.cards.k).toEqual({ due_at: 5000, interval: 2, ease: 2.4, reps: 1 });
 });
