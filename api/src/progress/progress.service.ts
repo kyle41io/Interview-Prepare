@@ -54,7 +54,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 export class ProgressService {
   constructor(private readonly dyn: DynamoService) {}
 
-  async getSnapshot(userId: string): Promise<Snapshot> {
+  private async queryAllItems(userId: string): Promise<any[]> {
     const items: any[] = [];
     let ExclusiveStartKey: Record<string, any> | undefined;
     do {
@@ -69,24 +69,32 @@ export class ProgressService {
       items.push(...(res.Items || []));
       ExclusiveStartKey = res.LastEvaluatedKey;
     } while (ExclusiveStartKey);
-    return toSnapshot(items);
+    return items;
+  }
+
+  async getSnapshot(userId: string): Promise<Snapshot> {
+    return toSnapshot(await this.queryAllItems(userId));
   }
 
   async sync(userId: string, local: Snapshot): Promise<Snapshot> {
-    const server = await this.getSnapshot(userId);
+    const rawItems = await this.queryAllItems(userId);
+    const server = toSnapshot(rawItems);
     const merged = mergeSnapshot(server, local);
     const pk = userPk(userId);
     const now = new Date().toISOString();
+    const existingBySk = new Map<string, any>(rawItems.map((item) => [item.sk, item]));
 
     const items: any[] = [];
     for (const id of Object.keys(merged.topics)) {
-      items.push({ pk, sk: topicSk(id), status: "learned", learned_at: now, updated_at: now });
+      const learned_at = existingBySk.get(topicSk(id))?.learned_at ?? now;
+      items.push({ pk, sk: topicSk(id), status: "learned", learned_at, updated_at: now });
     }
     for (const [key, card] of Object.entries(merged.cards)) {
       items.push({ pk, sk: cardSk(key), due_at: card.due_at, interval: card.interval, ease: card.ease, reps: card.reps, updated_at: now });
     }
     for (const [id, pct] of Object.entries(merged.quizBest)) {
-      items.push({ pk, sk: quizSk(id), best_pct: pct, updated_at: now });
+      const attempts = existingBySk.get(quizSk(id))?.attempts ?? 0;
+      items.push({ pk, sk: quizSk(id), best_pct: pct, attempts, updated_at: now });
     }
     for (const id of merged.bookmarks) {
       items.push({ pk, sk: bookSk(id), created_at: now });
@@ -94,7 +102,7 @@ export class ProgressService {
     if (merged.streak) {
       items.push({ pk, sk: STREAK_SK, current: merged.streak.current, longest: merged.streak.longest, last_day: merged.streak.last_day, updated_at: now });
     }
-    if (merged.settings && Object.keys(merged.settings).length) {
+    if (Object.keys(merged.settings).length) {
       items.push({ pk, sk: SETTINGS_SK, ...merged.settings, updated_at: now });
     }
 
@@ -176,17 +184,17 @@ export class ProgressService {
 
   async setSettings(userId: string, dto: SettingsDto) {
     const pk = userPk(userId);
+    const sk = SETTINGS_SK;
+    const existing = await this.dyn.doc.send(new GetCommand({ TableName: this.dyn.table, Key: { pk, sk } }));
+    const existingItem: Record<string, any> = existing.Item || {};
+    const defined: Record<string, any> = {};
+    if (dto.lang !== undefined) defined.lang = dto.lang;
+    if (dto.theme !== undefined) defined.theme = dto.theme;
+    if (dto.track_role !== undefined) defined.track_role = dto.track_role;
+    if (dto.track_level !== undefined) defined.track_level = dto.track_level;
     const now = new Date().toISOString();
-    const item = {
-      pk,
-      sk: SETTINGS_SK,
-      lang: dto.lang,
-      theme: dto.theme,
-      track_role: dto.track_role,
-      track_level: dto.track_level,
-      updated_at: now,
-    };
+    const item: Record<string, any> = { ...existingItem, pk, sk, ...defined, updated_at: now };
     await this.dyn.doc.send(new PutCommand({ TableName: this.dyn.table, Item: item }));
-    return { lang: dto.lang, theme: dto.theme, track_role: dto.track_role, track_level: dto.track_level };
+    return { lang: item.lang, theme: item.theme, track_role: item.track_role, track_level: item.track_level };
   }
 }
