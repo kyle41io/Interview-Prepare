@@ -99,4 +99,21 @@ export class BillingService {
     const res = await this.claim(userId, code, "rejected");
     return { ok: true, idempotent: res === "already" };
   }
+
+  async getCurrentPayment(userId: string) {
+    const r = await this.dyn.doc.send(new QueryCommand({
+      TableName: this.t(),
+      KeyConditionExpression: "pk = :p AND begins_with(sk, :pfx)",
+      ExpressionAttributeValues: { ":p": userPk(userId), ":pfx": "PAYMENT#" },
+    }));
+    const items = (r.Items || []).filter((x: any) => x.status === "pending" || x.status === "submitted");
+    if (!items.length) return null;
+    items.sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)));
+    const p: any = items[0];
+    const bank = this.config.get<string>("VIETQR_BANK") || "970407";
+    const acct = this.config.get<string>("VIETQR_ACCT") || "19036335023019";
+    const name = this.config.get<string>("VIETQR_NAME") || "NGUYEN VAN KIEN";
+    return { code: p.code, amount: p.amount, plan: p.plan, status: p.status, created_at: p.created_at,
+      vietqr: { bank, acct, name, url: buildVietqrUrl(bank, acct, name, p.amount, p.code) } };
+  }
 }
