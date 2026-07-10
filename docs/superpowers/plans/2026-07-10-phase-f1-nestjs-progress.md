@@ -2,27 +2,28 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Đứng một API NestJS (modular monolith) phục vụ dữ liệu học qua schema Postgres chuẩn hoá, thay blob JSONB + merge-client bằng REST API + merge-server; frontend tĩnh gọi API qua JWT Supabase.
+**Goal:** Đứng một API NestJS (modular monolith) phục vụ dữ liệu học qua **DynamoDB single-table** (NoSQL, AWS-native), thay blob JSONB + merge-client bằng REST API + merge-server; frontend tĩnh gọi API qua JWT Supabase.
 
-**Architecture:** `api/` = NestJS 10 app riêng trong repo (GitHub Pages chỉ serve root, bỏ qua `api/`). Prisma nối Postgres của Supabase; migration `f1_progress` tạo 6 bảng chuẩn hoá. `JwtAuthGuard` verify JWT Supabase (HS256, `SUPABASE_JWT_SECRET`). `ProgressModule` cung cấp snapshot/sync/CRUD. Frontend thêm `IP.api` + chuyển `IP.sync` sang API (fallback local khi `API_URL` rỗng).
+**Architecture:** `api/` = NestJS 10 app riêng trong repo (GitHub Pages chỉ serve root, bỏ qua `api/`). Domain progress lưu ở **DynamoDB** (một datastore RIÊNG — pattern database-per-service của microservices); Supabase Postgres vẫn giữ Auth + các bảng cũ (profiles/entitlements/payments/chat/gmail), F1 KHÔNG đụng tới. Single-table: PK=`USER#<userId>`, SK=`TOPIC#… / CARD#… / QUIZ#… / BOOK#… / STREAK / SETTINGS`; snapshot = một Query theo partition. `JwtAuthGuard` verify JWT Supabase (HS256, `SUPABASE_JWT_SECRET`). `ProgressModule` cung cấp snapshot/sync/CRUD. Frontend thêm `IP.api` + chuyển `IP.sync` sang API (fallback local khi `API_URL` rỗng).
 
-**Tech Stack:** NestJS 10, Prisma 5, `jsonwebtoken` (verify HS256), Jest + supertest (API), `node --test` (frontend), Docker + Render.
+**Tech Stack:** NestJS 10, AWS SDK v3 (`@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb`), `jsonwebtoken` (verify HS256), Jest + supertest (API), `node --test` (frontend), DynamoDB Local (dev qua Docker), Docker + Render.
 
 ## Global Constraints
-- **Node 18** (env: v18.20.8). Pin **NestJS 10.x**, **Prisma 5.x**, `jsonwebtoken@9` — đều chạy Node 18. KHÔNG dùng NestJS 11 (tránh rủi ro engine).
+- **Node 18** (env: v18.20.8). Pin **NestJS 10.x**, **AWS SDK v3** (`@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb`, ^3.x), `jsonwebtoken@9` — đều chạy Node 18. KHÔNG dùng NestJS 11 (tránh rủi ro engine). KHÔNG dùng Prisma (đã bỏ; progress dùng DynamoDB).
 - **`api/` là workspace tách biệt** (own `package.json`); frontend tĩnh ở root KHÔNG đổi kiến trúc no-build; GitHub Pages bỏ qua `api/`.
-- **Không secret trong repo.** API đọc secrets từ env: `DATABASE_URL`, `SUPABASE_JWT_SECRET`, `ALLOWED_ORIGINS`, `PORT`. `config.js` (frontend) chỉ thêm `API_URL` (public; rỗng ⇒ local-only).
+- **Không secret trong repo.** API đọc secrets/config từ env: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (prod: có thể dùng IAM role thay 2 biến này), `DDB_TABLE`, `DDB_ENDPOINT` (chỉ set khi chạy DynamoDB Local — prod để trống), `SUPABASE_JWT_SECRET`, `ALLOWED_ORIGINS`, `PORT`. `config.js` (frontend) chỉ thêm `API_URL` (public; rỗng ⇒ local-only).
 - **Auth**: mọi route `/v1/*` cần `Authorization: Bearer <supabase access_token>`; guard verify chữ ký HS256 + `exp`, gắn `req.user = { id: payload.sub, email: payload.email }`. `/health` không auth.
-- **Authz**: mọi truy vấn lọc `where user_id = currentUser.id`. Không tin `user_id` từ body/param.
+- **Authz**: mọi truy vấn DynamoDB khoá theo partition key `USER#<currentUser.id>`. Không tin `user_id` từ body/param — user id chỉ lấy từ JWT đã verify.
 - **KHÔNG dùng model Fable** ở bất kỳ đâu (không liên quan F1 nhưng giữ quy ước).
-- **Adopt, đừng phá**: Prisma introspect bảng cũ (profiles/entitlements/…); migration F1 chỉ THÊM 6 bảng mới + RLS. Không sửa/migrate bảng cũ.
+- **DB tách biệt, đừng phá Postgres**: progress nằm trong DynamoDB single-table RIÊNG. Supabase Postgres (Auth + profiles/entitlements/payments/chat/gmail) GIỮ NGUYÊN, F1 không introspect/migrate/sửa gì trên Postgres. Không FK chéo DB — cách ly bảo đảm bằng partition key. Bảng `user_state` (JSONB) trên Postgres giữ tạm để backfill + fallback, đánh dấu deprecated.
 - **Frontend fallback**: `API_URL` rỗng ⇒ `IP.api` báo "không cấu hình", `IP.sync` chạy local-only (không lỗi, không mất tính năng học offline).
 - **Suite**: `node --test tests/` giữ **60/60 + test mới**; `npm --prefix api test` xanh.
 - CORS: chỉ `https://kyle41io.github.io` + `http://localhost:8000` (đọc từ `ALLOWED_ORIGINS`, phân tách phẩy).
 - **Line numbers ước lượng — locate bằng grep.**
 
 ## File Structure
-**Create (API):** `api/package.json` `api/tsconfig.json` `api/tsconfig.build.json` `api/nest-cli.json` `api/.gitignore` `api/.env.example` `api/Dockerfile` `api/render.yaml` `api/src/main.ts` `api/src/app.module.ts` `api/src/config/config.module.ts` `api/src/health/health.controller.ts` `api/src/prisma/schema.prisma` `api/src/prisma/prisma.service.ts` `api/src/prisma/prisma.module.ts` `api/src/auth/jwt.guard.ts` `api/src/auth/current-user.decorator.ts` `api/src/auth/auth.module.ts` `api/src/progress/dto.ts` `api/src/progress/merge.ts` `api/src/progress/progress.service.ts` `api/src/progress/progress.controller.ts` `api/src/progress/progress.module.ts` `api/src/progress/merge.spec.ts` `api/src/auth/jwt.guard.spec.ts` `api/test/app.e2e-spec.ts` `api/scripts/backfill.ts`
+**Create (API):** `api/package.json` `api/tsconfig.json` `api/tsconfig.build.json` `api/nest-cli.json` `api/.gitignore` `api/.env.example` `api/Dockerfile` `api/render.yaml` `api/src/main.ts` `api/src/app.module.ts` `api/src/config/config.module.ts` `api/src/health/health.controller.ts` `api/src/db/keys.ts` `api/src/db/keys.spec.ts` `api/src/db/dynamo.service.ts` `api/src/db/dynamo.module.ts` `api/scripts/create-table.ts` `api/docker-compose.dev.yml` `api/src/auth/jwt.guard.ts` `api/src/auth/current-user.decorator.ts` `api/src/auth/auth.module.ts` `api/src/progress/dto.ts` `api/src/progress/merge.ts` `api/src/progress/progress.service.ts` `api/src/progress/progress.controller.ts` `api/src/progress/progress.module.ts` `api/src/progress/merge.spec.ts` `api/src/auth/jwt.guard.spec.ts` `api/test/app.e2e-spec.ts` `api/scripts/backfill.ts`
+**Remove (API, from Task 1's abandoned Prisma commit `ed29d1f`):** `api/src/prisma/` (schema.prisma, prisma.service.ts, prisma.module.ts, migrations/).
 **Create (web):** `assets/js/api.js` `tests/api.test.js` `docs/superpowers/DEPLOY-PHASE-F1.md`
 **Modify (web):** `assets/js/config.js` (+`API_URL`), `index.html` (+`api.js` script), `assets/js/sync.js` (use API), `tests/sync.test.js` (if exists — keep merge tests green).
 
@@ -183,103 +184,143 @@ services:
   Expected: build succeeds, health returns ok. (If `npm install` can't reach network in this env, the reviewer/implementer must flag — the plan assumes install works; do not fake it.)
 - [ ] **Step 11: Commit** — `git add api/ && git commit -m "chore(api): scaffold NestJS app + config + health + Dockerfile/render.yaml"`
 
-## Task 2: Prisma + adopt schema + f1_progress migration
+## Task 2: DynamoDB single-table store + keys + create-table (replaces Prisma)
 
-**Files:** Create `api/src/prisma/schema.prisma`, `prisma.service.ts`, `prisma.module.ts`, migration SQL under `api/src/prisma/migrations/`.
-**Interfaces:** Produces `PrismaService` (injectable, extends PrismaClient) exposing models `topicProgress`, `flashcardReview`, `quizScore`, `bookmark`, `streak`, `userSettings`. Consumed by ProgressModule + backfill.
+> **NOTE:** This task replaces the abandoned Prisma commit `ed29d1f`. It removes `api/src/prisma/` and adds the DynamoDB layer. The Dockerfile `npm ci`/`--omit=dev` fixes from `ed29d1f` are DB-agnostic — KEEP them; only remove the `prisma generate` step.
 
-- [ ] **Step 1: `schema.prisma`** — datasource + the 6 new models. (Adopt-only models like profiles aren't required for F1 queries; reference `user_id` as a plain uuid with an FK via SQL migration, not a Prisma relation, to avoid pulling the whole legacy schema.)
-```prisma
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+**Files:** Create `api/src/db/keys.ts`, `api/src/db/keys.spec.ts`, `api/src/db/dynamo.service.ts`, `api/src/db/dynamo.module.ts`, `api/scripts/create-table.ts`, `api/docker-compose.dev.yml`. Modify `api/src/app.module.ts` (swap PrismaModule→DynamoModule), `api/package.json` (deps+scripts), `api/Dockerfile` (drop `prisma generate`), `api/.env.example`, `api/render.yaml`. Remove `api/src/prisma/`.
+**Interfaces:**
+- Produces `keys` (pure): `userPk(userId)→"USER#<id>"`; `topicSk(id)→"TOPIC#<id>"`, `cardSk(key)→"CARD#<key>"`, `quizSk(id)→"QUIZ#<id>"`, `bookSk(id)→"BOOK#<id>"`; constants `STREAK_SK="STREAK"`, `SETTINGS_SK="SETTINGS"`; `parseSk(sk)→{type,id}`. Consumed by ProgressService (T4) + backfill (T8).
+- Produces `DynamoService` (injectable, `@Global`): readonly `doc: DynamoDBDocumentClient`, readonly `table: string`. Consumed by ProgressService (T4) + backfill (T8).
+- **Single-table design** (`ip_progress`): PK `pk` (S) = `USER#<userId>`, SK `sk` (S) = entity key. Item attrs by type — Topic:`{status,learned_at,updated_at}`, Card:`{due_at,interval,ease,reps,updated_at}`, Quiz:`{best_pct,attempts,updated_at}`, Bookmark:`{created_at}`, Streak(`sk=STREAK`):`{current,longest,last_day,updated_at}`, Settings(`sk=SETTINGS`):`{lang,theme,track_role,track_level,updated_at}`. Snapshot = one `Query(pk=USER#<id>)`.
 
-model TopicProgress {
-  userId    String   @map("user_id") @db.Uuid
-  topicId   String   @map("topic_id")
-  status    String   @default("learned")
-  learnedAt DateTime? @map("learned_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  @@id([userId, topicId])
-  @@map("topic_progress")
-}
-model FlashcardReview {
-  userId   String @map("user_id") @db.Uuid
-  cardKey  String @map("card_key")
-  dueAt    DateTime? @map("due_at") @db.Timestamptz(6)
-  interval Int    @default(0)
-  ease     Float  @default(2.5)
-  reps     Int    @default(0)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  @@id([userId, cardKey])
-  @@map("flashcard_reviews")
-}
-model QuizScore {
-  userId   String @map("user_id") @db.Uuid
-  topicId  String @map("topic_id")
-  bestPct  Int    @default(0) @map("best_pct")
-  attempts Int    @default(0)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  @@id([userId, topicId])
-  @@map("quiz_scores")
-}
-model Bookmark {
-  userId    String @map("user_id") @db.Uuid
-  topicId   String @map("topic_id")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  @@id([userId, topicId])
-  @@map("bookmarks")
-}
-model Streak {
-  userId    String @id @map("user_id") @db.Uuid
-  current   Int    @default(0)
-  longest   Int    @default(0)
-  lastDay   DateTime? @map("last_day") @db.Date
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  @@map("streak")
-}
-model UserSettings {
-  userId     String @id @map("user_id") @db.Uuid
-  lang       String?
-  theme      String?
-  trackRole  String? @map("track_role")
-  trackLevel String? @map("track_level")
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  @@map("user_settings")
-}
-```
-- [ ] **Step 2: Migration SQL** — Create `api/src/prisma/migrations/<timestamp>_f1_progress/migration.sql` (or generate via `prisma migrate dev --create-only`). Content = `CREATE TABLE` for the 6 tables with `references public.profiles(id) on delete cascade`, `enable row level security`, and own-row policies:
-```sql
-create table if not exists public.topic_progress (
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  topic_id text not null, status text not null default 'learned',
-  learned_at timestamptz, updated_at timestamptz not null default now(),
-  primary key (user_id, topic_id));
-alter table public.topic_progress enable row level security;
-create policy "own tp" on public.topic_progress using (auth.uid()=user_id) with check (auth.uid()=user_id);
--- ... repeat pattern for flashcard_reviews, quiz_scores, bookmarks, streak, user_settings
-```
-  (Full SQL for all 6 tables; `for all` policy own-row. RLS is defense-in-depth; the API uses a privileged connection.)
-- [ ] **Step 3: `prisma.service.ts`**
+- [ ] **Step 1: deps** — Edit `api/package.json`: remove `prisma` + `@prisma/client` from deps and any `prisma:*` scripts; add `"@aws-sdk/client-dynamodb": "^3.699.0"` and `"@aws-sdk/lib-dynamodb": "^3.699.0"` to dependencies; add script `"create-table": "ts-node scripts/create-table.ts"`. Run `npm --prefix api install`.
+- [ ] **Step 2: failing test `api/src/db/keys.spec.ts`**
 ```ts
-import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
-@Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  async onModuleInit() { await this.$connect(); }
-  async onModuleDestroy() { await this.$disconnect(); }
+import { userPk, topicSk, cardSk, quizSk, bookSk, STREAK_SK, SETTINGS_SK, parseSk } from "./keys";
+describe("keys", () => {
+  it("builds partition + sort keys", () => {
+    expect(userPk("u1")).toBe("USER#u1");
+    expect(topicSk("t1")).toBe("TOPIC#t1");
+    expect(cardSk("q1:2")).toBe("CARD#q1:2");
+    expect(quizSk("t1")).toBe("QUIZ#t1");
+    expect(bookSk("t1")).toBe("BOOK#t1");
+  });
+  it("round-trips prefixed keys via parseSk (ids may contain '#')", () => {
+    expect(parseSk(topicSk("t1"))).toEqual({ type: "TOPIC", id: "t1" });
+    expect(parseSk(cardSk("a#b"))).toEqual({ type: "CARD", id: "a#b" });
+  });
+  it("parses singleton keys", () => {
+    expect(parseSk(STREAK_SK)).toEqual({ type: "STREAK", id: "" });
+    expect(parseSk(SETTINGS_SK)).toEqual({ type: "SETTINGS", id: "" });
+  });
+});
+```
+Run: `npm --prefix api test -- keys` → FAIL (module not found).
+- [ ] **Step 3: `api/src/db/keys.ts`**
+```ts
+export type EntityType = "TOPIC" | "CARD" | "QUIZ" | "BOOK" | "STREAK" | "SETTINGS";
+export const STREAK_SK = "STREAK";
+export const SETTINGS_SK = "SETTINGS";
+export const userPk = (userId: string) => `USER#${userId}`;
+export const topicSk = (id: string) => `TOPIC#${id}`;
+export const cardSk = (key: string) => `CARD#${key}`;
+export const quizSk = (id: string) => `QUIZ#${id}`;
+export const bookSk = (id: string) => `BOOK#${id}`;
+export function parseSk(sk: string): { type: EntityType; id: string } {
+  if (sk === STREAK_SK) return { type: "STREAK", id: "" };
+  if (sk === SETTINGS_SK) return { type: "SETTINGS", id: "" };
+  const i = sk.indexOf("#");
+  return { type: sk.slice(0, i) as EntityType, id: sk.slice(i + 1) };
 }
 ```
-- [ ] **Step 4: `prisma.module.ts`** (global)
+Run: `npm --prefix api test -- keys` → PASS.
+- [ ] **Step 4: `api/src/db/dynamo.service.ts`**
+```ts
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+@Injectable()
+export class DynamoService implements OnModuleDestroy {
+  private readonly client: DynamoDBClient;
+  readonly doc: DynamoDBDocumentClient;
+  readonly table: string;
+  constructor(config: ConfigService) {
+    const region = config.get<string>("AWS_REGION") || "us-east-1";
+    const endpoint = config.get<string>("DDB_ENDPOINT") || undefined; // set for DynamoDB Local
+    const accessKeyId = config.get<string>("AWS_ACCESS_KEY_ID");
+    const secretAccessKey = config.get<string>("AWS_SECRET_ACCESS_KEY");
+    this.table = config.get<string>("DDB_TABLE") || "ip_progress";
+    this.client = new DynamoDBClient({
+      region,
+      ...(endpoint ? { endpoint } : {}),
+      ...(accessKeyId && secretAccessKey ? { credentials: { accessKeyId, secretAccessKey } } : {}),
+    });
+    this.doc = DynamoDBDocumentClient.from(this.client, {
+      marshallOptions: { removeUndefinedValues: true },
+    });
+  }
+  onModuleDestroy() { this.client?.destroy(); }
+}
+```
+- [ ] **Step 5: `api/src/db/dynamo.module.ts`** (global)
 ```ts
 import { Global, Module } from "@nestjs/common";
-import { PrismaService } from "./prisma.service";
+import { DynamoService } from "./dynamo.service";
 @Global()
-@Module({ providers: [PrismaService], exports: [PrismaService] })
-export class PrismaModule {}
+@Module({ providers: [DynamoService], exports: [DynamoService] })
+export class DynamoModule {}
 ```
-  Add `PrismaModule` to `app.module.ts` imports.
-- [ ] **Step 5: Generate + verify** — `npm --prefix api run prisma:generate` → client generated (types available). `npm --prefix api run build` still succeeds. (Applying the migration to the real DB happens at deploy — documented in Task 8; do NOT require a live DB to build.)
-- [ ] **Step 6: Commit** — `git add api/src/prisma api/src/app.module.ts && git commit -m "feat(api): Prisma + f1_progress migration (normalized tables + RLS)"`
+Then edit `api/src/app.module.ts`: remove the `PrismaModule` import + entry, add `import { DynamoModule } from "./db/dynamo.module";` and put `DynamoModule` in the imports array (keep AppConfigModule + HealthController).
+- [ ] **Step 6: `api/scripts/create-table.ts`** (idempotent — safe to re-run; used for DynamoDB Local + AWS)
+```ts
+import { DynamoDBClient, CreateTableCommand, DescribeTableCommand } from "@aws-sdk/client-dynamodb";
+const region = process.env.AWS_REGION || "us-east-1";
+const endpoint = process.env.DDB_ENDPOINT || undefined;
+const table = process.env.DDB_TABLE || "ip_progress";
+const creds = process.env.AWS_ACCESS_KEY_ID
+  ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID!, secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY! } }
+  : {};
+const client = new DynamoDBClient({ region, ...(endpoint ? { endpoint } : {}), ...creds });
+(async () => {
+  try {
+    await client.send(new DescribeTableCommand({ TableName: table }));
+    console.log(`Table ${table} already exists — nothing to do.`);
+    return;
+  } catch (e: any) {
+    if (e.name !== "ResourceNotFoundException") throw e;
+  }
+  await client.send(new CreateTableCommand({
+    TableName: table,
+    BillingMode: "PAY_PER_REQUEST",
+    AttributeDefinitions: [
+      { AttributeName: "pk", AttributeType: "S" },
+      { AttributeName: "sk", AttributeType: "S" },
+    ],
+    KeySchema: [
+      { AttributeName: "pk", KeyType: "HASH" },
+      { AttributeName: "sk", KeyType: "RANGE" },
+    ],
+  }));
+  console.log(`Created table ${table}.`);
+})().catch((e) => { console.error(e); process.exit(1); });
+```
+- [ ] **Step 7: `api/docker-compose.dev.yml`** (local DynamoDB; host port 8001 to avoid clashing with the frontend dev server on 8000)
+```yaml
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports: ["8001:8000"]
+```
+- [ ] **Step 8: env + deploy files**
+  - `api/.env.example`: remove `DATABASE_URL`; add (placeholders only) `AWS_REGION=us-east-1`, `AWS_ACCESS_KEY_ID=`, `AWS_SECRET_ACCESS_KEY=`, `DDB_TABLE=ip_progress`, `DDB_ENDPOINT=` (empty in prod; `http://localhost:8001` for local). Keep `SUPABASE_JWT_SECRET=`, `ALLOWED_ORIGINS=...`, `PORT=3000`.
+  - `api/render.yaml`: replace the `DATABASE_URL` env key with `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DDB_TABLE` (sync:false so set in dashboard). Keep `SUPABASE_JWT_SECRET`, `ALLOWED_ORIGINS`.
+  - `api/Dockerfile`: remove the `RUN npx prisma generate` (or `prisma generate`) line. KEEP the `npm ci` + `--omit=dev`/prune fixes from `ed29d1f`.
+- [ ] **Step 9: remove Prisma** — `git rm -r api/src/prisma` (delete schema.prisma, prisma.service.ts, prisma.module.ts, migrations/).
+- [ ] **Step 10: verify (offline)** — `npm --prefix api install` (aws-sdk added), `npm --prefix api run build` (nest build succeeds with DynamoModule), `npm --prefix api test` (keys spec passes). Do NOT run `create-table` or hit DynamoDB in the build — table creation + connectivity need DynamoDB Local/AWS and are documented in Task 8. `grep -r "@prisma\|PrismaService\|DATABASE_URL" api/src` returns nothing.
+- [ ] **Step 11: Commit** — `git add api/ && git rm -r --cached api/src/prisma 2>/dev/null; git commit -m "feat(api): DynamoDB single-table progress store + keys + create-table (replaces Prisma)"`
 
 ## Task 3: JWT auth guard (Supabase) + CurrentUser
 
@@ -436,7 +477,18 @@ export class SettingsDto {
 }
 export class SyncDto { /* accepts a Snapshot-shaped body; validated loosely */ [k: string]: any; }
 ```
-- [ ] **Step 6: `progress.service.ts`** — reads all 6 tables for `getSnapshot`; `sync` = read server snapshot → `mergeSnapshot` → persist merged (upserts) → return merged; each setter = one upsert/delete. (Full CRUD using `this.prisma.<model>.upsert/delete/findMany` filtered by `userId`.) Include `toSnapshot(rows)` assembling the Snapshot shape used by the controller/tests.
+- [ ] **Step 6: `progress.service.ts`** — inject `DynamoService` + import `keys` (`userPk/topicSk/cardSk/quizSk/bookSk/STREAK_SK/SETTINGS_SK/parseSk`) and `mergeSnapshot`. Uses AWS SDK v3 lib-dynamodb commands (`QueryCommand`, `PutCommand`, `DeleteCommand`, `BatchWriteCommand`) via `this.dyn.doc.send(...)`, table = `this.dyn.table`. Every op keyed by `pk = userPk(userId)` — that IS the authz boundary.
+  - `getSnapshot(userId)`: `QueryCommand({ TableName, KeyConditionExpression: "pk = :p", ExpressionAttributeValues: { ":p": userPk(userId) } })`, paginate on `LastEvaluatedKey`; pass items to `toSnapshot`.
+  - `toSnapshot(items)`: reduce items via `parseSk(item.sk)` into the Snapshot shape `{ topics:{[id]:true}, cards:{[key]:{due_at,interval,ease,reps}}, quizBest:{[id]:pct}, bookmarks:[id], streak:{current,longest,last_day}, settings:{lang,theme,track_role,track_level} }`. Empty partition → all-empty snapshot (`{topics:{},cards:{},quizBest:{},bookmarks:[],streak:null,settings:{}}`).
+  - `sync(userId, local)`: `const merged = mergeSnapshot(await getSnapshot(userId), local)`; convert `merged` back to items (one per topic/card/quiz/bookmark + streak + settings) and write via `BatchWriteCommand` in chunks of **25** (DynamoDB batch limit); return `merged`.
+  - Setters (each one `PutCommand` unless noted; always include `updated_at: new Date().toISOString()`):
+    `setTopic(userId,id,learned)` → learned: Put `{pk,sk:topicSk(id),status:"learned",learned_at,updated_at}`; unlearned: `DeleteCommand` on `sk:topicSk(id)`.
+    `setFlashcard(userId,key,dto)` → Put `{pk,sk:cardSk(key),due_at,interval,ease,reps,updated_at}`.
+    `setQuiz(userId,id,pct)` → read existing (GetCommand) to bump `attempts` and keep `best_pct=max(prev,pct)`; Put merged.
+    `setBookmark(userId,id,on)` → on: Put `{pk,sk:bookSk(id),created_at}`; off: `DeleteCommand`.
+    `setStreak(userId,dto)` → Put `{pk,sk:STREAK_SK,current,longest,last_day,updated_at}`.
+    `setSettings(userId,dto)` → Put `{pk,sk:SETTINGS_SK,...dto,updated_at}` (only provided keys; `removeUndefinedValues` handles gaps).
+  Each setter returns the resulting sub-object (or the fresh snapshot) so the frontend can confirm. No cross-user reads — `pk` scoping guarantees isolation.
 - [ ] **Step 7: `progress.controller.ts`** — `@UseGuards(JwtAuthGuard)` on the class; methods map to spec §6 routes using `@CurrentUser()`.
 ```ts
 @UseGuards(JwtAuthGuard)
@@ -460,7 +512,7 @@ export class ProgressController {
 ## Task 5: e2e tests (health + auth + progress isolation)
 
 **Files:** Create `api/test/app.e2e-spec.ts`, `api/test/jest-e2e.json`.
-**Interfaces:** Consumes the running Nest app via supertest. Uses a `SUPABASE_JWT_SECRET=test-secret` env + tokens signed in-test. **DB**: uses a real Postgres from `DATABASE_URL` if provided; if absent, the progress e2e is skipped with a clear `console.warn` (health + 401 still run without DB).
+**Interfaces:** Consumes the running Nest app via supertest. Uses a `SUPABASE_JWT_SECRET=test-secret` env + tokens signed in-test. **DB**: uses DynamoDB Local from `DDB_ENDPOINT` if provided (start via `docker compose -f docker-compose.dev.yml up -d` then `npm run create-table` against the local endpoint); if absent, the progress e2e is skipped with a clear `console.warn` (health + 401 still run without DB).
 
 - [ ] **Step 1: `test/jest-e2e.json`** — `{ "moduleFileExtensions":["js","json","ts"], "rootDir":".", "testRegex":".e2e-spec.ts$", "transform":{"^.+\\.ts$":"ts-jest"}, "testEnvironment":"node" }`
 - [ ] **Step 2: `app.e2e-spec.ts`**
@@ -478,7 +530,7 @@ describe("API e2e", () => {
   afterAll(async () => { await app.close(); });
   it("/health 200", () => request(app.getHttpServer()).get("/health").expect(200).expect({ status: "ok" }));
   it("/v1/progress 401 without token", () => request(app.getHttpServer()).get("/v1/progress").expect(401));
-  const dbOn = !!process.env.DATABASE_URL;
+  const dbOn = !!process.env.DDB_ENDPOINT;
   (dbOn ? it : it.skip)("progress isolation: A can't see B", async () => {
     await request(app.getHttpServer()).put("/v1/progress/topic/dsa").set("Authorization", tok("user-A")).send({ learned: true }).expect(200);
     const b = await request(app.getHttpServer()).get("/v1/progress").set("Authorization", tok("user-B")).expect(200);
@@ -486,7 +538,7 @@ describe("API e2e", () => {
   });
 });
 ```
-- [ ] **Step 3: Run** — `npm --prefix api run test:e2e`. Expected: health + 401 pass; isolation runs if `DATABASE_URL` set else skipped (warn). (Locally without DB → 2 pass, 1 skip. That's acceptable; the isolation test runs in CI/deploy with DB.)
+- [ ] **Step 3: Run** — `npm --prefix api run test:e2e`. Expected: health + 401 pass; isolation runs if `DDB_ENDPOINT` set (DynamoDB Local) else skipped (warn). (Locally without DynamoDB Local → 2 pass, 1 skip. That's acceptable; the isolation test runs when DynamoDB Local/AWS is available.)
 - [ ] **Step 4: Commit** — `git add api/test && git commit -m "test(api): e2e — health, auth 401, progress user isolation"`
 
 ## Task 6: Frontend `IP.api` client + config
@@ -554,14 +606,14 @@ test("rejects when not configured", async () => {
 
 ## Task 8: Backfill script + deploy guide
 
-**Files:** Create `api/scripts/backfill.ts`, `docs/superpowers/DEPLOY-PHASE-F1.md`.
-**Interfaces:** `backfill.ts` = standalone `ts-node` script: reads all `user_state` rows (raw SQL via Prisma `$queryRaw`), maps the JSONB blob (`{progress, cards, quizBest, bookmarks?, streak?}` shape used by `IP.store`) into the 6 tables via idempotent upserts. Safe to re-run.
+**Files:** Create `api/scripts/backfill.ts`, `docs/superpowers/DEPLOY-PHASE-F1.md`. Modify `api/package.json` (add `pg` + `@types/pg` as devDependencies for the reader; add `"backfill": "ts-node scripts/backfill.ts"`).
+**Interfaces:** `backfill.ts` = standalone `ts-node` script. **Reads** `public.user_state` from Supabase Postgres via `pg` (env `SUPABASE_DB_URL` = Supabase pooler connection string) — Postgres stays the source of the legacy blob. **Writes** into DynamoDB single-table via `@aws-sdk/lib-dynamodb` `BatchWriteCommand` (same env as the API: `AWS_REGION`/`DDB_TABLE`/`DDB_ENDPOINT`/creds), using the `keys` builders. Idempotent (`PutCommand` overwrites by pk+sk). Safe to re-run.
 
-- [ ] **Step 1: `backfill.ts`** — connect via `DATABASE_URL`; `const rows = await prisma.$queryRaw\`select user_id, state from public.user_state\``; for each, parse blob and upsert topic_progress (from `progress` keys), flashcard_reviews (from `cards`), quiz_scores (from `quizBest`), bookmarks, streak. Log counts. `on conflict do update`. Wrap in try/catch per-row (skip malformed, log).
-- [ ] **Step 2: Dry-run guard** — support `--dry` flag: print what would be written, no writes. Default = write.
-- [ ] **Step 3: `DEPLOY-PHASE-F1.md`** — steps: (1) SQL Editor run `f1_progress` migration (or `prisma migrate deploy` with `DATABASE_URL`); (2) Render: new Web Service from repo, root `api/`, set env `DATABASE_URL` (Supabase pooler string), `SUPABASE_JWT_SECRET` (Settings→API→JWT Secret), `ALLOWED_ORIGINS`; deploy → get URL; (3) put that URL into `assets/js/config.js` `API_URL` + push (Pages redeploys); (4) run backfill once: `DATABASE_URL=... npm --prefix api run backfill`; (5) e2e test checklist (login → progress persists across devices; API_URL empty still works; user isolation). Note secrets never in repo.
-- [ ] **Step 4: Verify** — `npx --prefix api tsc --noEmit scripts/backfill.ts` (or `npm --prefix api run build` includes it via ts-node at runtime — just type-check). `node --test tests/` 63 green.
-- [ ] **Step 5: Commit** — `git add api/scripts docs/superpowers/DEPLOY-PHASE-F1.md && git commit -m "feat(api): user_state→normalized backfill script + Phase F1 deploy guide"`
+- [ ] **Step 1: `backfill.ts`** — `const { rows } = await pgClient.query("select user_id, state from public.user_state")`. For each row, parse the JSONB blob (`{progress, cards, quizBest, bookmarks?, streak?}` shape used by `IP.store`) into DynamoDB items keyed by `pk = userPk(user_id)`: `progress` keys → `topicSk`, `cards` → `cardSk` (with `{due_at,interval,ease,reps}`), `quizBest` → `quizSk` (`{best_pct,attempts:0}`), `bookmarks` → `bookSk`, `streak` → `STREAK_SK`. Collect items and write with `BatchWriteCommand` in chunks of **25**. Log per-user counts. Wrap each user in try/catch (skip malformed, log and continue).
+- [ ] **Step 2: Dry-run guard** — support `--dry` flag: print the items that would be written (count per user + total), no writes. Default = write.
+- [ ] **Step 3: `DEPLOY-PHASE-F1.md`** — steps: (1) **AWS setup**: create an AWS account, an IAM user with a least-privilege DynamoDB policy (Query/PutItem/DeleteItem/BatchWriteItem/DescribeTable/CreateTable on the `ip_progress` table), note `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_REGION`; run `AWS_REGION=... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... DDB_TABLE=ip_progress npm --prefix api run create-table` once. (2) **Render**: new Web Service from repo, root `api/`, set env `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DDB_TABLE`, `SUPABASE_JWT_SECRET` (Supabase → Settings → API → JWT Secret), `ALLOWED_ORIGINS` (`https://kyle41io.github.io`); leave `DDB_ENDPOINT` unset; deploy → get URL. (3) put that URL into `assets/js/config.js` `API_URL` + push (Pages redeploys). (4) run backfill once: `SUPABASE_DB_URL=<pooler> AWS_REGION=... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... DDB_TABLE=ip_progress npm --prefix api run backfill` (try `--dry` first). (5) **Local dev**: `docker compose -f api/docker-compose.dev.yml up -d`, then `DDB_ENDPOINT=http://localhost:8001 npm --prefix api run create-table`, run API with `DDB_ENDPOINT` set. (6) e2e checklist (login → progress persists across devices; `API_URL` empty still works local-only; user isolation). Note: secrets never in repo — set only in Render/env.
+- [ ] **Step 4: Verify** — `npm --prefix api run build` (type-checks backfill via tsc/ts-node config) or `npx --prefix api tsc --noEmit`. `node --test tests/` 63 green. (Actual backfill run needs the live Postgres + DynamoDB — documented, not run in the build.)
+- [ ] **Step 5: Commit** — `git add api/ docs/superpowers/DEPLOY-PHASE-F1.md && git commit -m "feat(api): user_state→DynamoDB backfill script + Phase F1 deploy guide"`
 
 ---
 
@@ -574,6 +626,6 @@ test("rejects when not configured", async () => {
 
 ## Self-Review (đã chạy)
 1. **Coverage**: spec §3 arch→T1; §4 schema→T2; §5 backfill→T8; §6 API→T4; §7 frontend→T6+T7; §9 secrets/config→T1/T6/T8; §10 tests→T3/T4/T5/T6 + final; §11 nghiệm thu→Final. ✔
-2. **Placeholders**: ProgressService full CRUD described (T4 S6) with method list + Prisma calls; migration SQL pattern given for all 6 tables; no TBD. Backfill blob shape referenced to `IP.store` actual keys (implementer reads store.js). ✔
-3. **Consistency**: `Snapshot` shape identical across merge.ts (T4), controller, api.js, sync.js; endpoints in T4 controller == spec §6 == T7 mapping == api.js usage; `JwtAuthGuard(ConfigService)` ctor matches its spec (T3) and injection (T4 module); Prisma model @map names match migration table/column names (T2). ✔
+2. **Placeholders**: ProgressService full CRUD described (T4 S6) with method list + DynamoDB commands; `keys` builders + single-table item shapes given (T2); no TBD. Backfill blob shape referenced to `IP.store` actual keys (implementer reads store.js). ✔
+3. **Consistency**: `Snapshot` shape identical across merge.ts (T4), controller, api.js, sync.js; endpoints in T4 controller == spec §6 == T7 mapping == api.js usage; `JwtAuthGuard(ConfigService)` ctor matches its spec (T3) and injection (T4 module); `keys` SK prefixes + item attrs (T2) match ProgressService `parseSk`/`toSnapshot` and backfill (T4/T8). DB pivot Postgres→DynamoDB applied across T2/T4/T5/T8; T1/T3/T6/T7 unaffected. ✔
 4. **Env reality**: `npm install`/build need network; if unavailable the implementer must flag (Task 1 S10) rather than fake — don't mark done on a non-building app.
