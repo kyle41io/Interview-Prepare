@@ -434,22 +434,14 @@
   function scrollChat() { const s = document.getElementById("chatScroll"); if (s) s.scrollTop = s.scrollHeight; }
 
   /* ---------- Pro upgrade (VietQR) ---------- */
-  const Upgrade = { reqs: null, ent: null, loading: false };
+  const Upgrade = { pending: null, ent: null, loading: false };
+  if (IP.pro && IP.pro.onChange) IP.pro.onChange(function (ent) { Upgrade.ent = ent; });
   async function loadUpgradeData() {
     const u = IP.auth ? IP.auth.getUser() : null;
-    const c = IP.auth ? IP.auth.client() : null;
-    if (u && c) {
-      try {
-        const { data, error } = await c.from("payment_requests").select("*").order("created_at", { ascending: false });
-        Upgrade.reqs = error ? [] : (data || []);
-      } catch (e) { Upgrade.reqs = []; }
-      try {
-        const { data, error } = await c.from("entitlements").select("*").maybeSingle();
-        Upgrade.ent = error ? null : (data || null);
-      } catch (e) { Upgrade.ent = null; }
+    if (u) {
+      try { Upgrade.pending = await IP.pro.currentPayment(); } catch (e) { Upgrade.pending = null; }
     } else {
-      Upgrade.reqs = null;
-      Upgrade.ent = null;
+      Upgrade.pending = null;
     }
     await IP.pro.refresh();
     render();
@@ -460,10 +452,11 @@
     const u = IP.auth ? IP.auth.getUser() : null;
     const head = `<div class="page-head"><h1>${fa(ICON.pro)} ${t(UI.upgrade)}</h1></div>`;
 
-    const history = (Upgrade.reqs && Upgrade.reqs.length)
+    const p = Upgrade.pending;
+    const history = (p && (p.status === "pending" || p.status === "submitted"))
       ? `<table class="tbl">
            <thead><tr><th>${L === "vi" ? "Mã" : "Code"}</th><th>${L === "vi" ? "Ngày" : "Date"}</th><th>${L === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
-           <tbody>${Upgrade.reqs.map(r => `<tr><td>${esc(r.code)}</td><td>${new Date(r.created_at).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US")}</td><td><span class="status-pill ${r.status}">${r.status}</span></td></tr>`).join("")}</tbody>
+           <tbody><tr><td>${esc(p.code)}</td><td>${new Date(p.created_at).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US")}</td><td><span class="status-pill ${p.status}">${p.status}</span></td></tr></tbody>
          </table>`
       : "";
 
@@ -485,14 +478,15 @@
       </div>`;
     }
 
-    const pending = (Upgrade.reqs || []).find(r => r.status === "pending");
-    const submitted = (Upgrade.reqs || []).find(r => r.status === "submitted");
+    const pending = p && p.status === "pending" ? p : null;
+    const submitted = p && p.status === "submitted" ? p : null;
 
     if (pending) {
+      const qrUrl = (pending.vietqr && pending.vietqr.url) ? pending.vietqr.url : IP.pro.vietqrUrl(pending.amount, pending.code);
       return `<div class="fade-in upgrade-page">${head}
         <div class="qr-card">
           <div class="blurb">${t(UI.payStep1)}</div>
-          <img src="${IP.pro.vietqrUrl(pending.amount, pending.code)}" alt="VietQR" onerror="this.hidden=true;document.getElementById('qrFallback').hidden=false">
+          <img src="${qrUrl}" alt="VietQR" onerror="this.hidden=true;document.getElementById('qrFallback').hidden=false">
           <table class="tbl" id="qrFallback" hidden>
             <tbody>
               <tr><td>${L === "vi" ? "Ngân hàng" : "Bank"}</td><td>Techcombank</td></tr>
@@ -532,13 +526,15 @@
   /* ---------- Admin approval page ---------- */
   const Admin = { reqs: null, loading: false, error: null };
   async function loadAdminData() {
-    const c = IP.auth ? IP.auth.client() : null;
-    if (!c) return;
+    const u = IP.auth ? IP.auth.getUser() : null;
+    if (!u) return;
     Admin.loading = true;
     try {
-      const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "list" } });
-      Admin.reqs = (data && data.requests) || [];
-      Admin.error = error ? (error.message || "error") : ((data && data.error) || null);
+      const [pend, sub] = await Promise.all([IP.pro.adminListPayments("pending"), IP.pro.adminListPayments("submitted")]);
+      const merged = [].concat(pend || [], sub || []);
+      const seen = new Set();
+      Admin.reqs = merged.filter(r => { if (seen.has(r.code)) return false; seen.add(r.code); return true; });
+      Admin.error = null;
     } catch (e) {
       Admin.reqs = Admin.reqs || [];
       Admin.error = (e && e.message) || "error";
@@ -557,11 +553,11 @@
     const errHtml = Admin.error ? `<div class="empty-hint">${esc(Admin.error)}</div>` : "";
     const reqs = Admin.reqs || [];
     const rows = reqs.map(r => {
-      const who = esc((r.profiles && (r.profiles.email || r.profiles.display_name)) || r.user_id);
+      const who = esc((r.profiles && (r.profiles.email || r.profiles.display_name)) || r.userId || r.user_id || "");
       const amount = (r.amount || 0).toLocaleString("vi-VN") + "đ";
       const date = r.created_at ? new Date(r.created_at).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US") : "";
       const actions = r.status === "submitted"
-        ? `<button class="btn green" data-approve="${r.id}">${t(UI.approve)}</button> <button class="btn danger-btn" data-reject="${r.id}">${t(UI.reject)}</button>`
+        ? `<button class="btn green" data-approve="${esc(r.code)}">${t(UI.approve)}</button> <button class="btn danger-btn" data-reject="${esc(r.code)}">${t(UI.reject)}</button>`
         : "";
       return `<tr>
         <td>${who}</td>
@@ -1290,19 +1286,18 @@
       // pro upgrade page actions
       if (e.target.closest("#startUpgradeBtn")) {
         (async () => {
-          const c = IP.auth.client(); const u = IP.auth.getUser();
-          if (!c || !u) return;
-          const code = IP.pro.genProCode();
-          await c.from("payment_requests").insert({ user_id: u.id, code, amount: IP.pro.PRICE_VND, plan: "pro-month", status: "pending" });
+          const u = IP.auth.getUser();
+          if (!u) return;
+          await IP.pro.createPayment();
           await loadUpgradeData();
         })();
         return;
       }
       if (e.target.closest("#iPaidBtn")) {
         (async () => {
-          const c = IP.auth.client(); const req = (Upgrade.reqs || []).find(r => r.status === "pending");
-          if (!c || !req) return;
-          await c.from("payment_requests").update({ status: "submitted" }).eq("id", req.id);
+          const req = Upgrade.pending;
+          if (!req || req.status !== "pending" || !req.code) return;
+          await IP.pro.submitPayment(req.code);
           await loadUpgradeData();
         })();
         return;
@@ -1315,25 +1310,23 @@
 
       // admin approval actions
       if (e.target.closest("[data-approve]")) {
-        const id = e.target.closest("[data-approve]").dataset.approve;
+        const code = e.target.closest("[data-approve]").dataset.approve;
         if (!confirm(t(UI.approve) + "?")) return;
         (async () => {
-          const c = IP.auth.client();
-          if (!c) return;
-          const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "approve", payment_id: id } });
-          if (error || (data && data.error)) alert((error && error.message) || (data && data.error) || "error");
+          const item = (Admin.reqs || []).find(r => r.code === code);
+          if (!item) return;
+          try { await IP.pro.adminApprove(item); } catch (e) { alert((e && e.message) || "error"); }
           await loadAdminData();
         })();
         return;
       }
       if (e.target.closest("[data-reject]")) {
-        const id = e.target.closest("[data-reject]").dataset.reject;
+        const code = e.target.closest("[data-reject]").dataset.reject;
         if (!confirm(t(UI.reject) + "?")) return;
         (async () => {
-          const c = IP.auth.client();
-          if (!c) return;
-          const { data, error } = await c.functions.invoke("approve-payment", { body: { action: "reject", payment_id: id } });
-          if (error || (data && data.error)) alert((error && error.message) || (data && data.error) || "error");
+          const item = (Admin.reqs || []).find(r => r.code === code);
+          if (!item) return;
+          try { await IP.pro.adminReject(item); } catch (e) { alert((e && e.message) || "error"); }
           await loadAdminData();
         })();
         return;
