@@ -1,4 +1,6 @@
-/* IP.sync — local<->server state sync (Supabase). merge() is pure. */
+/* IP.sync — local<->server state sync. Routes through IP.api (Task 6/7) when
+   configured (API_URL set); falls back to direct Supabase user_state sync
+   otherwise. merge(), toApiSnapshot(), fromApiSnapshot() are pure. */
 (function (root, factory) {
   const api = factory(root);
   root.IP = root.IP || {};
@@ -56,9 +58,42 @@
     };
   }
 
+  // pure: translate frontend store snapshot -> API Snapshot shape (for push)
+  function toApiSnapshot(s) {
+    s = s || {};
+    const topics = {};
+    Object.keys(s.progress || {}).forEach((id) => { if (s.progress[id]) topics[id] = true; });
+    const cards = {};
+    Object.keys(s.cards || {}).forEach((k) => { const c = s.cards[k] || {};
+      cards[k] = { due_at: (c.due != null ? c.due : null), interval: Number(c.interval) || 0, ease: Number(c.ease) || 2.5, reps: Number(c.reps) || 0 }; });
+    const tr = s.track || {};
+    const streak = s.streak
+      ? { current: Number(s.streak.count) || 0, longest: Math.max(Number(s.streak.longest) || 0, Number(s.streak.count) || 0), last_day: s.streak.lastActiveDate || null }
+      : null;
+    return { topics, cards, quizBest: Object.assign({}, s.quizBest || {}), bookmarks: (s.bookmarks || []).slice(),
+      streak, settings: { lang: s.lang, theme: s.theme, track_role: tr.role, track_level: tr.level } };
+  }
+  // pure: translate API Snapshot -> frontend store snapshot shape (for pull); dailyGoal is frontend-only, preserved from localForGoal
+  function fromApiSnapshot(a, localForGoal) {
+    a = a || {};
+    const progress = {};
+    Object.keys(a.topics || {}).forEach((id) => { progress[id] = true; });
+    const cards = {};
+    Object.keys(a.cards || {}).forEach((k) => { const c = a.cards[k] || {};
+      cards[k] = { interval: Number(c.interval) || 0, ease: Number(c.ease) || 2.5, reps: Number(c.reps) || 0, due: (c.due_at != null ? c.due_at : 0) }; });
+    const set = a.settings || {};
+    const dailyGoal = (localForGoal && localForGoal.streak && localForGoal.streak.dailyGoal) || 1;
+    const track = (set.track_role || set.track_level) ? { role: set.track_role || null, level: set.track_level || null } : null;
+    return { lang: set.lang, theme: set.theme, track, progress, cards,
+      quizBest: Object.assign({}, a.quizBest || {}), bookmarks: (a.bookmarks || []).slice(),
+      streak: a.streak ? { count: Number(a.streak.current) || 0, lastActiveDate: a.streak.last_day || null, dailyGoal } : { count: 0, lastActiveDate: null, dailyGoal },
+      schemaVersion: 1 };
+  }
+
   /* ---------- runtime helpers (lazy, safe in Node) ---------- */
   function _auth()  { return root.IP && root.IP.auth; }
   function _store() { return root.IP && root.IP.store; }
+  function _api()   { return root.IP && root.IP.api; }
   function _loggedIn() {
     const a = _auth();
     return !!(a && a.getUser && a.getUser());
@@ -73,6 +108,12 @@
 
   /* ---------- pull ---------- */
   async function pull() {
+    const ipApi = _api();
+    if (ipApi && ipApi.configured()) {
+      const apiSnap = await ipApi.get("/v1/progress").catch(() => null);
+      const st = _store();
+      return apiSnap ? fromApiSnapshot(apiSnap, st && st.snapshot()) : null;
+    }
     try {
       const a = _auth();
       if (!a) return null;
@@ -92,6 +133,14 @@
 
   /* ---------- push ---------- */
   async function push(state) {
+    const ipApi = _api();
+    if (ipApi && ipApi.configured()) {
+      try {
+        await ipApi.post("/v1/progress/sync", toApiSnapshot(state));
+        _dirty = false;
+      } catch (e) { console.warn("[sync] api push failed", e); _dirty = true; }
+      return;
+    }
     try {
       const a = _auth();
       if (!a) return;
@@ -147,5 +196,5 @@
     }
   }
 
-  return { merge, pull, push, schedulePush, onLogin, start, setApplyCallback };
+  return { merge, pull, push, schedulePush, onLogin, start, setApplyCallback, toApiSnapshot, fromApiSnapshot };
 });
