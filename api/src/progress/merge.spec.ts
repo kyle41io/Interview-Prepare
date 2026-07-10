@@ -65,6 +65,19 @@ test("settings: both empty -> {}", () => {
   expect(out.settings).toEqual({});
 });
 
+test("partial/undefined input does not throw (external body may omit fields)", () => {
+  // The /sync body arrives from an external request and may be partial or empty.
+  // mergeSnapshot must normalize rather than crash on a missing collection.
+  expect(() => mergeSnapshot(undefined as any, undefined as any)).not.toThrow();
+  expect(() => mergeSnapshot({} as any, {} as any)).not.toThrow();
+  const out = mergeSnapshot(empty, { topics: { a: true } } as any); // local missing bookmarks/cards/etc.
+  expect(out.topics).toEqual({ a: true });
+  expect(out.bookmarks).toEqual([]);
+  expect(out.cards).toEqual({});
+  expect(out.quizBest).toEqual({});
+  expect(out.settings).toEqual({});
+});
+
 test("flashcard: same due_at (tie) keeps server record's due_at/interval/ease, reps still maxed", () => {
   const s: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 2, ease: 2.5, reps: 3 } } };
   const l: Snapshot = { ...empty, cards: { k: { due_at: "2026-07-10T00:00:00Z", interval: 5, ease: 2.4, reps: 1 } } };

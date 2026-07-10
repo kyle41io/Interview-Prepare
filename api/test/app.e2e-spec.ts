@@ -74,4 +74,35 @@ describe("API e2e", () => {
     expect(b.body.topics.dsa).toBeUndefined();
     expect(Object.keys(b.body.topics)).not.toContain("dsa");
   });
+
+  // Regression: POST /v1/progress/sync is the frontend's primary write path. A prior
+  // bug stripped the whole body (undecorated DTO + whitelisting ValidationPipe) and
+  // then threw in mergeSnapshot. This exercises the BatchWrite round-trip end-to-end.
+  (dbOn ? it : it.skip)("progress sync: full snapshot round-trips via BatchWrite", async () => {
+    const snap = {
+      topics: { arrays: true, graphs: true },
+      cards: { q1: { due_at: 1720000000000, interval: 3, ease: 2.5, reps: 2 } },
+      quizBest: { arrays: 80 },
+      bookmarks: ["graphs"],
+      streak: { current: 4, longest: 9, last_day: "2026-07-10" },
+      settings: { lang: "vi", theme: "dark", track_role: "swe", track_level: "senior" },
+    };
+    const synced = await request(app.getHttpServer())
+      .post("/v1/progress/sync")
+      .set("Authorization", tok("user-sync"))
+      .send(snap)
+      .expect(201);
+    expect(synced.body.topics).toEqual({ arrays: true, graphs: true });
+
+    const got = await request(app.getHttpServer())
+      .get("/v1/progress")
+      .set("Authorization", tok("user-sync"))
+      .expect(200);
+    expect(got.body.topics).toEqual({ arrays: true, graphs: true });
+    expect(got.body.cards.q1).toEqual({ due_at: 1720000000000, interval: 3, ease: 2.5, reps: 2 });
+    expect(got.body.quizBest.arrays).toBe(80);
+    expect(got.body.bookmarks).toEqual(["graphs"]);
+    expect(got.body.streak.current).toBe(4);
+    expect(got.body.settings).toEqual({ lang: "vi", theme: "dark", track_role: "swe", track_level: "senior" });
+  });
 });

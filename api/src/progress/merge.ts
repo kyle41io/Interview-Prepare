@@ -9,7 +9,24 @@ export interface Snapshot {
   settings: { lang?: string; theme?: string; track_role?: string; track_level?: string };
 }
 
-export function mergeSnapshot(server: Snapshot, local: Snapshot): Snapshot {
+// Normalize a possibly-partial snapshot (the `local` side arrives from an
+// external request body and may omit fields) to a fully-populated shape so the
+// merge never throws on a missing collection.
+function norm(x: Partial<Snapshot> | null | undefined): Snapshot {
+  const s = x || {};
+  return {
+    topics: s.topics || {},
+    cards: s.cards || {},
+    quizBest: s.quizBest || {},
+    bookmarks: Array.isArray(s.bookmarks) ? s.bookmarks : [],
+    streak: s.streak || null,
+    settings: s.settings || {},
+  };
+}
+
+export function mergeSnapshot(serverIn: Partial<Snapshot> | null | undefined, localIn: Partial<Snapshot> | null | undefined): Snapshot {
+  const server = norm(serverIn);
+  const local = norm(localIn);
   const topics = { ...server.topics, ...local.topics };
   const bookmarks = Array.from(new Set([...server.bookmarks, ...local.bookmarks]));
 
