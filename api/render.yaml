@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: interview-prep-api
+    runtime: node
+    rootDir: api
+    buildCommand: npm install && npx prisma generate --schema src/prisma/schema.prisma && npm run build
+    startCommand: node dist/main.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://kyle41io.github.io,http://localhost:8000
