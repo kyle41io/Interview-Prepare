@@ -1,9 +1,13 @@
 FROM node:18-slim AS build
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN npx prisma generate --schema src/prisma/schema.prisma && npm run build
+# Strip devDependencies from node_modules now that build + client generation
+# are done, so the runtime image below doesn't ship them.
+RUN npm prune --omit=dev
+
 FROM node:18-slim
 WORKDIR /app
 ENV NODE_ENV=production
