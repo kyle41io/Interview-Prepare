@@ -69,20 +69,34 @@
     _cbs.push(cb);
   }
 
-  /* Stateful: send a chat message; accesses root.IP.auth.client() at call time only */
+  function _apiOn() {
+    var a = root.IP && root.IP.api;
+    return !!(a && a.configured && a.configured());
+  }
+
+  /* Stateful: send a chat message; routes through IP.api when configured,
+     else falls back to the Supabase edge fn (accesses root.IP.auth.client() at call time only) */
   async function send(text) {
-    var c = root.IP && root.IP.auth ? root.IP.auth.client() : null;
-    if (!c) return { error: "not-signed-in" };
     _hist.push({ role: "user", content: text });
     _emit();
     try {
-      var res = await c.functions.invoke("chat", { body: { messages: truncateHistory(_hist, 10, 4000) } });
-      var data = res.data;
-      var error = res.error;
-      if (error || !data || data.error) {
-        _hist.pop();
-        _emit();
-        return { error: (data && data.error) || (error && error.message) || "error" };
+      var data;
+      if (_apiOn()) {
+        data = await root.IP.api.post("/v1/chat", { messages: truncateHistory(_hist, 10, 4000) });
+      } else {
+        var c = root.IP && root.IP.auth ? root.IP.auth.client() : null;
+        if (!c) {
+          _hist.pop();
+          _emit();
+          return { error: "not-signed-in" };
+        }
+        var res = await c.functions.invoke("chat", { body: { messages: truncateHistory(_hist, 10, 4000) } });
+        if (res.error || !res.data || res.data.error) {
+          _hist.pop();
+          _emit();
+          return { error: (res.data && res.data.error) || (res.error && res.error.message) || "error" };
+        }
+        data = res.data;
       }
       _hist.push({ role: "assistant", content: data.text });
       _emit();
@@ -90,7 +104,8 @@
     } catch (e) {
       _hist.pop();
       _emit();
-      return { error: String(e) };
+      if (e && e.status === 429) return { error: "quota", remaining: 0 }; // API 429 → same signal app.js expects
+      return { error: (e && e.error) || (e && e.message) || "error" };
     }
   }
 
