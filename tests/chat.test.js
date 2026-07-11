@@ -32,3 +32,32 @@ test("mdLite renders fenced code block without inner formatting", () => {
   const out = chat.mdLite("```\nx = 1 && y\n```");
   assert.match(out, /<pre class="chat-code"><code>x = 1 &amp;&amp; y<\/code><\/pre>/);
 });
+
+function setup(configured, opts = {}) {
+  global.window = global;
+  global.IP = {
+    api: { configured: () => configured, post: async (p, b) => { (opts.calls || []).push([p, b]); if (opts.reject) throw opts.reject; return { text: "hello", remaining: 5 }; } },
+    auth: { client: () => opts.client || null },
+  };
+  chat.reset();
+}
+test("send routes through IP.api POST /v1/chat when configured", async () => {
+  const calls = []; setup(true, { calls });
+  const r = await chat.send("hi");
+  assert.strictEqual(calls[0][0], "/v1/chat");
+  assert.deepStrictEqual(calls[0][1].messages[0], { role: "user", content: "hi" });
+  assert.strictEqual(r.text, "hello"); assert.strictEqual(r.remaining, 5);
+});
+test("send maps a 429 rejection to error:quota", async () => {
+  const err = new Error("http-429"); err.status = 429; err.error = "http-429";
+  setup(true, { reject: err });
+  const r = await chat.send("hi");
+  assert.strictEqual(r.error, "quota");
+});
+test("not configured → uses Supabase edge fn (no IP.api call)", async () => {
+  const calls = [];
+  const client = { functions: { invoke: async (name, o) => { calls.push([name, o]); return { data: { text: "sb", remaining: 2 }, error: null }; } } };
+  setup(false, { client });
+  const r = await chat.send("hi");
+  assert.strictEqual(r.text, "sb");
+});
