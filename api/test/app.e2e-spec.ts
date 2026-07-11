@@ -10,6 +10,7 @@ process.env.AWS_REGION = process.env.AWS_REGION || "us-east-1";
 process.env.DDB_TABLE = process.env.DDB_TABLE || "ip_progress_test";
 process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "test";
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
+process.env.AI_PROVIDER = process.env.AI_PROVIDER || "mock";
 // process.env.DDB_ENDPOINT is intentionally left untouched here: it gates whether the
 // DynamoDB-backed test below runs (set it to DynamoDB Local, e.g. http://localhost:8001,
 // to enable it). If unset, that test is skipped.
@@ -105,4 +106,24 @@ describe("API e2e", () => {
     expect(got.body.streak.current).toBe(4);
     expect(got.body.settings).toEqual({ lang: "vi", theme: "dark", track_role: "swe", track_level: "senior" });
   });
+
+  (dbOn ? it : it.skip)("chat: free tier allows 3 then 429; bad body 400 without consuming quota", async () => {
+    const t = tok("chat-user");
+    // bad body first — must NOT consume quota
+    await request(app.getHttpServer()).post("/v1/chat").set("Authorization", t).send({ messages: [] }).expect(400);
+    for (let i = 0; i < 3; i++) {
+      const r = await request(app.getHttpServer()).post("/v1/chat").set("Authorization", t).send({ messages: [{ role: "user", content: "hi" }] });
+      expect(r.status).toBe(201); // Nest POST default success is 201
+      expect(typeof r.body.text).toBe("string");
+    }
+    await request(app.getHttpServer()).post("/v1/chat").set("Authorization", t).send({ messages: [{ role: "user", content: "hi" }] }).expect(429);
+    const q = await request(app.getHttpServer()).get("/v1/chat/quota").set("Authorization", t).expect(200);
+    expect(q.body.used).toBe(3); expect(q.body.remaining).toBe(0); expect(q.body.limit).toBe(3);
+  });
+  (dbOn ? it : it.skip)("chat quota is isolated per user", async () => {
+    await request(app.getHttpServer()).post("/v1/chat").set("Authorization", tok("chat-A")).send({ messages: [{ role: "user", content: "hi" }] });
+    const qb = await request(app.getHttpServer()).get("/v1/chat/quota").set("Authorization", tok("chat-B")).expect(200);
+    expect(qb.body.used).toBe(0);
+  });
+  it("chat: 401 without token", () => request(app.getHttpServer()).post("/v1/chat").send({ messages: [] }).expect(401));
 });
