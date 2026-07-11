@@ -12,7 +12,8 @@
     "backfill": "ts-node scripts/backfill.ts",
     "backfill-billing": "ts-node scripts/backfill-billing.ts",
     "create-table": "ts-node scripts/create-table.ts",
-    "create-billing-table": "ts-node scripts/create-billing-table.ts"
+    "create-billing-table": "ts-node scripts/create-billing-table.ts",
+    "create-chat-table": "ts-node scripts/create-chat-table.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",
