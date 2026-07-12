@@ -50,3 +50,22 @@ describe("ProviderService.complete", () => {
     await expect(svc({ AI_PROVIDER: "openai", OPENAI_API_KEY: "k" }).complete({ system: "s", messages: [{ role: "user", content: "x" }] })).rejects.toThrow();
   });
 });
+describe("ProviderService.classify", () => {
+  const openaiText = (t: string) => { (global as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: t } }] }) }); };
+  afterEach(() => { (global as any).fetch = undefined; });
+  it("mock provider returns a canned recruiting object, no network", async () => {
+    const out = await svc({ AI_PROVIDER: "mock" }).classify({ system: "s", input: "hi" });
+    expect(out.is_recruiting).toBe(true);
+    expect((global as any).fetch).toBeUndefined();
+  });
+  it("parses a ```json fenced reply with a trailing newline", async () => {
+    openaiText('```json\n{"is_recruiting":true,"kind":"interview"}\n```\n');
+    const out = await svc({ AI_PROVIDER: "openai", OPENAI_API_KEY: "k" }).classify({ system: "s", input: "x" });
+    expect(out).toEqual({ is_recruiting: true, kind: "interview" });
+  });
+  it("parse failure → {is_recruiting:false}", async () => {
+    openaiText("not json at all");
+    const out = await svc({ AI_PROVIDER: "openai", OPENAI_API_KEY: "k" }).classify({ system: "s", input: "x" });
+    expect(out).toEqual({ is_recruiting: false });
+  });
+});
