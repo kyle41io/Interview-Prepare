@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
 import { InboxService } from "./inbox.service";
@@ -18,6 +18,7 @@ export class RemindersController {
   }
   @Put(":id")
   setStatus(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() b: StatusBody) {
-    return this.svc.setReminderStatus(u.id, id, b.status || "upcoming");
+    if (!b?.status) throw new BadRequestException("status required");
+    return this.svc.setReminderStatus(u.id, id, b.status);
   }
 }

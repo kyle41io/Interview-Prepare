@@ -17,6 +17,13 @@ describe("InboxService", () => {
     expect(out.updated).toBe(1); // only 'a'
     expect(send).toHaveBeenCalledTimes(2); // 1 query + 1 update
   });
+  it("markRead is a no-op (ok:false) when the notification doesn't exist (attribute_exists guard)", async () => {
+    const err: any = new Error("cond"); err.name = "ConditionalCheckFailedException";
+    const send = jest.fn().mockRejectedValue(err);
+    const out = await svc(send).markRead("u1", "2026-07-10T00:00:00Z", "nope");
+    expect(out).toEqual({ ok: false });
+    expect(send.mock.calls[0][0].input.ConditionExpression).toBe("attribute_exists(sk)");
+  });
   it("listReminders filters by status and sorts by due_at", async () => {
     const send = jest.fn().mockResolvedValue({ Items: [
       { id: "r2", status: "upcoming", due_at: "2026-08-02", kind: "interview", title: "B" },
