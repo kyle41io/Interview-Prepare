@@ -39,7 +39,6 @@ Actions secrets, and your own shell/`.env` (git-ignored).
            "dynamodb:GetItem",
            "dynamodb:PutItem",
            "dynamodb:UpdateItem",
-           "dynamodb:DeleteItem",
            "dynamodb:BatchWriteItem",
            "dynamodb:Scan",
            "dynamodb:DescribeTable",
