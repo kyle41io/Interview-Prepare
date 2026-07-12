@@ -28,7 +28,9 @@ export class ProviderService {
     }
     const { text } = await this.complete({ system: opts.system, messages: [{ role: "user", content: opts.input }], maxTokens: 512 });
     try {
-      return JSON.parse(text.replace(/^```(json)?/i, "").replace(/```$/, "").trim());
+      // Tolerate ```json fences with surrounding whitespace/newlines around the object.
+      const body = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+      return JSON.parse(body);
     } catch {
       return { is_recruiting: false };
     }
