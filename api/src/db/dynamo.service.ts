@@ -10,6 +10,7 @@ export class DynamoService implements OnModuleDestroy {
   readonly table: string;
   readonly billingTable: string;
   readonly chatTable: string;
+  readonly inboxTable: string;
 
   constructor(config: ConfigService) {
     const region = config.get<string>("AWS_REGION") || "us-east-1";
@@ -19,6 +20,7 @@ export class DynamoService implements OnModuleDestroy {
     this.table = config.get<string>("DDB_TABLE") || "ip_progress";
     this.billingTable = config.get<string>("DDB_BILLING_TABLE") || "ip_billing";
     this.chatTable = config.get<string>("DDB_CHAT_TABLE") || "ip_chat";
+    this.inboxTable = config.get<string>("DDB_INBOX_TABLE") || "ip_inbox";
     this.client = new DynamoDBClient({
       region,
       ...(endpoint ? { endpoint } : {}),

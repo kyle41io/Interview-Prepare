@@ -578,9 +578,11 @@
   }
 
   /* ---------- Notifications (bell) ---------- */
+  const Notifs = { list: null };
   async function refreshBell() {
     if (!(IP.auth && IP.auth.getUser && IP.auth.getUser())) return;
     const list = await IP.gmail.fetchNotifications();
+    Notifs.list = list;
     const unread = (list || []).filter((n) => !n.read).length;
     const badge = document.getElementById("bellBadge");
     if (badge) { badge.hidden = unread === 0; badge.textContent = unread > 9 ? "9+" : String(unread); }
@@ -1356,7 +1358,8 @@
       }
       if (e.target.closest("[data-notif]")) {
         const id = e.target.closest("[data-notif]").dataset.notif;
-        (async () => { await IP.gmail.markRead(id); await refreshBell(); })();
+        const notif = (Notifs.list || []).find((n) => String(n.id) === String(id)) || { id };
+        (async () => { await IP.gmail.markRead(notif); await refreshBell(); })();
         return;
       }
 

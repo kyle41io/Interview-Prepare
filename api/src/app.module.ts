@@ -6,5 +6,6 @@ import { ProgressModule } from "./progress/progress.module";
 import { BillingModule } from "./billing/billing.module";
 import { ProContentModule } from "./pro/pro.module";
 import { ChatModule } from "./chat/chat.module";
-@Module({ imports: [AppConfigModule, DynamoModule, ProgressModule, BillingModule, ProContentModule, ChatModule], controllers: [HealthController] })
+import { InboxModule } from "./inbox/inbox.module";
+@Module({ imports: [AppConfigModule, DynamoModule, ProgressModule, BillingModule, ProContentModule, ChatModule, InboxModule], controllers: [HealthController] })
 export class AppModule {}
