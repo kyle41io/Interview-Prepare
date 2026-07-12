@@ -56,7 +56,8 @@ Actions secrets, and your own shell/`.env` (git-ignored).
    `pk`+`sk` scheme (see `api/src/inbox/inbox-keys.ts`), so it needs a wider
    action set than `ip_chat`: `Query`/`Scan` for `InboxService`'s
    list/scan-all reads, `GetItem`/`PutItem`/`UpdateItem` for the connect/
-   status/mark-read/reminder-status paths, `DeleteItem` for disconnect, and
+   status/disconnect/mark-read/reminder-status paths (disconnect clears the
+   token via `UpdateItem`, not a delete), and
    `BatchWriteItem` for the one-time backfill script
    (`api/scripts/backfill-inbox.ts`). `DescribeTable`/`CreateTable`/
    `UpdateTimeToLive` are for the idempotent table-creation script, same
