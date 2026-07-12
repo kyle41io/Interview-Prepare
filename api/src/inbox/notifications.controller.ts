@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
 import { InboxService } from "./inbox.service";
@@ -16,11 +16,13 @@ export class NotificationsController {
   constructor(private readonly svc: InboxService) {}
   @Get()
   list(@CurrentUser() u: AuthUser, @Query("limit") limit?: string) {
-    return this.svc.listNotifications(u.id, limit ? Number(limit) : 30);
+    const n = limit ? Number(limit) : 30;
+    return this.svc.listNotifications(u.id, Number.isFinite(n) && n > 0 ? n : 30);
   }
   @Post("read")
   read(@CurrentUser() u: AuthUser, @Body() b: ReadBody) {
-    return this.svc.markRead(u.id, b.created_at || "", b.id || "");
+    if (!b?.created_at || !b?.id) throw new BadRequestException("created_at and id required");
+    return this.svc.markRead(u.id, b.created_at, b.id);
   }
   @Post("read-all")
   readAll(@CurrentUser() u: AuthUser) {

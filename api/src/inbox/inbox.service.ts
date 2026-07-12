@@ -49,16 +49,22 @@ export class InboxService {
   }
 
   async markRead(userId: string, createdAt: string, id: string) {
-    await this.dyn.doc.send(
-      new UpdateCommand({
-        TableName: this.t(),
-        Key: { pk: userPk(userId), sk: notifSk(createdAt, id) },
-        UpdateExpression: "SET #r = :t",
-        ExpressionAttributeNames: { "#r": "read" },
-        ExpressionAttributeValues: { ":t": true },
-      }),
-    );
-    return { ok: true };
+    try {
+      await this.dyn.doc.send(
+        new UpdateCommand({
+          TableName: this.t(),
+          Key: { pk: userPk(userId), sk: notifSk(createdAt, id) },
+          UpdateExpression: "SET #r = :t",
+          ConditionExpression: "attribute_exists(sk)", // only update an existing notification — never create a garbage row
+          ExpressionAttributeNames: { "#r": "read" },
+          ExpressionAttributeValues: { ":t": true },
+        }),
+      );
+      return { ok: true };
+    } catch (e: any) {
+      if (e.name === "ConditionalCheckFailedException") return { ok: false }; // no such notification (no-op)
+      throw e;
+    }
   }
 
   async markAllRead(userId: string) {
@@ -105,15 +111,21 @@ export class InboxService {
   }
 
   async setReminderStatus(userId: string, id: string, status: string) {
-    await this.dyn.doc.send(
-      new UpdateCommand({
-        TableName: this.t(),
-        Key: { pk: userPk(userId), sk: reminderSk(id) },
-        UpdateExpression: "SET #s = :s",
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: { ":s": status },
-      }),
-    );
-    return { ok: true };
+    try {
+      await this.dyn.doc.send(
+        new UpdateCommand({
+          TableName: this.t(),
+          Key: { pk: userPk(userId), sk: reminderSk(id) },
+          UpdateExpression: "SET #s = :s",
+          ConditionExpression: "attribute_exists(sk)", // only update an existing reminder — never create a stub
+          ExpressionAttributeNames: { "#s": "status" },
+          ExpressionAttributeValues: { ":s": status },
+        }),
+      );
+      return { ok: true };
+    } catch (e: any) {
+      if (e.name === "ConditionalCheckFailedException") return { ok: false };
+      throw e;
+    }
   }
 }
