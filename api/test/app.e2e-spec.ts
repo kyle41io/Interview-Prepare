@@ -11,6 +11,8 @@ process.env.DDB_TABLE = process.env.DDB_TABLE || "ip_progress_test";
 process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "test";
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
 process.env.AI_PROVIDER = process.env.AI_PROVIDER || "mock";
+process.env.GMAIL_MODE = process.env.GMAIL_MODE || "mock";
+process.env.CRON_SECRET = process.env.CRON_SECRET || "test-cron";
 // process.env.DDB_ENDPOINT is intentionally left untouched here: it gates whether the
 // DynamoDB-backed test below runs (set it to DynamoDB Local, e.g. http://localhost:8001,
 // to enable it). If unset, that test is skipped.
@@ -126,4 +128,17 @@ describe("API e2e", () => {
     expect(qb.body.used).toBe(0);
   });
   it("chat: 401 without token", () => request(app.getHttpServer()).post("/v1/chat").send({ messages: [] }).expect(401));
+
+  it("notifications: 401 without token", () => request(app.getHttpServer()).get("/v1/notifications").expect(401));
+  it("gmail scan without cron secret → 403", () => request(app.getHttpServer()).post("/v1/gmail/scan").expect(403));
+  (dbOn ? it : it.skip)("connect(mock) → scan(mock) creates a notification, idempotent on re-scan", async () => {
+    const t = tok("inbox-user");
+    await request(app.getHttpServer()).post("/v1/gmail/connect").set("Authorization", t).send({ code: "x", redirect_uri: "y" }).expect(201);
+    await request(app.getHttpServer()).post("/v1/gmail/scan").set("x-cron-secret", "test-cron").expect(201);
+    const n1 = await request(app.getHttpServer()).get("/v1/notifications").set("Authorization", t).expect(200);
+    expect(n1.body.length).toBeGreaterThanOrEqual(1);
+    await request(app.getHttpServer()).post("/v1/gmail/scan").set("x-cron-secret", "test-cron").expect(201);
+    const n2 = await request(app.getHttpServer()).get("/v1/notifications").set("Authorization", t).expect(200);
+    expect(n2.body.length).toBe(n1.body.length); // idempotent — no duplicate
+  });
 });

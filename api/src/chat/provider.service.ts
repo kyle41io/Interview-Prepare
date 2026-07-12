@@ -19,6 +19,21 @@ export class ProviderService {
   chatModel(provider: string): string {
     return this.config.get<string>("AI_CHAT_MODEL") || (provider === "openai" ? "gpt-4o-mini" : "claude-haiku-4-5");
   }
+  // Structured classification. The caller supplies the full system prompt (incl. the
+  // JSON instruction), so this stays layer-agnostic. Mock → canned recruiting object;
+  // a parse failure → { is_recruiting: false } so a bad model reply never crashes a scan.
+  async classify(opts: { system: string; input: string }): Promise<any> {
+    if (this.pickProvider() === "mock") {
+      return { is_recruiting: true, kind: "interview", company: "Acme", title: "Interview invite", event_at: null, deadline_at: null, summary: "[mock] interview" };
+    }
+    const { text } = await this.complete({ system: opts.system, messages: [{ role: "user", content: opts.input }], maxTokens: 512 });
+    try {
+      return JSON.parse(text.replace(/^```(json)?/i, "").replace(/```$/, "").trim());
+    } catch {
+      return { is_recruiting: false };
+    }
+  }
+
   async complete(opts: { system: string; messages: ChatMsg[]; maxTokens?: number }): Promise<{ text: string }> {
     const provider = this.pickProvider();
     const maxTokens = opts.maxTokens ?? 1024;
