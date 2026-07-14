@@ -22,7 +22,9 @@ create table if not exists public.notifications (
   created_at timestamptz not null default now()
 );
 alter table public.notifications enable row level security;
+drop policy if exists "own notif select" on public.notifications;
 create policy "own notif select" on public.notifications for select using (auth.uid() = user_id);
+drop policy if exists "own notif update" on public.notifications;
 create policy "own notif update" on public.notifications for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 -- insert: service-role only
 
@@ -39,7 +41,9 @@ create table if not exists public.reminders (
   created_at timestamptz not null default now()
 );
 alter table public.reminders enable row level security;
+drop policy if exists "own rem select" on public.reminders;
 create policy "own rem select" on public.reminders for select using (auth.uid() = user_id);
+drop policy if exists "own rem update" on public.reminders;
 create policy "own rem update" on public.reminders for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 -- insert: service-role only
 
@@ -53,4 +57,12 @@ alter table public.gmail_seen enable row level security;
 -- service-role only
 
 -- Realtime: let clients subscribe to their own notifications inserts (RLS still applies).
-alter publication supabase_realtime add table public.notifications;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;
