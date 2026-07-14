@@ -10,3 +10,4 @@ node_modules/
 !.env.example
 supabase/functions/.env
 docs/SETUP.md
+supabase/seed/cron_gmail.local.sql
