@@ -6,6 +6,7 @@ create table if not exists public.chat_usage (
   primary key (user_id, day)
 );
 alter table public.chat_usage enable row level security;
+drop policy if exists "own chat_usage select" on public.chat_usage;
 create policy "own chat_usage select" on public.chat_usage for select using (auth.uid() = user_id);
 -- writes: service-role only (via RPC below)
 

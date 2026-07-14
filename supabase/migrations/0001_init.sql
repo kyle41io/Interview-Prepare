@@ -18,13 +18,20 @@ create table if not exists public.user_state (
 alter table public.profiles enable row level security;
 alter table public.user_state enable row level security;
 
+drop policy if exists "own profile select" on public.profiles;
 create policy "own profile select" on public.profiles for select using (auth.uid() = id);
+drop policy if exists "own profile insert" on public.profiles;
 create policy "own profile insert" on public.profiles for insert with check (auth.uid() = id);
+drop policy if exists "own profile update" on public.profiles;
 create policy "own profile update" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
+drop policy if exists "own state select" on public.user_state;
 create policy "own state select" on public.user_state for select using (auth.uid() = user_id);
+drop policy if exists "own state insert" on public.user_state;
 create policy "own state insert" on public.user_state for insert with check (auth.uid() = user_id);
+drop policy if exists "own state update" on public.user_state;
 create policy "own state update" on public.user_state for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own state delete" on public.user_state;
 create policy "own state delete" on public.user_state for delete using (auth.uid() = user_id);
 
 -- Auto-create a profile row when a new auth user signs up (uses Google metadata)
