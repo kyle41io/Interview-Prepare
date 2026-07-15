@@ -932,6 +932,10 @@
     const sb = document.getElementById("sidebar");
     const L = State.lang;
 
+    // Topic sidebar is a Learn-mode-only affordance — clear it in every other
+    // mode so no stale list lingers behind the hidden column.
+    if (State.mode !== "learn") { sb.innerHTML = ""; return; }
+
     // --- Mode A: browse-all OR no track → category sidebar ---
     if (State.browseAll || !State.track) {
       let html = `<div class="nav-item ${State.mode === "learn" && !State.topic ? "active" : ""}" data-home="1">
@@ -1004,6 +1008,12 @@
     // Hide it on the landing, during onboarding, and in cards/quiz/chat/etc.
     const _mb = document.getElementById("menuBtn");
     if (_mb) _mb.hidden = (IP.auth.enabled() && !IP.auth.getUser()) || IP.onboarding.shouldShow() || State.mode !== "learn";
+    // The topic sidebar belongs to Learn only. On every other tab/view hide the
+    // whole column (not just the drawer) and let content span full width.
+    const _sidebarVisible = State.mode === "learn"
+      && !(IP.auth.enabled() && !IP.auth.getUser())
+      && !IP.onboarding.shouldShow();
+    document.body.classList.toggle("no-sidebar", !_sidebarVisible);
     // Logged-out gate: when a backend is configured but nobody is signed in,
     // show only a small intro landing — no track picker, no learning UI.
     if (IP.auth.enabled() && !IP.auth.getUser()) {
