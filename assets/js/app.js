@@ -1044,6 +1044,7 @@
     renderSidebar();
     setupToc();
     hydrateProSections();
+    enhanceSelects();
     if (State.mode === "chat") scrollChat();
     // NOTE: do not force scroll here — render() also runs for in-place updates
     // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
@@ -1051,6 +1052,66 @@
   }
 
   function toTop() { document.getElementById("content").scrollTop = 0; window.scrollTo(0, 0); }
+
+  /* ============================================================
+     CUSTOM DROPDOWN
+     Progressive-enhance <select class="fc-select"> into a styled dropdown that
+     matches the app's menus. The native <select> stays as the source of truth
+     (visually hidden), so delegated `change` handlers and `.value` reads that
+     other code relies on keep working unchanged.
+     ============================================================ */
+  function closeAllDropdowns(except) {
+    document.querySelectorAll(".cdd.open").forEach(w => {
+      if (w === except) return;
+      w.classList.remove("open");
+      const p = w.querySelector(".cdd-panel"); if (p) p.hidden = true;
+      const tr = w.querySelector(".cdd-trigger"); if (tr) tr.setAttribute("aria-expanded", "false");
+    });
+  }
+  function enhanceSelects() {
+    document.querySelectorAll("select.fc-select:not([data-enhanced])").forEach(sel => {
+      sel.setAttribute("data-enhanced", "1");
+      const wrap = document.createElement("div");
+      wrap.className = "cdd";
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.appendChild(sel);
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "cdd-trigger";
+      trigger.setAttribute("aria-haspopup", "listbox");
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.innerHTML = '<span class="cdd-value"></span><i class="fa-solid fa-chevron-down cdd-caret"></i>';
+      const panel = document.createElement("div");
+      panel.className = "cdd-panel";
+      panel.setAttribute("role", "listbox");
+      panel.hidden = true;
+      const valEl = trigger.querySelector(".cdd-value");
+      const sync = () => {
+        const cur = sel.options[sel.selectedIndex];
+        valEl.textContent = cur ? cur.textContent : "";
+        panel.innerHTML = Array.from(sel.options).map((o, i) =>
+          `<div class="cdd-opt ${i === sel.selectedIndex ? "selected" : ""}" role="option" data-i="${i}">${o.textContent}</div>`).join("");
+      };
+      sync();
+      wrap.appendChild(trigger);
+      wrap.appendChild(panel);
+      trigger.addEventListener("click", e => {
+        e.stopPropagation();
+        const willOpen = panel.hidden;
+        closeAllDropdowns(wrap);
+        if (willOpen) { sync(); panel.hidden = false; trigger.setAttribute("aria-expanded", "true"); wrap.classList.add("open"); }
+        else { panel.hidden = true; trigger.setAttribute("aria-expanded", "false"); wrap.classList.remove("open"); }
+      });
+      panel.addEventListener("click", e => {
+        const opt = e.target.closest(".cdd-opt"); if (!opt) return;
+        e.stopPropagation();
+        const i = +opt.dataset.i;
+        if (i !== sel.selectedIndex) { sel.selectedIndex = i; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+        sync();
+        panel.hidden = true; trigger.setAttribute("aria-expanded", "false"); wrap.classList.remove("open");
+      });
+    });
+  }
 
   let _tocObserver = null;
   function setupToc() {
@@ -1148,6 +1209,9 @@
     document.getElementById("menuBtn").onclick = toggleSidebar;
     document.getElementById("overlay").onclick = closeSidebar;
     document.getElementById("brand").onclick = goHome;
+    // Close any open custom dropdown on outside-click / Escape.
+    document.addEventListener("click", () => closeAllDropdowns());
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeAllDropdowns(); });
 
     // theme
     const themeBtn = document.getElementById("themeBtn");
