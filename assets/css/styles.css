@@ -596,7 +596,7 @@ html[data-theme="light"] .profile-menu{
    TASK 8 — Typography + polish pass
    ============================================================ */
 /* Reading measure: cap prose width for comfortable line length */
-.section-body{max-width:72ch}
+.section-body{max-width:80ch}
 .section-body .block p,.section-body .block li{line-height:1.7}
 
 /* Focus visibility for keyboard navigation */
@@ -721,3 +721,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* Logged-out landing: no sidebar, content spans the full viewport (centered). */
 body.logged-out .sidebar{display:none}
 body.logged-out .content{margin-left:0;max-width:none}
+
+/* Non-Learn tabs (cards / quiz / chat / settings / …): the topic sidebar is
+   hidden entirely and the content column spans full width — same treatment as
+   logged-out. Overrides the desktop sb-collapsed centering too. */
+body.no-sidebar .sidebar{display:none}
+body.no-sidebar .content,
+html.sb-collapsed body.no-sidebar .content{margin-left:0;margin-right:0;max-width:none}
