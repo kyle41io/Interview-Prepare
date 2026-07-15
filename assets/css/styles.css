@@ -595,8 +595,10 @@ html[data-theme="light"] .profile-menu{
 /* ============================================================
    TASK 8 — Typography + polish pass
    ============================================================ */
-/* Reading measure: cap prose width for comfortable line length */
-.section-body{max-width:80ch}
+/* Let section prose fill the card. The content column is already bounded by the
+   fixed left sidebar and right TOC rail, so paragraphs use the full card width
+   instead of leaving a large empty gutter on the right of each section. */
+.section-body{max-width:none}
 .section-body .block p,.section-body .block li{line-height:1.7}
 
 /* Focus visibility for keyboard navigation */
