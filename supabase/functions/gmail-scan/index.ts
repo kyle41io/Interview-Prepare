@@ -38,15 +38,20 @@ Deno.serve(async (req) => {
   if (secret !== Deno.env.get("CRON_SECRET")) return new Response("forbidden", { status: 403 });
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SERVICE_ROLE_KEY")!, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: accounts } = await admin.from("gmail_accounts").select("*").eq("active", true);
+  const debug = (new URL(req.url)).searchParams.get("debug") === "1";
+  const dbg: any = { accounts: (accounts || []).length, perAccount: [] };
   let processed = 0;
   for (const acc of accounts || []) {
     const token = await refreshToken(acc.refresh_token);
+    const ad: any = { token: !!token, listed: 0, seen: 0, reMiss: 0, notRecruiting: 0, matched: 0 };
+    dbg.perAccount.push(ad);
     if (!token) continue;
     const auth = { headers: { Authorization: "Bearer " + token } };
     const list = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent("newer_than:2d in:inbox") + "&maxResults=20", auth).then((r) => r.ok ? r.json() : { messages: [] });
+    ad.listed = (list.messages || []).length;
     for (const m of (list.messages || [])) {
       const { data: seen } = await admin.from("gmail_seen").select("msg_id").eq("user_id", acc.user_id).eq("msg_id", m.id).maybeSingle();
-      if (seen) continue;
+      if (seen) { ad.seen++; continue; }
       // Mark "seen" ONLY after a definitive decision — never before classification.
       // A transient failure (msg fetch or AI down) must leave the email for the next
       // scan; committing seen early would permanently burn it (the processed:0 bug).
@@ -54,11 +59,12 @@ Deno.serve(async (req) => {
       const msg = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + m.id + "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date", auth).then((r) => r.ok ? r.json() : null);
       if (!msg) continue; // transient fetch failure — retry next scan
       const subject = header(msg.payload?.headers, "subject"), from = header(msg.payload?.headers, "from"), snippet = msg.snippet || "";
-      if (!RE.test(subject + " " + snippet)) { await markSeen(); continue; } // definitively irrelevant
+      if (!RE.test(subject + " " + snippet)) { ad.reMiss++; await markSeen(); continue; } // definitively irrelevant
       let c: any;
       try { c = await aiClassify({ system: SYS, input: `From: ${from}\nSubject: ${subject}\nSnippet: ${snippet}`, schema: CLASSIFY_SCHEMA }); } catch { continue; } // AI down — retry next scan
       await markSeen(); // classified — commit the decision now
-      if (!c?.is_recruiting) continue;
+      if (!c?.is_recruiting) { ad.notRecruiting++; continue; }
+      ad.matched++;
       await admin.from("notifications").insert({
         user_id: acc.user_id, type: c.kind || "other",
         title: (c.company ? c.company + " — " : "") + (c.title || subject), body: c.summary || "", source: m.id,
@@ -73,5 +79,5 @@ Deno.serve(async (req) => {
     }
     await admin.from("gmail_accounts").update({ last_scan: new Date().toISOString() }).eq("user_id", acc.user_id);
   }
-  return new Response(JSON.stringify({ ok: true, processed }), { headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(debug ? { ok: true, processed, debug: dbg } : { ok: true, processed }), { headers: { "content-type": "application/json" } });
 });
