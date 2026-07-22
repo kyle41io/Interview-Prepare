@@ -16,6 +16,11 @@ const CLASSIFY_SCHEMA = {
   required: ["is_recruiting", "kind", "company", "title", "event_at", "deadline_at", "summary"],
 };
 const RE = /(interview|phỏng|assessment|coding|test|take-home|offer|onboarding|tuyển|recruit|application|regret|unfortunately|shortlist|screening|hiring|vòng)/i;
+// Pre-filter inside the Gmail query so a noisy inbox (job-board ads, newsletters)
+// can't push real recruiting mail past the fetch cap. Gmail searches subject+body,
+// so this catches far more than a recent-N slice; gmail_seen still dedupes.
+const KW_QUERY = '(interview OR "phỏng vấn" OR assessment OR "coding test" OR take-home OR offer OR onboarding OR tuyển OR recruit OR shortlist OR screening OR hiring OR "vòng")';
+const DEFAULT_Q = "newer_than:14d in:inbox " + KW_QUERY;
 const SYS = "You classify a recruiting-related email for an IT job seeker. Return JSON per the schema. is_recruiting=false if it is not about a job application/interview/offer/rejection/test. kind: test=coding test/assessment, interview=interview invite/schedule, offer=job offer, rejection=declined, other=recruiting but none of these. event_at/deadline_at: ISO 8601 if a date/time is present, else null. Keep summary <=200 chars, in the email's language.";
 
 async function refreshToken(refresh: string): Promise<{ token: string | null; err: string | null }> {
@@ -54,8 +59,8 @@ Deno.serve(async (req) => {
     dbg.perAccount.push(ad);
     if (!token) continue;
     const auth = { headers: { Authorization: "Bearer " + token } };
-    const q = (new URL(req.url)).searchParams.get("q") || "newer_than:2d in:inbox";
-    const listRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent(q) + "&maxResults=20", auth);
+    const q = (new URL(req.url)).searchParams.get("q") || DEFAULT_Q;
+    const listRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent(q) + "&maxResults=40", auth);
     ad.listStatus = listRes.status;
     const list = listRes.ok ? await listRes.json() : { messages: [] };
     if (!listRes.ok) ad.listErr = (await listRes.text().catch(() => "")).slice(0, 200);
