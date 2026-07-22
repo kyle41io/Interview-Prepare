@@ -47,13 +47,17 @@ Deno.serve(async (req) => {
     for (const m of (list.messages || [])) {
       const { data: seen } = await admin.from("gmail_seen").select("msg_id").eq("user_id", acc.user_id).eq("msg_id", m.id).maybeSingle();
       if (seen) continue;
-      await admin.from("gmail_seen").insert({ user_id: acc.user_id, msg_id: m.id });
+      // Mark "seen" ONLY after a definitive decision — never before classification.
+      // A transient failure (msg fetch or AI down) must leave the email for the next
+      // scan; committing seen early would permanently burn it (the processed:0 bug).
+      const markSeen = () => admin.from("gmail_seen").insert({ user_id: acc.user_id, msg_id: m.id });
       const msg = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + m.id + "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date", auth).then((r) => r.ok ? r.json() : null);
-      if (!msg) continue;
+      if (!msg) continue; // transient fetch failure — retry next scan
       const subject = header(msg.payload?.headers, "subject"), from = header(msg.payload?.headers, "from"), snippet = msg.snippet || "";
-      if (!RE.test(subject + " " + snippet)) continue;
+      if (!RE.test(subject + " " + snippet)) { await markSeen(); continue; } // definitively irrelevant
       let c: any;
-      try { c = await aiClassify({ system: SYS, input: `From: ${from}\nSubject: ${subject}\nSnippet: ${snippet}`, schema: CLASSIFY_SCHEMA }); } catch { continue; }
+      try { c = await aiClassify({ system: SYS, input: `From: ${from}\nSubject: ${subject}\nSnippet: ${snippet}`, schema: CLASSIFY_SCHEMA }); } catch { continue; } // AI down — retry next scan
+      await markSeen(); // classified — commit the decision now
       if (!c?.is_recruiting) continue;
       await admin.from("notifications").insert({
         user_id: acc.user_id, type: c.kind || "other",
