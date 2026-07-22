@@ -18,14 +18,20 @@ const CLASSIFY_SCHEMA = {
 const RE = /(interview|phỏng|assessment|coding|test|take-home|offer|onboarding|tuyển|recruit|application|regret|unfortunately|shortlist|screening|hiring|vòng)/i;
 const SYS = "You classify a recruiting-related email for an IT job seeker. Return JSON per the schema. is_recruiting=false if it is not about a job application/interview/offer/rejection/test. kind: test=coding test/assessment, interview=interview invite/schedule, offer=job offer, rejection=declined, other=recruiting but none of these. event_at/deadline_at: ISO 8601 if a date/time is present, else null. Keep summary <=200 chars, in the email's language.";
 
-async function refreshToken(refresh: string): Promise<string | null> {
+async function refreshToken(refresh: string): Promise<{ token: string | null; err: string | null }> {
   const body = new URLSearchParams({
     client_id: Deno.env.get("GOOGLE_CLIENT_ID")!, client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
     refresh_token: refresh, grant_type: "refresh_token",
   });
   const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
-  if (!r.ok) return null;
-  const j = await r.json(); return j.access_token || null;
+  if (!r.ok) {
+    // Surface Google's `error` (invalid_client vs invalid_grant) — not the description (may carry detail).
+    const t = await r.text().catch(() => "");
+    let code = "http_" + r.status;
+    try { code = JSON.parse(t).error || code; } catch { /* keep http_ status */ }
+    return { token: null, err: code };
+  }
+  const j = await r.json(); return { token: j.access_token || null, err: j.access_token ? null : "no_access_token" };
 }
 function header(headers: any[], name: string): string {
   return (headers || []).find((h: any) => h.name?.toLowerCase() === name)?.value || "";
@@ -42,8 +48,8 @@ Deno.serve(async (req) => {
   const dbg: any = { accounts: (accounts || []).length, perAccount: [] };
   let processed = 0;
   for (const acc of accounts || []) {
-    const token = await refreshToken(acc.refresh_token);
-    const ad: any = { token: !!token, listed: 0, seen: 0, reMiss: 0, notRecruiting: 0, matched: 0 };
+    const { token, err: tokenErr } = await refreshToken(acc.refresh_token);
+    const ad: any = { token: !!token, tokenErr, hasClientId: !!Deno.env.get("GOOGLE_CLIENT_ID"), hasClientSecret: !!Deno.env.get("GOOGLE_CLIENT_SECRET"), listed: 0, seen: 0, reMiss: 0, notRecruiting: 0, matched: 0 };
     dbg.perAccount.push(ad);
     if (!token) continue;
     const auth = { headers: { Authorization: "Bearer " + token } };
