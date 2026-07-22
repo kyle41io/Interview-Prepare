@@ -97,3 +97,18 @@ test("post/put also reject when not configured", async () => {
   assert.strictEqual(r1.error, "api-not-configured");
   assert.strictEqual(r2.error, "api-not-configured");
 });
+
+test("del builds URL + DELETE method + bearer header, no body", async () => {
+  api.__setBase("https://x.dev");
+  const calls = [];
+  api.__setDeps({
+    fetch: async (u, o) => { calls.push([u, o]); return { ok: true, json: async () => ({ deleted: true }) }; },
+    token: async () => "TKN4",
+  });
+  const r = await api.del("/v1/reminders/r1");
+  assert.strictEqual(calls[0][0], "https://x.dev/v1/reminders/r1");
+  assert.strictEqual(calls[0][1].method, "DELETE");
+  assert.strictEqual(calls[0][1].headers.Authorization, "Bearer TKN4");
+  assert.strictEqual(calls[0][1].body, undefined);
+  assert.deepStrictEqual(r, { deleted: true });
+});

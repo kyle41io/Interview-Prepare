@@ -48,6 +48,7 @@
     get: (p) => _req("GET", p),
     post: (p, b) => _req("POST", p, b),
     put: (p, b) => _req("PUT", p, b),
+    del: (p) => _req("DELETE", p),
     __setBase,
     __setDeps,
   };
