@@ -20,7 +20,16 @@ const RE = /(interview|phỏng|assessment|coding|test|take-home|offer|onboarding
 // can't push real recruiting mail past the fetch cap. Gmail searches subject+body,
 // so this catches far more than a recent-N slice; gmail_seen still dedupes.
 const KW_QUERY = '(interview OR "phỏng vấn" OR assessment OR "coding test" OR take-home OR offer OR onboarding OR tuyển OR recruit OR shortlist OR screening OR hiring OR "vòng")';
-const DEFAULT_Q = "newer_than:14d in:inbox " + KW_QUERY;
+const DEFAULT_Q = "newer_than:60d in:inbox " + KW_QUERY;
+// A reminder inherits the event date the AI extracted from inside the email.
+// Emails can reference dates far in the past (old mock tests, forwarded threads);
+// those must not become calendar entries. Undated / unparseable = not stale.
+function isStalePastDate(iso: string | null, now: number): boolean {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  if (isNaN(t)) return false;
+  return t < now - 30 * 24 * 60 * 60 * 1000;
+}
 const SYS = "You classify a recruiting-related email for an IT job seeker. Return JSON per the schema. is_recruiting=false if it is not about a job application/interview/offer/rejection/test. kind: test=coding test/assessment, interview=interview invite/schedule, offer=job offer, rejection=declined, other=recruiting but none of these. event_at/deadline_at: ISO 8601 if a date/time is present, else null. Keep summary <=200 chars, in the email's language.";
 
 async function refreshToken(refresh: string): Promise<{ token: string | null; err: string | null }> {
@@ -88,7 +97,8 @@ Deno.serve(async (req) => {
         user_id: acc.user_id, type: c.kind || "other",
         title: (c.company ? c.company + " — " : "") + (c.title || subject), body: c.summary || "", source: m.id,
       });
-      if ((c.kind === "test" || c.kind === "interview") && (c.event_at || c.deadline_at)) {
+      if ((c.kind === "test" || c.kind === "interview") && (c.event_at || c.deadline_at)
+          && !isStalePastDate(c.event_at || c.deadline_at, Date.now())) {
         await admin.from("reminders").insert({
           user_id: acc.user_id, kind: c.kind, title: c.title || subject, company: c.company || null,
           due_at: c.event_at || null, deadline_at: c.deadline_at || null, source: m.id,
