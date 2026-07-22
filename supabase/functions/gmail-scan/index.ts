@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SERVICE_ROLE_KEY")!, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: accounts } = await admin.from("gmail_accounts").select("*").eq("active", true);
   const debug = (new URL(req.url)).searchParams.get("debug") === "1";
+  const inspect = debug && (new URL(req.url)).searchParams.get("inspect") === "1"; // non-destructive: ignore seen-cache, don't write
   const dbg: any = { accounts: (accounts || []).length, perAccount: [] };
   let processed = 0;
   for (const acc of accounts || []) {
@@ -53,24 +54,31 @@ Deno.serve(async (req) => {
     dbg.perAccount.push(ad);
     if (!token) continue;
     const auth = { headers: { Authorization: "Bearer " + token } };
-    const list = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent("newer_than:2d in:inbox") + "&maxResults=20", auth).then((r) => r.ok ? r.json() : { messages: [] });
+    const q = (new URL(req.url)).searchParams.get("q") || "newer_than:2d in:inbox";
+    const listRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent(q) + "&maxResults=20", auth);
+    ad.listStatus = listRes.status;
+    const list = listRes.ok ? await listRes.json() : { messages: [] };
+    if (!listRes.ok) ad.listErr = (await listRes.text().catch(() => "")).slice(0, 200);
+    ad.listQuery = q;
     ad.listed = (list.messages || []).length;
     for (const m of (list.messages || [])) {
       const { data: seen } = await admin.from("gmail_seen").select("msg_id").eq("user_id", acc.user_id).eq("msg_id", m.id).maybeSingle();
-      if (seen) { ad.seen++; continue; }
+      if (seen && !inspect) { ad.seen++; continue; }
       // Mark "seen" ONLY after a definitive decision — never before classification.
       // A transient failure (msg fetch or AI down) must leave the email for the next
       // scan; committing seen early would permanently burn it (the processed:0 bug).
-      const markSeen = () => admin.from("gmail_seen").insert({ user_id: acc.user_id, msg_id: m.id });
+      const markSeen = () => inspect ? Promise.resolve() : admin.from("gmail_seen").insert({ user_id: acc.user_id, msg_id: m.id });
       const msg = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + m.id + "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date", auth).then((r) => r.ok ? r.json() : null);
       if (!msg) continue; // transient fetch failure — retry next scan
       const subject = header(msg.payload?.headers, "subject"), from = header(msg.payload?.headers, "from"), snippet = msg.snippet || "";
-      if (!RE.test(subject + " " + snippet)) { ad.reMiss++; await markSeen(); continue; } // definitively irrelevant
+      if (!RE.test(subject + " " + snippet)) { ad.reMiss++; if (debug) (ad.samples ||= []).push({ subject: subject.slice(0, 80), verdict: "reMiss" }); await markSeen(); continue; } // definitively irrelevant
       let c: any;
       try { c = await aiClassify({ system: SYS, input: `From: ${from}\nSubject: ${subject}\nSnippet: ${snippet}`, schema: CLASSIFY_SCHEMA }); } catch { continue; } // AI down — retry next scan
       await markSeen(); // classified — commit the decision now
+      if (debug) (ad.samples ||= []).push({ subject: subject.slice(0, 80), verdict: c?.is_recruiting ? "match:" + c.kind : "notRecruiting" });
       if (!c?.is_recruiting) { ad.notRecruiting++; continue; }
       ad.matched++;
+      if (inspect) continue; // non-destructive inspection: don't write notifications/reminders
       await admin.from("notifications").insert({
         user_id: acc.user_id, type: c.kind || "other",
         title: (c.company ? c.company + " — " : "") + (c.title || subject), body: c.summary || "", source: m.id,
