@@ -1531,6 +1531,34 @@
         return;
       }
 
+      // calendar navigation + day selection + manual-event delete
+      if (e.target.closest("[data-cal-prev]")) {
+        if (Calendar.month === 0) { Calendar.month = 11; Calendar.year--; } else { Calendar.month--; }
+        render(); return;
+      }
+      if (e.target.closest("[data-cal-next]")) {
+        if (Calendar.month === 11) { Calendar.month = 0; Calendar.year++; } else { Calendar.month++; }
+        render(); return;
+      }
+      if (e.target.closest("[data-cal-today]")) {
+        const now = new Date();
+        Calendar.year = now.getFullYear(); Calendar.month = now.getMonth();
+        Calendar.selected = calDateKey(now);
+        render(); return;
+      }
+      if (e.target.closest("[data-cal-del]")) {
+        const id = e.target.closest("[data-cal-del]").dataset.calDel;
+        (async () => { await IP.gmail.deleteReminder(id); await loadReminders(); })();
+        return;
+      }
+      if (e.target.closest("[data-cal-day]")) {
+        // Let action buttons inside a day/panel handle their own clicks first.
+        if (!e.target.closest("[data-ics],[data-rem-done],[data-rem-dismiss],[data-cal-del]")) {
+          Calendar.selected = e.target.closest("[data-cal-day]").dataset.calDay;
+          render(); return;
+        }
+      }
+
       // reminders page actions
       if (e.target.closest("[data-ics]")) {
         const id = e.target.closest("[data-ics]").dataset.ics;
@@ -1573,6 +1601,24 @@
       if (e.target.id === "quizRetry") { buildQuiz(Quiz.topic); render(); return; }
       if (e.target.id === "quizBack") { Quiz.topic = null; render(); return; }
       if (e.target.closest("#chatSendBtn")) { sendChat(); return; }
+    });
+
+    // calendar add-event form
+    document.addEventListener("submit", (e) => {
+      const form = e.target.closest("[data-cal-add]");
+      if (!form) return;
+      e.preventDefault();
+      const title = (form.querySelector("[name=title]").value || "").trim();
+      if (!title) return;
+      const kind = form.querySelector("[name=kind]").value;
+      const company = (form.querySelector("[name=company]").value || "").trim();
+      const time = form.querySelector("[name=time]").value || "";
+      const errEl = form.querySelector(".cal-add-error");
+      (async () => {
+        const row = await IP.gmail.createReminder({ title, kind, company, date: Calendar.selected, time });
+        if (!row) { if (errEl) errEl.hidden = false; return; }
+        await loadReminders();
+      })();
     });
 
     // flashcard topic select (change)
