@@ -763,3 +763,35 @@ body.logged-out .content{margin-left:0;max-width:none}
 body.no-sidebar .sidebar{display:none}
 body.no-sidebar .content,
 html.sb-collapsed body.no-sidebar .content{margin-left:0;margin-right:0;max-width:none}
+
+/* ---------- Reminders month calendar ---------- */
+.cal-wrap { display: flex; gap: 16px; align-items: flex-start; }
+.cal-main { flex: 1 1 auto; min-width: 0; }
+.cal-panel { flex: 0 0 300px; border: 1px solid rgba(128,128,128,.25); border-radius: 10px; padding: 12px; }
+.cal-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cal-month-label { font-weight: 600; font-size: 1.05rem; margin: 0 auto 0 4px; text-transform: capitalize; }
+.cal-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+.cal-th { text-align: center; font-size: .75rem; opacity: .6; text-transform: uppercase; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-cell { min-height: 84px; border: 1px solid rgba(128,128,128,.2); border-radius: 8px; padding: 4px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.cal-cell--out { background: transparent; border-color: transparent; cursor: default; }
+.cal-cell--today { border-color: #2563eb; }
+.cal-cell--sel { box-shadow: 0 0 0 2px #2563eb inset; }
+.cal-daynum { font-size: .8rem; opacity: .7; }
+.cal-pill { display: block; font-size: .72rem; padding: 1px 6px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+.cal-pill--interview { background: #2563eb; }
+.cal-pill--test { background: var(--purple); }
+.cal-pill--deadline { background: var(--red); }
+.cal-pill--other { background: #64748b; }
+.cal-more { font-size: .7rem; opacity: .6; }
+.cal-panel-head { font-weight: 600; margin-bottom: 8px; text-transform: capitalize; }
+.cal-panel-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.cal-event { display: flex; gap: 8px; align-items: flex-start; }
+.cal-add-form { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(128,128,128,.25); padding-top: 10px; }
+.cal-add-form input, .cal-add-form select { padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,.4); background: transparent; color: inherit; }
+.cal-add-error { color: var(--red); font-size: .8rem; }
+@media (max-width: 720px) {
+  .cal-wrap { flex-direction: column; }
+  .cal-panel { flex-basis: auto; width: 100%; }
+  .cal-cell { min-height: 60px; }
+}
