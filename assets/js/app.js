@@ -1446,7 +1446,6 @@
       if (topicEl) return goTopic(topicEl.dataset.topic);
       const goEl = e.target.closest("[data-go]");
       if (goEl) { si.value = ""; return goTopic(goEl.dataset.go); }
-      if (e.target.closest("[data-home]")) return goHome();
 
       if (e.target.closest("[data-toc]")) {
         const i = e.target.closest("[data-toc]").dataset.toc;

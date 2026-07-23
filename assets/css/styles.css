@@ -471,14 +471,6 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
   font-size:11px;font-weight:700;color:var(--muted2);width:18px;text-align:center;flex-shrink:0
 }
 
-/* Back-to-track item */
-.nav-item--back{color:var(--accent);font-weight:600}
-.nav-item--back:hover{color:var(--accent)}
-
-/* All-topics link item */
-.all-topics-item{color:var(--accent);font-weight:600;margin-top:4px}
-.all-topics-item:hover{color:var(--accent)}
-
 /* Profile button + dropdown */
 .profile-wrap{position:relative}
 .profile-menu{
