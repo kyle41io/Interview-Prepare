@@ -163,6 +163,8 @@
     gmailDisconnect: { vi: "Ngắt kết nối", en: "Disconnect" },
     gmailConnected: { vi: "Đã kết nối Gmail", en: "Gmail connected" },
     gmailBlurb: { vi: "Tự động phát hiện email tuyển dụng (bài test, phỏng vấn, offer) và nhắc lịch.", en: "Auto-detect recruiting emails (tests, interviews, offers) and remind you." },
+    gmailProTitle: { vi: "Đồng bộ Gmail là tính năng Pro", en: "Gmail sync is a Pro feature" },
+    gmailProDesc: { vi: "Tự động phát hiện email tuyển dụng, tạo lịch nhắc phỏng vấn/bài test và thông báo. Nâng cấp Pro để bật.", en: "Auto-detect recruiting emails, create interview/test reminders and notifications. Upgrade to Pro to enable." },
     calAdd: { vi: "Thêm", en: "Add" },
     calDelete: { vi: "Xoá", en: "Delete" },
     calToday: { vi: "Hôm nay", en: "Today" },
@@ -398,6 +400,15 @@
          </div>`
       : "";
     const gmailBlock = u ? (() => {
+      // Non-Pro: a discoverable but locked upsell — no status fetch, no connect.
+      if (!IP.pro.isPro()) {
+        return `<div class="settings-block gmail-block gmail-block--locked">
+          <div class="sb-head"><h2>${fa("fa-solid fa-lock")} Gmail</h2><span class="pro-badge pro-badge--locked">${fa(ICON.pro)} PRO</span></div>
+          <div class="di-desc">${t(UI.gmailProTitle)}</div>
+          <div class="di-desc">${t(UI.gmailProDesc)}</div>
+          <button class="btn" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
+        </div>`;
+      }
       if (!GmailSettings.loaded) loadGmailStatus();
       const st = GmailSettings.status;
       const connected = !!(st && st.connected);
@@ -1188,7 +1199,10 @@
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
-    else if (State.mode === "reminders") main.innerHTML = renderReminders();
+    else if (State.mode === "reminders") {
+      if (!IP.pro.isPro()) { State.mode = "learn"; State.topic = null; main.innerHTML = renderHome(); }
+      else main.innerHTML = renderReminders();
+    }
     else if (State.mode === "chat") main.innerHTML = renderChat();
     else if (State.topic) {
       main.innerHTML = (PREP.isProTopic(State.topic) && !IP.pro.isPro())
@@ -1407,8 +1421,10 @@
           State.mode = "cheat"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
         } else if (action === "reminders") {
+          pMenu.hidden = true;
+          if (!IP.pro.isPro()) { State.mode = "upgrade"; State.topic = null; render(); toTop(); saveView(); loadUpgradeData(); return; }
           State.mode = "reminders"; State.topic = null;
-          pMenu.hidden = true; render(); toTop(); saveView();
+          render(); toTop(); saveView();
           loadReminders();
         } else if (action === "upgrade") {
           State.mode = "upgrade"; State.topic = null;
@@ -1779,9 +1795,12 @@
     }
     const ma = document.getElementById("menuAdmin");
     if (ma) ma.hidden = !(user && IP.pro.isAdmin(user.id, (window.IP_CONFIG || {}).ADMIN_UIDS));
+    const proOn = on && IP.pro.isPro();
     const bell = document.getElementById("bellBtn");
-    if (bell) bell.hidden = !on;
-    if (on) refreshBell();
+    if (bell) bell.hidden = !proOn;
+    const remBtn = document.querySelector('[data-menu="reminders"]');
+    if (remBtn) remBtn.hidden = !proOn;
+    if (proOn) refreshBell();
     // Logged-out: hide the profile button, learning tabs, search + hint bar —
     // only the Sign in button (+ theme/lang) remain. Show them when signed in.
     const gated = IP.auth.enabled() && !on;
