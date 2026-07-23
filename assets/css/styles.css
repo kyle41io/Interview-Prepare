@@ -703,6 +703,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .notif-menu{position:absolute;top:52px;right:120px;width:340px;max-height:70vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:6px}
 .notif-menu[hidden]{display:none}
 .notif-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-weight:700;font-size:13px}
+.notif-actions{display:flex;gap:12px}
 .link-btn{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:0}
 .link-btn:hover{text-decoration:underline}
 .notif-item{display:flex;gap:10px;padding:10px;border-radius:8px;cursor:pointer}

@@ -145,6 +145,7 @@
     noNotifs: { vi: "Chưa có thông báo.", en: "No notifications." },
     noReminders: { vi: "Chưa có lịch nhắc nào.", en: "No reminders yet." },
     markAllRead: { vi: "Đánh dấu đã đọc hết", en: "Mark all read" },
+    deleteRead: { vi: "Xoá đã đọc", en: "Delete read" },
     exportIcs: { vi: "Xuất .ics", en: "Export .ics" },
     markDone: { vi: "Xong", en: "Done" },
     dismiss: { vi: "Bỏ qua", en: "Dismiss" },
@@ -603,7 +604,7 @@
     if (badge) { badge.hidden = unread === 0; badge.textContent = unread > 9 ? "9+" : String(unread); }
     const menu = document.getElementById("notifMenu");
     if (menu) {
-      menu.innerHTML = `<div class="notif-head">${t(UI.notifications)}<button class="link-btn" id="notifReadAll">${t(UI.markAllRead)}</button></div>` +
+      menu.innerHTML = `<div class="notif-head">${t(UI.notifications)}<span class="notif-actions"><button class="link-btn" id="notifReadAll">${t(UI.markAllRead)}</button><button class="link-btn" id="notifDelRead">${t(UI.deleteRead)}</button></span></div>` +
         ((list || []).length
           ? list.slice(0, 12).map((n) => `<div class="notif-item ${n.read ? "" : "unread"}" data-notif="${n.id}"><span class="ni-ic">${IP.gmail.notifIcon(n.type)}</span><div class="ni-body"><div class="ni-title">${esc(n.title)}</div><div class="ni-sub">${esc(n.body || "")}</div></div></div>`).join("")
           : `<div class="empty-hint">${t(UI.noNotifs)}</div>`);
@@ -1524,6 +1525,10 @@
       if (e.target.closest("#notifMenu")) e.stopPropagation();
       if (e.target.closest("#notifReadAll")) {
         (async () => { await IP.gmail.markAllRead(); await refreshBell(); })();
+        return;
+      }
+      if (e.target.closest("#notifDelRead")) {
+        (async () => { await IP.gmail.deleteReadNotifications(); await refreshBell(); })();
         return;
       }
       if (e.target.closest("[data-notif]")) {
