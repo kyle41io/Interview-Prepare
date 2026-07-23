@@ -16,7 +16,8 @@ test("buildICS produces a valid VEVENT", () => {
   assert.match(ics, /BEGIN:VCALENDAR/);
   assert.match(ics, /BEGIN:VEVENT/);
   assert.match(ics, /SUMMARY:Interview @ ACME/);
-  assert.match(ics, /DTSTART:20260710T093000Z/);
+  // Floating wall-clock: DTSTART carries no trailing Z (see gmail.js buildICS).
+  assert.match(ics, /DTSTART:20260710T093000\r\n/);
   assert.match(ics, /END:VCALENDAR/);
 });
 test("buildICS escapes commas/semicolons per RFC5545", () => {

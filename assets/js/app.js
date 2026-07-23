@@ -627,7 +627,10 @@
   function remDateKey(r) {
     const w = r.due_at || r.deadline_at;
     if (!w) return null;
-    return calDateKey(new Date(w));
+    // Reminder times are floating wall-clock stored in UTC (see IP.calendar.buildWhen);
+    // take the day straight from the ISO date part so it never shifts with the
+    // viewer's timezone.
+    return String(w).slice(0, 10);
   }
   function calEnsureInit() {
     if (Calendar.year == null) {
@@ -690,7 +693,9 @@
     const list = events.length
       ? events.map((r) => {
           const w = r.due_at || r.deadline_at;
-          const time = w ? new Date(w).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "";
+          // timeZone:"UTC" — reminder times are floating wall-clock stored in UTC,
+          // so render them in UTC to show exactly the time from the email/entry.
+          const time = w ? new Date(w).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "";
           const del = r.source === "manual"
             ? `<button class="btn danger-btn" data-cal-del="${r.id}">${t(UI.calDelete)}</button>` : "";
           const done = r.status === "done";
