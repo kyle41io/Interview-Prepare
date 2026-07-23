@@ -509,7 +509,7 @@
 
   /* ---------- Pro upgrade (VietQR) ---------- */
   const Upgrade = { pending: null, ent: null, loading: false };
-  if (IP.pro && IP.pro.onChange) IP.pro.onChange(function (ent) { Upgrade.ent = ent; });
+  if (IP.pro && IP.pro.onChange) IP.pro.onChange(function (ent) { Upgrade.ent = ent; if (IP.auth && IP.auth.getUser) updateAuthUI(IP.auth.getUser()); });
   async function loadUpgradeData() {
     const u = IP.auth ? IP.auth.getUser() : null;
     if (u) {
