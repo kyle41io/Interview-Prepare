@@ -36,7 +36,6 @@
     search: "fa-solid fa-magnifying-glass",
     menu: "fa-solid fa-bars",
     check: "fa-solid fa-check",
-    allTopics: "fa-solid fa-layer-group",
     change: "fa-solid fa-rotate",
     profile: "fa-solid fa-circle-user",
     themeDark: "fa-solid fa-moon",
