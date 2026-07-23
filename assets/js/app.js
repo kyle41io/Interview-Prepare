@@ -586,8 +586,8 @@
 
     return `<div class="fade-in upgrade-page">${head}
       <div class="blurb">${L === "vi"
-        ? "Mở khoá nội dung chuyên sâu cho từng chủ đề (sắp tới: chat AI)."
-        : "Unlock in-depth sections for every topic (coming soon: AI chat)."}</div>
+        ? "Mở khoá nội dung chuyên sâu, trợ lý Chat AI và nhắc lịch phỏng vấn qua Gmail."
+        : "Unlock in-depth content, the AI Chat assistant, and Gmail interview reminders."}</div>
       <div class="qr-card">
         <div><b>${IP.pro.PRICE_VND.toLocaleString(L === "vi" ? "vi-VN" : "en-US")}đ / ${IP.pro.PLAN_DAYS} ${L === "vi" ? "ngày" : "days"}</b></div>
         <button class="btn lg" id="startUpgradeBtn">${t(UI.upgrade)}</button>
