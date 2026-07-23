@@ -1,6 +1,7 @@
 /* Large Language Models (LLMs) — training pipeline, sampling, RAG, eval, safety */
 PREP.register({
   id: "llms",
+  tier: "pro",
   icon: "🤖",
   category: "ai",
   title: { vi: "Large Language Models (LLMs)", en: "Large Language Models (LLMs)" },

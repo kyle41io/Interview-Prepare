@@ -1,6 +1,7 @@
 /* Elasticsearch & Search — Study topic */
 PREP.register({
   id: "elasticsearch",
+  tier: "pro",
   icon: "🔎",
   category: "frontend",
   title: { vi: "Tìm kiếm & Elasticsearch", en: "Search & Elasticsearch" },

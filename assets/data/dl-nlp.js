@@ -1,6 +1,7 @@
 /* Deep Learning & NLP — neural nets, transformers, tokenization, training */
 PREP.register({
   id: "dl-nlp",
+  tier: "pro",
   icon: "🧠",
   category: "ai",
   title: { vi: "Deep Learning & NLP", en: "Deep Learning & NLP" },
