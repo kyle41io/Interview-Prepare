@@ -87,7 +87,6 @@
     mode: "learn",            // learn | cards | quiz
     topic: null,              // current topic id (learn mode)
     track: LS.get("track", null),        // {role, level} or null
-    browseAll: false,         // true = show category sidebar even when track set
     progress: LS.get("progress", {}),   // {topicId:true}
     cards: LS.get("cards", {}),         // {cardKey:{due,interval,ease,reps}}
     quizBest: LS.get("quizBest", {}),   // {topicId: pct}
@@ -841,6 +840,13 @@
     return groups;
   }
 
+  // Topic ids in current path, in track order. No track → empty (the
+  // onboarding picker is shown instead, so only read when track exists).
+  function pathTopicIds() {
+    const track = currentTrack();
+    return track ? IP.tracks.resolveItems(track, PREP.order) : [];
+  }
+
   /* ============================================================
      RENDER: home dashboard
      ============================================================ */
@@ -881,8 +887,9 @@
     let totalCards = 0, totalQuiz = 0;
     PREP.order.forEach(id => { totalCards += (PREP.topics[id].flashcards || []).length; totalQuiz += (PREP.topics[id].quiz || []).length; });
 
+    const pathIds = pathTopicIds();
     const groupsHtml = CATS.map(cat => {
-      const ids = PREP.order.filter(id => PREP.topics[id].category === cat.id);
+      const ids = pathIds.filter(id => PREP.topics[id] && PREP.topics[id].category === cat.id);
       if (!ids.length) return "";
       const cardsHtml = ids.map(id => { const tp = PREP.topics[id]; return `
       <div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
@@ -1100,34 +1107,12 @@
     // mode so no stale list lingers behind the hidden column.
     if (State.mode !== "learn") { sb.innerHTML = ""; return; }
 
-    // --- Mode A: browse-all OR no track → category sidebar ---
-    if (State.browseAll || !State.track) {
-      let html = `<div class="nav-item ${State.mode === "learn" && !State.topic ? "active" : ""}" data-home="1">
-        <span class="ni-icon">${fa(ICON.home)}</span><span class="ni-label">${L === "vi" ? "Trang chủ" : "Home"}</span></div>`;
-      // "← Back to track" item when a track exists but we are browsing all
-      if (State.track) {
-        html += `<div class="nav-item nav-item--back" data-track-mode="1">
-          <span class="ni-icon">${fa("fa-solid fa-arrow-left")}</span>
-          <span class="ni-label">${L === "vi" ? "← Về lộ trình" : "← Back to track"}</span></div>`;
-      }
-      CATS.forEach(cat => {
-        const topics = PREP.order.filter(id => PREP.topics[id].category === cat.id);
-        if (!topics.length) return;
-        html += `<div class="cat"><div class="cat-label">${fa(ICON[cat.id] || "")} ${t(cat)}</div>`;
-        topics.forEach(id => {
-          const tp = PREP.topics[id];
-          const active = State.mode === "learn" && State.topic === id;
-          html += `<div class="nav-item ${active ? "active" : ""} ${State.progress[id] ? "done" : ""}" data-topic="${id}">
-            <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
-        });
-        html += `</div>`;
-      });
-      sb.innerHTML = html;
-      return;
-    }
-
-    // --- Mode B: track mode ---
+    // Path-scoped: always the current track's topics. A user with no track
+    // sees the onboarding picker instead (render() short-circuits before
+    // this point), so this branch is a defensive no-op in normal flow.
     const track = currentTrack();
+    if (!track) { sb.innerHTML = ""; return; }
+
     const items = IP.tracks.resolveItems(track, validTopicIds());
     const prog = IP.tracks.progressOf(track, State.progress, validTopicIds());
     const role = (PREP.roles || []).find(r => r.id === State.track.role) || {};
@@ -1157,11 +1142,6 @@
         <span class="ni-icon">${fa(catIcon(tp))}</span>
         <span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
     });
-
-    // "All topics →" item
-    html += `<div class="nav-item all-topics-item" data-browse-all="1">
-      <span class="ni-icon">${fa(ICON.allTopics)}</span>
-      <span class="ni-label">${L === "vi" ? "Tất cả chủ đề →" : "All topics →"}</span></div>`;
 
     sb.innerHTML = html;
   }
@@ -1412,7 +1392,7 @@
         const action = b.dataset.menu;
         if (action === "change-track") {
           State.track = null; LS.set("track", null);
-          State.topic = null; State.browseAll = false;
+          State.topic = null;
           pMenu.hidden = true; render();
         } else if (action === "bookmarks") {
           State.mode = "saved"; State.topic = null;
@@ -1487,16 +1467,10 @@
         return;
       }
 
-      // track nav branches
-      if (e.target.closest("[data-browse-all]")) {
-        State.browseAll = true; State.topic = null; render(); return;
-      }
-      if (e.target.closest("[data-track-mode]")) {
-        State.browseAll = false; render(); return;
-      }
+      // "Change path" → clear track so onboarding picker takes over.
       if (e.target.closest("[data-change-track]")) {
         State.track = null; LS.set("track", null);
-        State.topic = null; State.browseAll = false; render(); return;
+        State.topic = null; render(); return;
       }
 
       // section collapse
