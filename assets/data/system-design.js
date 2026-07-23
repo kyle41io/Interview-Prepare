@@ -1,6 +1,7 @@
 /* System Design — high-level architecture interview prep */
 PREP.register({
   id: "system-design",
+  tier: "pro",
   icon: "📐",
   category: "architecture",
   title: { vi: "Thiết kế hệ thống (System Design)", en: "System Design" },

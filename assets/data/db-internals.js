@@ -1,6 +1,7 @@
 /* Database Internals — Storage, Execution, Transactions, Concurrency, Durability, Scaling */
 PREP.register({
   id: "db-internals",
+  tier: "pro",
   icon: "🗄️",
   category: "cs",
   title: { vi: "Cơ sở dữ liệu chuyên sâu", en: "Database Internals" },

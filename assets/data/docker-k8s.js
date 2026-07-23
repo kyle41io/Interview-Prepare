@@ -1,6 +1,7 @@
 /* Docker & Kubernetes — DevOps containerization & orchestration */
 PREP.register({
   id: "docker-k8s",
+  tier: "pro",
   icon: "🐳",
   category: "devops",
   title: { vi: "Docker & Kubernetes", en: "Docker & Kubernetes" },

@@ -36,7 +36,6 @@
     search: "fa-solid fa-magnifying-glass",
     menu: "fa-solid fa-bars",
     check: "fa-solid fa-check",
-    allTopics: "fa-solid fa-layer-group",
     change: "fa-solid fa-rotate",
     profile: "fa-solid fa-circle-user",
     themeDark: "fa-solid fa-moon",
@@ -58,7 +57,12 @@
     swe: "fa-solid fa-code", "ai-engineer": "fa-solid fa-robot",
   };
   function fa(cls) { return `<i class="${cls}"></i>`; }
-  function proBadge(tp) { return tp && tp.tier === "pro" ? `<span class="pro-badge">${fa(ICON.pro)} PRO</span>` : ""; }
+  function proBadge(tp) {
+    if (!(tp && tp.tier === "pro")) return "";
+    // Non-Pro viewers see a lock; Pro viewers see the plain PRO badge.
+    const locked = !(IP.pro && IP.pro.isPro());
+    return `<span class="pro-badge${locked ? " pro-badge--locked" : ""}">${fa(locked ? "fa-solid fa-lock" : ICON.pro)} PRO</span>`;
+  }
   function catIcon(tp) { return ICON[tp.category] || "fa-solid fa-book"; }
 
   /* ---------- State ---------- */
@@ -82,7 +86,6 @@
     mode: "learn",            // learn | cards | quiz
     topic: null,              // current topic id (learn mode)
     track: LS.get("track", null),        // {role, level} or null
-    browseAll: false,         // true = show category sidebar even when track set
     progress: LS.get("progress", {}),   // {topicId:true}
     cards: LS.get("cards", {}),         // {cardKey:{due,interval,ease,reps}}
     quizBest: LS.get("quizBest", {}),   // {topicId: pct}
@@ -119,6 +122,9 @@
     cheat: { vi: "Cheat sheet", en: "Cheat sheet" },
     upgrade: { vi: "Nâng cấp Pro", en: "Upgrade to Pro" },
     proActiveUntil: { vi: "Pro của bạn có hiệu lực đến", en: "Your Pro is active until" },
+    proTopicTitle: { vi: "Chủ đề Pro", en: "Pro topic" },
+    proTopicDesc: { vi: "Chủ đề này thuộc gói Pro. Nâng cấp để mở khoá toàn bộ nội dung, thẻ ghi nhớ và trắc nghiệm của chủ đề.", en: "This topic is part of Pro. Upgrade to unlock its full content, flashcards and quizzes." },
+    proUpgradeCta: { vi: "Nâng cấp Pro", en: "Upgrade to Pro" },
     payStep1: { vi: "Quét QR & chuyển khoản đúng nội dung", en: "Scan the QR & transfer with the exact note" },
     iPaid: { vi: "Tôi đã chuyển khoản", en: "I have transferred" },
     waitingApproval: { vi: "Đang chờ duyệt (thường trong vài giờ)", en: "Awaiting approval (usually within hours)" },
@@ -137,6 +143,8 @@
     chatQuota: { vi: "Còn lại hôm nay", en: "Left today" },
     chatQuotaOut: { vi: "Đã hết lượt hôm nay.", en: "Out of messages for today." },
     chatUpgradeCta: { vi: "Nâng cấp Pro để chat nhiều hơn (50/ngày)", en: "Upgrade to Pro for more (50/day)" },
+    chatProTitle: { vi: "Chat AI là tính năng Pro", en: "AI Chat is a Pro feature" },
+    chatProDesc: { vi: "Trợ lý AI song ngữ giúp bạn luyện phỏng vấn, giải thích khái niệm và góp ý CV. Nâng cấp Pro để mở khoá.", en: "The bilingual AI assistant helps you rehearse interviews, explain concepts and review your CV. Upgrade to Pro to unlock it." },
     chatEmpty: { vi: "Trợ lý IT — hỏi về lập trình, thuật toán, phỏng vấn, CV. Chỉ hỗ trợ chủ đề CNTT.", en: "IT assistant — ask about coding, algorithms, interviews, CV. IT topics only." },
     chatError: { vi: "Có lỗi, thử lại.", en: "Something went wrong, try again." },
     chatUnavailable: { vi: "Chat AI chưa được cấu hình.", en: "AI Chat is not configured yet." },
@@ -153,6 +161,8 @@
     gmailDisconnect: { vi: "Ngắt kết nối", en: "Disconnect" },
     gmailConnected: { vi: "Đã kết nối Gmail", en: "Gmail connected" },
     gmailBlurb: { vi: "Tự động phát hiện email tuyển dụng (bài test, phỏng vấn, offer) và nhắc lịch.", en: "Auto-detect recruiting emails (tests, interviews, offers) and remind you." },
+    gmailProTitle: { vi: "Đồng bộ Gmail là tính năng Pro", en: "Gmail sync is a Pro feature" },
+    gmailProDesc: { vi: "Tự động phát hiện email tuyển dụng, tạo lịch nhắc phỏng vấn/bài test và thông báo. Nâng cấp Pro để bật.", en: "Auto-detect recruiting emails, create interview/test reminders and notifications. Upgrade to Pro to enable." },
     calAdd: { vi: "Thêm", en: "Add" },
     calDelete: { vi: "Xoá", en: "Delete" },
     calToday: { vi: "Hôm nay", en: "Today" },
@@ -214,6 +224,19 @@
       default:
         return "";
     }
+  }
+
+  function renderPaywall(id) {
+    const tp = PREP.topics[id];
+    const title = tp ? t(tp.title) : "";
+    return `<div class="fade-in paywall-page">
+      <div class="page-head"><h1>${fa("fa-solid fa-lock")} ${title}</h1></div>
+      <div class="qr-card paywall-card">
+        <div class="pw-badge">${fa(ICON.pro)} ${t(UI.proTopicTitle)}</div>
+        <p>${t(UI.proTopicDesc)}</p>
+        <button class="btn lg" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
+      </div>
+    </div>`;
   }
 
   function renderTopic(id) {
@@ -375,6 +398,15 @@
          </div>`
       : "";
     const gmailBlock = u ? (() => {
+      // Non-Pro: a discoverable but locked upsell — no status fetch, no connect.
+      if (!IP.pro.isPro()) {
+        return `<div class="settings-block gmail-block gmail-block--locked">
+          <div class="sb-head"><h2>${fa("fa-solid fa-lock")} Gmail</h2><span class="pro-badge pro-badge--locked">${fa(ICON.pro)} PRO</span></div>
+          <div class="di-desc">${t(UI.gmailProTitle)}</div>
+          <div class="di-desc">${t(UI.gmailProDesc)}</div>
+          <button class="btn" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
+        </div>`;
+      }
       if (!GmailSettings.loaded) loadGmailStatus();
       const st = GmailSettings.status;
       const connected = !!(st && st.connected);
@@ -421,6 +453,15 @@
         <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${t(UI.signIn)}</button>
       </div>`;
     }
+    if (!IP.pro.isPro()) {
+      return `<div class="fade-in chat-page">
+        <div class="qr-card paywall-card">
+          <div class="pw-badge">${fa(ICON.pro)} ${t(UI.chatProTitle)}</div>
+          <p>${t(UI.chatProDesc)}</p>
+          <button class="btn lg" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
+        </div>
+      </div>`;
+    }
     const msgs = IP.chat.getHistory();
     const bubbles = msgs.length ? msgs.map(m => `
       <div class="chat-msg ${m.role}">
@@ -448,10 +489,25 @@
     if (res.error) { toast(t(UI.chatError)); return; }
   }
   function scrollChat() { const s = document.getElementById("chatScroll"); if (s) s.scrollTop = s.scrollHeight; }
+  // Show PRO badge on Chat tab for signed-in non-Pro users; remove otherwise.
+  function syncChatNavBadge() {
+    const btn = document.querySelector('[data-mode="chat"]');
+    if (!btn) return;
+    const locked = IP.auth && IP.auth.getUser() && !(IP.pro && IP.pro.isPro());
+    let badge = btn.querySelector(".pro-badge");
+    if (locked && !badge) {
+      badge = document.createElement("span");
+      badge.className = "pro-badge pro-badge--locked";
+      badge.innerHTML = `${fa("fa-solid fa-lock")} PRO`;
+      btn.appendChild(badge);
+    } else if (!locked && badge) {
+      badge.remove();
+    }
+  }
 
   /* ---------- Pro upgrade (VietQR) ---------- */
   const Upgrade = { pending: null, ent: null, loading: false };
-  if (IP.pro && IP.pro.onChange) IP.pro.onChange(function (ent) { Upgrade.ent = ent; });
+  if (IP.pro && IP.pro.onChange) IP.pro.onChange(function (ent) { Upgrade.ent = ent; if (IP.auth && IP.auth.getUser) updateAuthUI(IP.auth.getUser()); });
   async function loadUpgradeData() {
     const u = IP.auth ? IP.auth.getUser() : null;
     if (u) {
@@ -529,8 +585,8 @@
 
     return `<div class="fade-in upgrade-page">${head}
       <div class="blurb">${L === "vi"
-        ? "Mở khoá nội dung chuyên sâu cho từng chủ đề (sắp tới: chat AI)."
-        : "Unlock in-depth sections for every topic (coming soon: AI chat)."}</div>
+        ? "Mở khoá nội dung chuyên sâu, trợ lý Chat AI và nhắc lịch phỏng vấn qua Gmail."
+        : "Unlock in-depth content, the AI Chat assistant, and Gmail interview reminders."}</div>
       <div class="qr-card">
         <div><b>${IP.pro.PRICE_VND.toLocaleString(L === "vi" ? "vi-VN" : "en-US")}đ / ${IP.pro.PLAN_DAYS} ${L === "vi" ? "ngày" : "days"}</b></div>
         <button class="btn lg" id="startUpgradeBtn">${t(UI.upgrade)}</button>
@@ -783,6 +839,13 @@
     return groups;
   }
 
+  // Topic ids in current path, in track order. No track → empty (the
+  // onboarding picker is shown instead, so only read when track exists).
+  function pathTopicIds() {
+    const track = currentTrack();
+    return track ? IP.tracks.resolveItems(track, PREP.order) : [];
+  }
+
   /* ============================================================
      RENDER: home dashboard
      ============================================================ */
@@ -816,15 +879,19 @@
   }
 
   function renderHome() {
-    const total = PREP.order.length;
-    const learned = PREP.order.filter(id => State.progress[id]).length;
+    // Stat tiles summarise the current path only — the same topic set the grid
+    // below renders — not the whole catalog. countDue(id) draws from the study
+    // pool, so Pro topics contribute 0 for non-Pro users (as they should).
+    const pathIds = pathTopicIds();
+    const total = pathIds.length;
+    const learned = pathIds.filter(id => State.progress[id]).length;
     const pct = total ? Math.round((learned / total) * 100) : 0;
-    const dueCount = countDue();
+    const dueCount = pathIds.reduce((n, id) => n + countDue(id), 0);
     let totalCards = 0, totalQuiz = 0;
-    PREP.order.forEach(id => { totalCards += (PREP.topics[id].flashcards || []).length; totalQuiz += (PREP.topics[id].quiz || []).length; });
+    pathIds.forEach(id => { totalCards += (PREP.topics[id].flashcards || []).length; totalQuiz += (PREP.topics[id].quiz || []).length; });
 
     const groupsHtml = CATS.map(cat => {
-      const ids = PREP.order.filter(id => PREP.topics[id].category === cat.id);
+      const ids = pathIds.filter(id => PREP.topics[id] && PREP.topics[id].category === cat.id);
       if (!ids.length) return "";
       const cardsHtml = ids.map(id => { const tp = PREP.topics[id]; return `
       <div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
@@ -886,9 +953,13 @@
      ============================================================ */
   const DAY = 86400000;
   function cardKey(topicId, idx) { return topicId + "#" + idx; }
+  // Topic ids the current user may study (Pro topics dropped for non-Pro).
+  function studyPool() {
+    return IP.gating.visibleTopicPool(PREP.order, PREP.topics, IP.pro && IP.pro.isPro());
+  }
   function allCards() {
     const out = [];
-    PREP.order.forEach(id => (PREP.topics[id].flashcards || []).forEach((c, i) => out.push({ key: cardKey(id, i), topicId: id, idx: i, card: c })));
+    studyPool().forEach(id => (PREP.topics[id].flashcards || []).forEach((c, i) => out.push({ key: cardKey(id, i), topicId: id, idx: i, card: c })));
     return out;
   }
   function countDue(topicId) {
@@ -928,7 +999,7 @@
   function renderCards() {
     const L = State.lang;
     const opts = `<option value="all">${t(UI.allTopics)} (${countDue()} ${t(UI.due)})</option>` +
-      PREP.order.map(id => `<option value="${id}" ${Cards.topic === id ? "selected" : ""}>${t(PREP.topics[id].title)} (${countDue(id)})</option>`).join("");
+      studyPool().map(id => `<option value="${id}" ${Cards.topic === id ? "selected" : ""}>${t(PREP.topics[id].title)} (${countDue(id)})</option>`).join("");
     const head = `<div class="fc-controls">
         <select class="fc-select" id="fcTopic">${opts}</select>
         <span class="fc-progress" id="fcProg"></span>
@@ -977,7 +1048,7 @@
   function buildQuiz(topicId) {
     Quiz.topic = topicId;
     let qs = [];
-    if (topicId === "all") PREP.order.forEach(id => (PREP.topics[id].quiz || []).forEach(q => qs.push({ ...q, _topic: id })));
+    if (topicId === "all") studyPool().forEach(id => (PREP.topics[id].quiz || []).forEach(q => qs.push({ ...q, _topic: id })));
     else qs = (PREP.topics[topicId].quiz || []).map(q => ({ ...q, _topic: topicId }));
     for (let i = qs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[qs[i], qs[j]] = [qs[j], qs[i]]; }
     Quiz.questions = qs.slice(0, topicId === "all" ? 20 : qs.length);
@@ -987,7 +1058,7 @@
     const L = State.lang;
     if (!Quiz.topic) {
       const opts = `<option value="all">${t(UI.allTopics)}</option>` +
-        PREP.order.map(id => `<option value="${id}">${t(PREP.topics[id].title)} (${(PREP.topics[id].quiz || []).length})</option>`).join("");
+        studyPool().map(id => `<option value="${id}">${t(PREP.topics[id].title)} (${(PREP.topics[id].quiz || []).length})</option>`).join("");
       return `<div class="quiz-wrap fade-in"><div class="quiz-q" style="text-align:center">
         <h2>${fa(ICON.quiz)} ${t(UI.quiz)}</h2>
         <p style="color:var(--muted);margin-bottom:18px">${L === "vi" ? "Chọn chủ đề rồi tự kiểm tra. Có giải thích cho mỗi câu." : "Pick a topic and test yourself. Every question has an explanation."}</p>
@@ -1038,34 +1109,12 @@
     // mode so no stale list lingers behind the hidden column.
     if (State.mode !== "learn") { sb.innerHTML = ""; return; }
 
-    // --- Mode A: browse-all OR no track → category sidebar ---
-    if (State.browseAll || !State.track) {
-      let html = `<div class="nav-item ${State.mode === "learn" && !State.topic ? "active" : ""}" data-home="1">
-        <span class="ni-icon">${fa(ICON.home)}</span><span class="ni-label">${L === "vi" ? "Trang chủ" : "Home"}</span></div>`;
-      // "← Back to track" item when a track exists but we are browsing all
-      if (State.track) {
-        html += `<div class="nav-item nav-item--back" data-track-mode="1">
-          <span class="ni-icon">${fa("fa-solid fa-arrow-left")}</span>
-          <span class="ni-label">${L === "vi" ? "← Về lộ trình" : "← Back to track"}</span></div>`;
-      }
-      CATS.forEach(cat => {
-        const topics = PREP.order.filter(id => PREP.topics[id].category === cat.id);
-        if (!topics.length) return;
-        html += `<div class="cat"><div class="cat-label">${fa(ICON[cat.id] || "")} ${t(cat)}</div>`;
-        topics.forEach(id => {
-          const tp = PREP.topics[id];
-          const active = State.mode === "learn" && State.topic === id;
-          html += `<div class="nav-item ${active ? "active" : ""} ${State.progress[id] ? "done" : ""}" data-topic="${id}">
-            <span class="ni-icon">${fa(catIcon(tp))}</span><span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
-        });
-        html += `</div>`;
-      });
-      sb.innerHTML = html;
-      return;
-    }
-
-    // --- Mode B: track mode ---
+    // Path-scoped: always the current track's topics. A user with no track
+    // sees the onboarding picker instead (render() short-circuits before
+    // this point), so this branch is a defensive no-op in normal flow.
     const track = currentTrack();
+    if (!track) { sb.innerHTML = ""; return; }
+
     const items = IP.tracks.resolveItems(track, validTopicIds());
     const prog = IP.tracks.progressOf(track, State.progress, validTopicIds());
     const role = (PREP.roles || []).find(r => r.id === State.track.role) || {};
@@ -1095,11 +1144,6 @@
         <span class="ni-icon">${fa(catIcon(tp))}</span>
         <span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
     });
-
-    // "All topics →" item
-    html += `<div class="nav-item all-topics-item" data-browse-all="1">
-      <span class="ni-icon">${fa(ICON.allTopics)}</span>
-      <span class="ni-label">${L === "vi" ? "Tất cả chủ đề →" : "All topics →"}</span></div>`;
 
     sb.innerHTML = html;
   }
@@ -1137,17 +1181,30 @@
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
-    else if (State.mode === "reminders") main.innerHTML = renderReminders();
+    else if (State.mode === "reminders") {
+      // A non-Pro user can only reach reminders via a stale saved view — redirect
+      // to home and persist it so the redirect doesn't repeat on every reload.
+      if (!IP.pro.isPro()) { State.mode = "learn"; State.topic = null; main.innerHTML = renderHome(); saveView(); }
+      else main.innerHTML = renderReminders();
+    }
     else if (State.mode === "chat") main.innerHTML = renderChat();
-    else if (State.topic) main.innerHTML = renderTopic(State.topic);
+    else if (State.topic) {
+      main.innerHTML = (PREP.isProTopic(State.topic) && !IP.pro.isPro())
+        ? renderPaywall(State.topic)
+        : renderTopic(State.topic);
+    }
     else main.innerHTML = renderHome();
     // sync mode buttons
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
+    syncChatNavBadge();
     renderSidebar();
     setupToc();
     hydrateProSections();
     enhanceSelects();
     if (State.mode === "chat") scrollChat();
+    // Track the entitlement this paint reflects, so updateAuthUI can re-render
+    // #content when Pro resolves/changes under the same signed-in identity.
+    _renderedPro = !!(IP.pro && IP.pro.isPro());
     // NOTE: do not force scroll here — render() also runs for in-place updates
     // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
     // only on real navigation (goTopic/goHome/setMode) via toTop().
@@ -1342,7 +1399,7 @@
         const action = b.dataset.menu;
         if (action === "change-track") {
           State.track = null; LS.set("track", null);
-          State.topic = null; State.browseAll = false;
+          State.topic = null;
           pMenu.hidden = true; render();
         } else if (action === "bookmarks") {
           State.mode = "saved"; State.topic = null;
@@ -1351,8 +1408,10 @@
           State.mode = "cheat"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
         } else if (action === "reminders") {
+          pMenu.hidden = true;
+          if (!IP.pro.isPro()) { State.mode = "upgrade"; State.topic = null; render(); toTop(); saveView(); loadUpgradeData(); return; }
           State.mode = "reminders"; State.topic = null;
-          pMenu.hidden = true; render(); toTop(); saveView();
+          render(); toTop(); saveView();
           loadReminders();
         } else if (action === "upgrade") {
           State.mode = "upgrade"; State.topic = null;
@@ -1394,7 +1453,6 @@
       if (topicEl) return goTopic(topicEl.dataset.topic);
       const goEl = e.target.closest("[data-go]");
       if (goEl) { si.value = ""; return goTopic(goEl.dataset.go); }
-      if (e.target.closest("[data-home]")) return goHome();
 
       if (e.target.closest("[data-toc]")) {
         const i = e.target.closest("[data-toc]").dataset.toc;
@@ -1415,16 +1473,10 @@
         return;
       }
 
-      // track nav branches
-      if (e.target.closest("[data-browse-all]")) {
-        State.browseAll = true; State.topic = null; render(); return;
-      }
-      if (e.target.closest("[data-track-mode]")) {
-        State.browseAll = false; render(); return;
-      }
+      // "Change path" → clear track so onboarding picker takes over.
       if (e.target.closest("[data-change-track]")) {
         State.track = null; LS.set("track", null);
-        State.topic = null; State.browseAll = false; render(); return;
+        State.topic = null; render(); return;
       }
 
       // section collapse
@@ -1695,6 +1747,7 @@
   // last rendered and only rebuild #content when it actually changes.
   let _authReady = false;    // false until the first auth state is known (or no backend)
   let _renderedUid;          // uid|null of the last content render; undefined = never rendered
+  let _renderedPro = false;  // isPro() at the last content render — lets updateAuthUI re-render when entitlement flips under the same uid
   let _pendingScroll = null; // scroll-Y to restore on the first auth-driven render
   function updateAuthUI(user) {
     const signin = document.getElementById("signinBtn");
@@ -1723,9 +1776,12 @@
     }
     const ma = document.getElementById("menuAdmin");
     if (ma) ma.hidden = !(user && IP.pro.isAdmin(user.id, (window.IP_CONFIG || {}).ADMIN_UIDS));
+    const proOn = on && IP.pro.isPro();
     const bell = document.getElementById("bellBtn");
-    if (bell) bell.hidden = !on;
-    if (on) refreshBell();
+    if (bell) bell.hidden = !proOn;
+    const remBtn = document.querySelector('[data-menu="reminders"]');
+    if (remBtn) remBtn.hidden = !proOn;
+    if (proOn) refreshBell();
     // Logged-out: hide the profile button, learning tabs, search + hint bar —
     // only the Sign in button (+ theme/lang) remain. Show them when signed in.
     const gated = IP.auth.enabled() && !on;
@@ -1737,11 +1793,14 @@
     const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
     const searchBox = document.querySelector(".search-box"); if (searchBox) searchBox.hidden = gated;
     const kbdHelp = document.querySelector(".kbd-help"); if (kbdHelp) kbdHelp.hidden = gated;
-    // Switch the page between the landing intro and the app — but only when the
-    // signed-in identity actually changes. Repeat/refresh/refocus auth events
-    // carry the same user and must not rebuild #content (that was the flashing).
+    // Switch the page between the landing intro and the app. Rebuild #content
+    // when the signed-in identity changes — and also when the Pro entitlement
+    // flips under the same identity (async pro.init after first paint, or a
+    // live purchase approval), so every isPro()-gated surface unlocks without a
+    // reload. Repeat/refresh/refocus auth events carry the same uid AND the same
+    // entitlement, so they still skip the rebuild (that was the flashing).
     const uid = on ? user.id : null;
-    if (_authReady && uid !== _renderedUid) {
+    if (_authReady && (uid !== _renderedUid || proOn !== _renderedPro)) {
       _renderedUid = uid;
       render();
       if (_pendingScroll != null) { const y = _pendingScroll; _pendingScroll = null; window.scrollTo(0, y); }

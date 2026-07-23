@@ -1,6 +1,7 @@
 /* AWS — Amazon Web Services */
 PREP.register({
   id: "aws",
+  tier: "pro",
   icon: "☁️",
   category: "devops",
   title: { vi: "AWS (Amazon Web Services)", en: "AWS (Amazon Web Services)" },
