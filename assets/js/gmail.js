@@ -55,7 +55,7 @@
 
   /* Pure: emoji for a notification/reminder type */
   function notifIcon(type) {
-    return ({ test: "📝", interview: "📅", offer: "🎉", rejection: "🙏", deadline: "⏰", other: "✉️" })[type] || "✉️";
+    return ({ test: "📝", interview: "💼", offer: "🎉", rejection: "🙏", deadline: "⏰", other: "✉️" })[type] || "✉️";
   }
 
   var _notifications = [];
