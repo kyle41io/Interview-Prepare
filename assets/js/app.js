@@ -1198,6 +1198,9 @@
     hydrateProSections();
     enhanceSelects();
     if (State.mode === "chat") scrollChat();
+    // Track the entitlement this paint reflects, so updateAuthUI can re-render
+    // #content when Pro resolves/changes under the same signed-in identity.
+    _renderedPro = !!(IP.pro && IP.pro.isPro());
     // NOTE: do not force scroll here — render() also runs for in-place updates
     // (mark-learned, flip card, answer quiz, sync apply). Scroll-to-top happens
     // only on real navigation (goTopic/goHome/setMode) via toTop().
@@ -1740,6 +1743,7 @@
   // last rendered and only rebuild #content when it actually changes.
   let _authReady = false;    // false until the first auth state is known (or no backend)
   let _renderedUid;          // uid|null of the last content render; undefined = never rendered
+  let _renderedPro = false;  // isPro() at the last content render — lets updateAuthUI re-render when entitlement flips under the same uid
   let _pendingScroll = null; // scroll-Y to restore on the first auth-driven render
   function updateAuthUI(user) {
     const signin = document.getElementById("signinBtn");
@@ -1785,11 +1789,14 @@
     const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
     const searchBox = document.querySelector(".search-box"); if (searchBox) searchBox.hidden = gated;
     const kbdHelp = document.querySelector(".kbd-help"); if (kbdHelp) kbdHelp.hidden = gated;
-    // Switch the page between the landing intro and the app — but only when the
-    // signed-in identity actually changes. Repeat/refresh/refocus auth events
-    // carry the same user and must not rebuild #content (that was the flashing).
+    // Switch the page between the landing intro and the app. Rebuild #content
+    // when the signed-in identity changes — and also when the Pro entitlement
+    // flips under the same identity (async pro.init after first paint, or a
+    // live purchase approval), so every isPro()-gated surface unlocks without a
+    // reload. Repeat/refresh/refocus auth events carry the same uid AND the same
+    // entitlement, so they still skip the rebuild (that was the flashing).
     const uid = on ? user.id : null;
-    if (_authReady && uid !== _renderedUid) {
+    if (_authReady && (uid !== _renderedUid || proOn !== _renderedPro)) {
       _renderedUid = uid;
       render();
       if (_pendingScroll != null) { const y = _pendingScroll; _pendingScroll = null; window.scrollTo(0, y); }
