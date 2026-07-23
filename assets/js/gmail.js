@@ -44,7 +44,10 @@
       "DTSTAMP:" + icsDate(new Date(0).toISOString()),
     ];
     // Only emit DTSTART when we actually have a date (avoid DTSTART:NaN...).
-    if (when) lines.push("DTSTART:" + icsDate(when));
+    // Strip the trailing "Z": reminder times are floating wall-clock (see
+    // IP.calendar.buildWhen), so emit a floating DTSTART with no timezone —
+    // calendar apps then show the exact time from the email, not a shifted one.
+    if (when) lines.push("DTSTART:" + icsDate(when).slice(0, -1));
     lines.push(
       "SUMMARY:" + esc(r.title),
       "DESCRIPTION:" + esc((r.company ? r.company + " — " : "") + (r.kind || "")),
