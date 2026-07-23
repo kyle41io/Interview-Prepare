@@ -33,7 +33,11 @@
   function buildWhen(opts) {
     opts = opts || {};
     if (!opts.date) return { due_at: null, deadline_at: null };
-    var iso = new Date(opts.date + "T" + (opts.time || "00:00")).toISOString();
+    // Reminder times are floating wall-clock (an interview at "3pm" is 3pm for the
+    // user, not an absolute instant). Store the digits verbatim as UTC so they
+    // round-trip unchanged regardless of the browser's timezone; the calendar
+    // renders them back in UTC. See remDateKey / the panel time formatter.
+    var iso = opts.date + "T" + (opts.time || "00:00") + ":00.000Z";
     if (opts.kind === "deadline") return { due_at: null, deadline_at: iso };
     return { due_at: iso, deadline_at: null };
   }
