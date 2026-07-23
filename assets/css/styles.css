@@ -783,10 +783,12 @@ html.sb-collapsed body.no-sidebar .content{margin-left:0;margin-right:0;max-widt
 .cal-pill--test { background: var(--purple); }
 .cal-pill--deadline { background: var(--red); }
 .cal-pill--other { background: #64748b; }
+.cal-pill--done{opacity:.55}
 .cal-more { font-size: .7rem; opacity: .6; }
 .cal-panel-head { font-weight: 600; margin-bottom: 8px; text-transform: capitalize; }
 .cal-panel-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .cal-event { display: flex; gap: 8px; align-items: flex-start; }
+.cal-event--done .rem-title{text-decoration:line-through;opacity:.7}
 .cal-add-form { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(128,128,128,.25); padding-top: 10px; }
 .cal-add-form input, .cal-add-form select { padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,.4); background: transparent; color: inherit; }
 .cal-add-error { color: var(--red); font-size: .8rem; }

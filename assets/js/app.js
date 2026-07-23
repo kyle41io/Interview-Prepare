@@ -172,7 +172,7 @@
   /* ============================================================
      RENDER: content blocks
      ============================================================ */
-  function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c])); }
 
   function renderBlock(b) {
     switch (b.type) {
@@ -671,7 +671,7 @@
       if (!c.date) return `<div class="cal-cell cal-cell--out"></div>`;
       const events = byDay[c.date] || [];
       const shown = events.slice(0, 2).map((r) =>
-        `<span class="cal-pill cal-pill--${esc(r.kind || "other")}" title="${esc(r.title)}">${esc(r.title)}</span>`
+        `<span class="cal-pill cal-pill--${esc(r.kind || "other")}${r.status === "done" ? " cal-pill--done" : ""}" title="${esc(r.title)}">${esc(r.title)}</span>`
       ).join("");
       const more = events.length > 2 ? `<span class="cal-more">+${events.length - 2}</span>` : "";
       const cls = "cal-cell"
@@ -692,7 +692,9 @@
           const time = w ? new Date(w).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "";
           const del = r.source === "manual"
             ? `<button class="btn danger-btn" data-cal-del="${r.id}">${t(UI.calDelete)}</button>` : "";
-          return `<div class="cal-event" data-rem="${r.id}">
+          const done = r.status === "done";
+          const doneBtn = done ? "" : `<button class="btn green" data-rem-done="${r.id}">${t(UI.markDone)}</button>`;
+          return `<div class="cal-event${done ? " cal-event--done" : ""}" data-rem="${r.id}">
             <span class="rem-kind ${esc(r.kind || "")}">${IP.gmail.notifIcon(r.kind)}</span>
             <div class="rem-body">
               <div class="rem-title">${esc(r.title)}</div>
@@ -700,7 +702,7 @@
             </div>
             <div class="rem-actions">
               <button class="btn" data-ics="${r.id}">${t(UI.exportIcs)}</button>
-              <button class="btn green" data-rem-done="${r.id}">${t(UI.markDone)}</button>
+              ${doneBtn}
               <button class="btn danger-btn" data-rem-dismiss="${r.id}">${t(UI.dismiss)}</button>
               ${del}
             </div>
