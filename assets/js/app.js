@@ -879,14 +879,17 @@
   }
 
   function renderHome() {
-    const total = PREP.order.length;
-    const learned = PREP.order.filter(id => State.progress[id]).length;
-    const pct = total ? Math.round((learned / total) * 100) : 0;
-    const dueCount = countDue();
-    let totalCards = 0, totalQuiz = 0;
-    PREP.order.forEach(id => { totalCards += (PREP.topics[id].flashcards || []).length; totalQuiz += (PREP.topics[id].quiz || []).length; });
-
+    // Stat tiles summarise the current path only — the same topic set the grid
+    // below renders — not the whole catalog. countDue(id) draws from the study
+    // pool, so Pro topics contribute 0 for non-Pro users (as they should).
     const pathIds = pathTopicIds();
+    const total = pathIds.length;
+    const learned = pathIds.filter(id => State.progress[id]).length;
+    const pct = total ? Math.round((learned / total) * 100) : 0;
+    const dueCount = pathIds.reduce((n, id) => n + countDue(id), 0);
+    let totalCards = 0, totalQuiz = 0;
+    pathIds.forEach(id => { totalCards += (PREP.topics[id].flashcards || []).length; totalQuiz += (PREP.topics[id].quiz || []).length; });
+
     const groupsHtml = CATS.map(cat => {
       const ids = pathIds.filter(id => PREP.topics[id] && PREP.topics[id].category === cat.id);
       if (!ids.length) return "";
