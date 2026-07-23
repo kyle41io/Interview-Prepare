@@ -1182,7 +1182,9 @@
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
     else if (State.mode === "reminders") {
-      if (!IP.pro.isPro()) { State.mode = "learn"; State.topic = null; main.innerHTML = renderHome(); }
+      // A non-Pro user can only reach reminders via a stale saved view — redirect
+      // to home and persist it so the redirect doesn't repeat on every reload.
+      if (!IP.pro.isPro()) { State.mode = "learn"; State.topic = null; main.innerHTML = renderHome(); saveView(); }
       else main.innerHTML = renderReminders();
     }
     else if (State.mode === "chat") main.innerHTML = renderChat();
