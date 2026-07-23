@@ -152,12 +152,27 @@
     gmailDisconnect: { vi: "Ngắt kết nối", en: "Disconnect" },
     gmailConnected: { vi: "Đã kết nối Gmail", en: "Gmail connected" },
     gmailBlurb: { vi: "Tự động phát hiện email tuyển dụng (bài test, phỏng vấn, offer) và nhắc lịch.", en: "Auto-detect recruiting emails (tests, interviews, offers) and remind you." },
+    calAdd: { vi: "Thêm", en: "Add" },
+    calDelete: { vi: "Xoá", en: "Delete" },
+    calToday: { vi: "Hôm nay", en: "Today" },
+    calPrev: { vi: "Tháng trước", en: "Previous month" },
+    calNext: { vi: "Tháng sau", en: "Next month" },
+    calFieldTitle: { vi: "Tiêu đề", en: "Title" },
+    calFieldType: { vi: "Loại", en: "Type" },
+    calFieldCompany: { vi: "Công ty", en: "Company" },
+    calFieldTime: { vi: "Giờ", en: "Time" },
+    calKindInterview: { vi: "Phỏng vấn", en: "Interview" },
+    calKindTest: { vi: "Online test", en: "Online test" },
+    calKindDeadline: { vi: "Hạn nộp", en: "Deadline" },
+    calKindOther: { vi: "Khác", en: "Other" },
+    calNoEvents: { vi: "Không có sự kiện.", en: "No events." },
+    calAddFailed: { vi: "Không lưu được, thử lại.", en: "Couldn't save, try again." },
   });
 
   /* ============================================================
      RENDER: content blocks
      ============================================================ */
-  function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c])); }
 
   function renderBlock(b) {
     switch (b.type) {
@@ -603,33 +618,83 @@
     if (State.mode === "settings") render();
   }
 
-  /* ---------- Reminders page ---------- */
+  /* ---------- Reminders page (month calendar) ---------- */
   const Reminders = { list: null };
+  const Calendar = { year: null, month: null, selected: null };
+  function calPad2(n) { return String(n).padStart(2, "0"); }
+  function calDateKey(d) { return d.getFullYear() + "-" + calPad2(d.getMonth() + 1) + "-" + calPad2(d.getDate()); }
+  function remDateKey(r) {
+    const w = r.due_at || r.deadline_at;
+    if (!w) return null;
+    return calDateKey(new Date(w));
+  }
+  function calEnsureInit() {
+    if (Calendar.year == null) {
+      const now = new Date();
+      Calendar.year = now.getFullYear();
+      Calendar.month = now.getMonth();
+      Calendar.selected = calDateKey(now);
+    }
+  }
   async function loadReminders() {
     Reminders.list = await IP.gmail.fetchReminders();
     if (State.mode === "reminders") render();
   }
-  function renderReminders() {
-    const L = State.lang;
-    const head = `<div class="page-head"><h1>${fa("fa-solid fa-calendar-check")} ${t(UI.reminders)}</h1></div>`;
-    const list = Reminders.list || [];
-    let body;
-    if (!list.length) {
-      body = `<div class="empty-hint">${t(UI.noReminders)}</div>`;
-    } else {
-      const groups = {};
-      const order = [];
-      list.forEach((r) => {
-        const when = r.due_at || r.deadline_at;
-        const day = when ? new Date(when).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US") : "—";
-        if (!groups[day]) { groups[day] = []; order.push(day); }
-        groups[day].push(r);
-      });
-      body = order.map((day) => {
-        const items = groups[day].map((r) => {
-          const when = r.due_at || r.deadline_at;
-          const time = when ? new Date(when).toLocaleString(L === "vi" ? "vi-VN" : "en-US") : "";
-          return `<div class="rem-item" data-rem="${r.id}">
+  function calKindLabel(kind) {
+    return t(kind === "interview" ? UI.calKindInterview
+      : kind === "test" ? UI.calKindTest
+      : kind === "deadline" ? UI.calKindDeadline
+      : UI.calKindOther);
+  }
+  function renderCalNav(L, locale) {
+    const label = new Date(Calendar.year, Calendar.month, 1)
+      .toLocaleDateString(locale, { month: "long", year: "numeric" });
+    return `<div class="cal-nav">
+      <button class="btn" data-cal-prev aria-label="${t(UI.calPrev)}">${fa("fa-solid fa-chevron-left")}</button>
+      <span class="cal-month-label">${esc(label)}</span>
+      <button class="btn" data-cal-next aria-label="${t(UI.calNext)}">${fa("fa-solid fa-chevron-right")}</button>
+      <button class="btn" data-cal-today>${t(UI.calToday)}</button>
+    </div>`;
+  }
+  function renderCalHeader(locale) {
+    // Jan 1 2023 was a Sunday — anchor to render Sunday..Saturday short names.
+    let cells = "";
+    for (let i = 0; i < 7; i++) {
+      const wd = new Date(2023, 0, 1 + i).toLocaleDateString(locale, { weekday: "short" });
+      cells += `<div class="cal-th">${esc(wd)}</div>`;
+    }
+    return `<div class="cal-head">${cells}</div>`;
+  }
+  function renderCalGrid(byDay, todayKey) {
+    const cells = IP.calendar.monthGrid(Calendar.year, Calendar.month);
+    return `<div class="cal-grid">` + cells.map((c) => {
+      if (!c.date) return `<div class="cal-cell cal-cell--out"></div>`;
+      const events = byDay[c.date] || [];
+      const shown = events.slice(0, 2).map((r) =>
+        `<span class="cal-pill cal-pill--${esc(r.kind || "other")}${r.status === "done" ? " cal-pill--done" : ""}" title="${esc(r.title)}">${esc(r.title)}</span>`
+      ).join("");
+      const more = events.length > 2 ? `<span class="cal-more">+${events.length - 2}</span>` : "";
+      const cls = "cal-cell"
+        + (c.date === todayKey ? " cal-cell--today" : "")
+        + (c.date === Calendar.selected ? " cal-cell--sel" : "");
+      return `<div class="${cls}" data-cal-day="${c.date}">
+        <div class="cal-daynum">${c.day}</div>${shown}${more}</div>`;
+    }).join("") + `</div>`;
+  }
+  function renderCalPanel(byDay, locale) {
+    const events = byDay[Calendar.selected] || [];
+    const heading = Calendar.selected
+      ? new Date(Calendar.selected + "T00:00").toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })
+      : "";
+    const list = events.length
+      ? events.map((r) => {
+          const w = r.due_at || r.deadline_at;
+          const time = w ? new Date(w).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "";
+          const del = r.source === "manual"
+            ? `<button class="btn danger-btn" data-cal-del="${r.id}">${t(UI.calDelete)}</button>` : "";
+          const done = r.status === "done";
+          const doneBtn = done ? "" : `<button class="btn green" data-rem-done="${r.id}">${t(UI.markDone)}</button>`;
+          return `<div class="cal-event${done ? " cal-event--done" : ""}" data-rem="${r.id}">
             <span class="rem-kind ${esc(r.kind || "")}">${IP.gmail.notifIcon(r.kind)}</span>
             <div class="rem-body">
               <div class="rem-title">${esc(r.title)}</div>
@@ -637,15 +702,46 @@
             </div>
             <div class="rem-actions">
               <button class="btn" data-ics="${r.id}">${t(UI.exportIcs)}</button>
-              <button class="btn green" data-rem-done="${r.id}">${t(UI.markDone)}</button>
+              ${doneBtn}
               <button class="btn danger-btn" data-rem-dismiss="${r.id}">${t(UI.dismiss)}</button>
+              ${del}
             </div>
           </div>`;
-        }).join("");
-        return `<div class="rem-day"><div class="rem-day-label">${esc(day)}</div>${items}</div>`;
-      }).join("");
-    }
-    return `<div class="fade-in reminders-page">${head}${body}</div>`;
+        }).join("")
+      : `<div class="empty-hint">${t(UI.calNoEvents)}</div>`;
+    const form = `<form class="cal-add-form" data-cal-add>
+      <input name="title" required placeholder="${t(UI.calFieldTitle)}" />
+      <select name="kind">
+        <option value="interview">${t(UI.calKindInterview)}</option>
+        <option value="test">${t(UI.calKindTest)}</option>
+        <option value="deadline">${t(UI.calKindDeadline)}</option>
+        <option value="other">${t(UI.calKindOther)}</option>
+      </select>
+      <input name="company" placeholder="${t(UI.calFieldCompany)}" />
+      <input name="time" type="time" aria-label="${t(UI.calFieldTime)}" />
+      <button type="submit" class="btn green">${t(UI.calAdd)}</button>
+      <div class="cal-add-error" hidden>${t(UI.calAddFailed)}</div>
+    </form>`;
+    return `<div class="cal-panel">
+      <div class="cal-panel-head">${esc(heading)}</div>
+      <div class="cal-panel-list">${list}</div>${form}</div>`;
+  }
+  function renderReminders() {
+    calEnsureInit();
+    const L = State.lang;
+    const locale = L === "vi" ? "vi-VN" : "en-US";
+    const head = `<div class="page-head"><h1>${fa("fa-solid fa-calendar-check")} ${t(UI.reminders)}</h1></div>`;
+    const byDay = {};
+    (Reminders.list || []).forEach((r) => {
+      const key = remDateKey(r);
+      if (!key) return;
+      (byDay[key] = byDay[key] || []).push(r);
+    });
+    const todayKey = calDateKey(new Date());
+    const calendar = `<div class="cal-wrap">
+      <div class="cal-main">${renderCalNav(L, locale)}${renderCalHeader(locale)}${renderCalGrid(byDay, todayKey)}</div>
+      ${renderCalPanel(byDay, locale)}</div>`;
+    return `<div class="fade-in reminders-page">${head}${calendar}</div>`;
   }
 
   /* ---------- Track helpers (Step 1) ---------- */
@@ -1437,6 +1533,34 @@
         return;
       }
 
+      // calendar navigation + day selection + manual-event delete
+      if (e.target.closest("[data-cal-prev]")) {
+        if (Calendar.month === 0) { Calendar.month = 11; Calendar.year--; } else { Calendar.month--; }
+        render(); return;
+      }
+      if (e.target.closest("[data-cal-next]")) {
+        if (Calendar.month === 11) { Calendar.month = 0; Calendar.year++; } else { Calendar.month++; }
+        render(); return;
+      }
+      if (e.target.closest("[data-cal-today]")) {
+        const now = new Date();
+        Calendar.year = now.getFullYear(); Calendar.month = now.getMonth();
+        Calendar.selected = calDateKey(now);
+        render(); return;
+      }
+      if (e.target.closest("[data-cal-del]")) {
+        const id = e.target.closest("[data-cal-del]").dataset.calDel;
+        (async () => { await IP.gmail.deleteReminder(id); await loadReminders(); })();
+        return;
+      }
+      if (e.target.closest("[data-cal-day]")) {
+        // Let action buttons inside a day/panel handle their own clicks first.
+        if (!e.target.closest("[data-ics],[data-rem-done],[data-rem-dismiss],[data-cal-del]")) {
+          Calendar.selected = e.target.closest("[data-cal-day]").dataset.calDay;
+          render(); return;
+        }
+      }
+
       // reminders page actions
       if (e.target.closest("[data-ics]")) {
         const id = e.target.closest("[data-ics]").dataset.ics;
@@ -1479,6 +1603,24 @@
       if (e.target.id === "quizRetry") { buildQuiz(Quiz.topic); render(); return; }
       if (e.target.id === "quizBack") { Quiz.topic = null; render(); return; }
       if (e.target.closest("#chatSendBtn")) { sendChat(); return; }
+    });
+
+    // calendar add-event form
+    document.addEventListener("submit", (e) => {
+      const form = e.target.closest("[data-cal-add]");
+      if (!form) return;
+      e.preventDefault();
+      const title = (form.querySelector("[name=title]").value || "").trim();
+      if (!title) return;
+      const kind = form.querySelector("[name=kind]").value;
+      const company = (form.querySelector("[name=company]").value || "").trim();
+      const time = form.querySelector("[name=time]").value || "";
+      const errEl = form.querySelector(".cal-add-error");
+      (async () => {
+        const row = await IP.gmail.createReminder({ title, kind, company, date: Calendar.selected, time });
+        if (!row) { if (errEl) errEl.hidden = false; return; }
+        await loadReminders();
+      })();
     });
 
     // flashcard topic select (change)
