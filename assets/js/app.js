@@ -145,6 +145,8 @@
     chatQuota: { vi: "Còn lại hôm nay", en: "Left today" },
     chatQuotaOut: { vi: "Đã hết lượt hôm nay.", en: "Out of messages for today." },
     chatUpgradeCta: { vi: "Nâng cấp Pro để chat nhiều hơn (50/ngày)", en: "Upgrade to Pro for more (50/day)" },
+    chatProTitle: { vi: "Chat AI là tính năng Pro", en: "AI Chat is Pro feature" },
+    chatProDesc: { vi: "Trợ lý AI song ngữ giúp bạn luyện phỏng vấn, giải thích khái niệm và góp ý CV. Nâng cấp Pro để mở khoá.", en: "The bilingual AI assistant helps you rehearse interviews, explain concepts CV. Upgrade to Pro to unlock it." },
     chatEmpty: { vi: "Trợ lý IT — hỏi về lập trình, thuật toán, phỏng vấn, CV. Chỉ hỗ trợ chủ đề CNTT.", en: "IT assistant — ask about coding, algorithms, interviews, CV. IT topics only." },
     chatError: { vi: "Có lỗi, thử lại.", en: "Something went wrong, try again." },
     chatUnavailable: { vi: "Chat AI chưa được cấu hình.", en: "AI Chat is not configured yet." },
@@ -442,6 +444,15 @@
         <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${t(UI.signIn)}</button>
       </div>`;
     }
+    if (!IP.pro.isPro()) {
+      return `<div class="fade-in chat-page">
+        <div class="qr-card paywall-card">
+          <div class="pw-badge">${fa(ICON.pro)} ${t(UI.chatProTitle)}</div>
+          <p>${t(UI.chatProDesc)}</p>
+          <button class="btn lg" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
+        </div>
+      </div>`;
+    }
     const msgs = IP.chat.getHistory();
     const bubbles = msgs.length ? msgs.map(m => `
       <div class="chat-msg ${m.role}">
@@ -469,6 +480,21 @@
     if (res.error) { toast(t(UI.chatError)); return; }
   }
   function scrollChat() { const s = document.getElementById("chatScroll"); if (s) s.scrollTop = s.scrollHeight; }
+  // Show PRO badge on Chat tab for signed-in non-Pro users; remove otherwise.
+  function syncChatNavBadge() {
+    const btn = document.querySelector('[data-mode="chat"]');
+    if (!btn) return;
+    const locked = IP.auth && IP.auth.getUser() && !(IP.pro && IP.pro.isPro());
+    let badge = btn.querySelector(".pro-badge");
+    if (locked && !badge) {
+      badge = document.createElement("span");
+      badge.className = "pro-badge pro-badge--locked";
+      badge.innerHTML = `${fa("fa-solid fa-lock")} PRO`;
+      btn.appendChild(badge);
+    } else if (!locked && badge) {
+      badge.remove();
+    }
+  }
 
   /* ---------- Pro upgrade (VietQR) ---------- */
   const Upgrade = { pending: null, ent: null, loading: false };
@@ -1172,6 +1198,7 @@
     else main.innerHTML = renderHome();
     // sync mode buttons
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
+    syncChatNavBadge();
     renderSidebar();
     setupToc();
     hydrateProSections();
