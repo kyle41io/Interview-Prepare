@@ -55,7 +55,7 @@
 
   /* Pure: emoji for a notification/reminder type */
   function notifIcon(type) {
-    return ({ test: "📝", interview: "📅", offer: "🎉", rejection: "🙏", other: "✉️" })[type] || "✉️";
+    return ({ test: "📝", interview: "📅", offer: "🎉", rejection: "🙏", deadline: "⏰", other: "✉️" })[type] || "✉️";
   }
 
   var _notifications = [];
@@ -155,11 +155,11 @@
     }
   }
 
-  /* Stateful: fetch upcoming reminders */
+  /* Stateful: fetch reminders for the calendar (upcoming + completed) */
   async function fetchReminders() {
     if (_apiOn()) {
       try {
-        return (await _api().get("/v1/reminders?status=upcoming")) || [];
+        return (await _api().get("/v1/reminders?status=upcoming,done")) || [];
       } catch (e) {
         return [];
       }
@@ -167,7 +167,7 @@
     var c = _client();
     if (!c) return [];
     try {
-      var res = await c.from("reminders").select("*").in("status", ["upcoming"]).order("due_at");
+      var res = await c.from("reminders").select("*").in("status", ["upcoming", "done"]).order("due_at");
       return (res && res.data) || [];
     } catch (e) {
       return [];
@@ -188,6 +188,61 @@
     if (!c) return false;
     try {
       await c.from("reminders").update({ status: status }).eq("id", id);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* Stateful: create a manual calendar reminder (source:"manual").
+     Returns the created row on success, else null. */
+  async function createReminder(opts) {
+    var when = (root.IP && root.IP.calendar)
+      ? root.IP.calendar.buildWhen(opts)
+      : { due_at: null, deadline_at: null };
+    var row = {
+      kind: opts.kind || "other",
+      title: opts.title || "",
+      company: opts.company || null,
+      due_at: when.due_at,
+      deadline_at: when.deadline_at,
+      source: "manual",
+      status: "upcoming",
+    };
+    if (_apiOn()) {
+      try {
+        return (await _api().post("/v1/reminders", row)) || null;
+      } catch (e) {
+        return null;
+      }
+    }
+    var c = _client();
+    if (!c) return null;
+    var user = root.IP && root.IP.auth && root.IP.auth.getUser && root.IP.auth.getUser();
+    if (!user || !user.id) return null;
+    row.user_id = user.id;
+    try {
+      var res = await c.from("reminders").insert(row).select().single();
+      return (res && res.data) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* Stateful: hard-delete a reminder (used only for source:"manual" events). */
+  async function deleteReminder(id) {
+    if (_apiOn()) {
+      try {
+        await _api().del("/v1/reminders/" + encodeURIComponent(id));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    var c = _client();
+    if (!c) return false;
+    try {
+      await c.from("reminders").delete().eq("id", id);
       return true;
     } catch (e) {
       return false;
@@ -284,6 +339,8 @@
     markAllRead: markAllRead,
     fetchReminders: fetchReminders,
     setReminderStatus: setReminderStatus,
+    createReminder: createReminder,
+    deleteReminder: deleteReminder,
     subscribeRealtime: subscribeRealtime,
     status: status,
     connect: connect,

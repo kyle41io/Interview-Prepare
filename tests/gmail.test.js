@@ -38,21 +38,20 @@ function setup(configured, calls) {
         calls.push(["get", p]);
         return p.indexOf("reminders") >= 0 ? [] : [{ id: "n1", read: false, title: "t" }];
       },
-      post: async (p, b) => {
-        calls.push(["post", p, b]);
-        return { ok: true };
-      },
-      put: async (p, b) => {
-        calls.push(["put", p, b]);
-        return { ok: true };
-      },
+      post: async (p, b) => { calls.push(["post", p, b]); return { id: "created", ...b }; },
+      put: async (p, b) => { calls.push(["put", p, b]); return { ok: true }; },
+      del: async (p) => { calls.push(["del", p]); return { deleted: true }; },
     },
+    calendar: require("../assets/js/calendar.js"),
     auth: {
+      getUser: () => ({ id: "u1" }),
       client: () => ({
         from: () => ({
           select: () => ({ order: () => ({ limit: async () => ({ data: [] }) }) }),
           update: () => ({ eq: async () => ({ data: [] }) }),
           in: () => ({ order: async () => ({ data: [] }) }),
+          insert: () => ({ select: () => ({ single: async () => ({ data: { id: "sup" } }) }) }),
+          delete: () => ({ eq: async () => ({ data: [] }) }),
         }),
         functions: { invoke: async () => ({ data: null }) },
       }),
@@ -88,7 +87,7 @@ test("fetchReminders GETs /v1/reminders?status=upcoming when configured", async 
   const calls = [];
   setup(true, calls);
   await g.fetchReminders();
-  assert.ok(calls.some((c) => c[0] === "get" && c[1] === "/v1/reminders?status=upcoming"));
+  assert.ok(calls.some((c) => c[0] === "get" && c[1] === "/v1/reminders?status=upcoming,done"));
 });
 
 test("setReminderStatus PUTs /v1/reminders/<id> when configured", async () => {
@@ -152,5 +151,43 @@ test("not configured -> markAllRead, fetchReminders, setReminderStatus, status, 
   await g.setReminderStatus("r1", "done");
   await g.status();
   await g.disconnect();
+  assert.strictEqual(calls.length, 0);
+});
+
+test("createReminder POSTs /v1/reminders with a manual-source row when configured", async () => {
+  const calls = [];
+  setup(true, calls);
+  const row = await g.createReminder({ title: "Onsite", kind: "interview", company: "ACME", date: "2026-07-15", time: "14:30" });
+  const call = calls.find((c) => c[0] === "post" && c[1] === "/v1/reminders");
+  assert.ok(call);
+  assert.strictEqual(call[2].title, "Onsite");
+  assert.strictEqual(call[2].kind, "interview");
+  assert.strictEqual(call[2].company, "ACME");
+  assert.strictEqual(call[2].source, "manual");
+  assert.strictEqual(call[2].status, "upcoming");
+  assert.strictEqual(call[2].due_at, "2026-07-15T14:30:00.000Z");
+  assert.strictEqual(call[2].deadline_at, null);
+  assert.strictEqual(row.id, "created");
+});
+test("createReminder maps deadline kind to deadline_at", async () => {
+  const calls = [];
+  setup(true, calls);
+  await g.createReminder({ title: "Submit take-home", kind: "deadline", date: "2026-07-20" });
+  const call = calls.find((c) => c[0] === "post" && c[1] === "/v1/reminders");
+  assert.strictEqual(call[2].deadline_at, "2026-07-20T00:00:00.000Z");
+  assert.strictEqual(call[2].due_at, null);
+});
+test("deleteReminder DELETEs /v1/reminders/<id> when configured", async () => {
+  const calls = [];
+  setup(true, calls);
+  const ok = await g.deleteReminder("r9");
+  assert.ok(calls.some((c) => c[0] === "del" && c[1] === "/v1/reminders/r9"));
+  assert.strictEqual(ok, true);
+});
+test("not configured -> createReminder + deleteReminder use Supabase path (no IP.api call)", async () => {
+  const calls = [];
+  setup(false, calls);
+  await g.createReminder({ title: "x", kind: "interview", date: "2026-07-15" });
+  await g.deleteReminder("r1");
   assert.strictEqual(calls.length, 0);
 });
