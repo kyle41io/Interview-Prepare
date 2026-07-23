@@ -1687,6 +1687,15 @@
   }
 
   /* ---------- auth UI ---------- */
+  // Auth-driven render de-duplication. updateAuthUI + the onChange handler fire
+  // on every Supabase auth event — INITIAL_SESSION, the duplicate getSession()
+  // hydrate in auth.init(), hourly TOKEN_REFRESHED, and a SIGNED_IN each time the
+  // tab regains focus. Most carry the same user; rebuilding #content on each is
+  // the on-load / on-return "flashing" the user reported. Track the identity we
+  // last rendered and only rebuild #content when it actually changes.
+  let _authReady = false;    // false until the first auth state is known (or no backend)
+  let _renderedUid;          // uid|null of the last content render; undefined = never rendered
+  let _pendingScroll = null; // scroll-Y to restore on the first auth-driven render
   function updateAuthUI(user) {
     const signin = document.getElementById("signinBtn");
     const acctRow = document.getElementById("acctRow");
@@ -1728,8 +1737,15 @@
     const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
     const searchBox = document.querySelector(".search-box"); if (searchBox) searchBox.hidden = gated;
     const kbdHelp = document.querySelector(".kbd-help"); if (kbdHelp) kbdHelp.hidden = gated;
-    // Switch the page between the landing intro and the app whenever auth flips.
-    render();
+    // Switch the page between the landing intro and the app — but only when the
+    // signed-in identity actually changes. Repeat/refresh/refocus auth events
+    // carry the same user and must not rebuild #content (that was the flashing).
+    const uid = on ? user.id : null;
+    if (_authReady && uid !== _renderedUid) {
+      _renderedUid = uid;
+      render();
+      if (_pendingScroll != null) { const y = _pendingScroll; _pendingScroll = null; window.scrollTo(0, y); }
+    }
   }
 
   /* ---------- static UI text (topbar) ---------- */
@@ -1787,10 +1803,21 @@
     let _wasAuthed = false;
     let _notifSubbed = false;
     IP.auth.onChange(function (user) {
-      updateAuthUI(user);
+      const uid = user ? user.id : null;
+      // Did the signed-in identity actually change since our last render? The
+      // first event flips _authReady, so it always counts as changed. Repeat
+      // events (getSession hydrate, TOKEN_REFRESHED, tab-refocus SIGNED_IN) carry
+      // the same uid — we skip all the heavy per-login work for those.
+      const changed = !_authReady || uid !== _renderedUid;
+      _authReady = true;
+      updateAuthUI(user);                 // rebuilds #content iff the identity changed
       if (user) {
-        _wasAuthed = true; IP.sync.onLogin(); IP.pro.init().then(() => updateAuthUI(user));
-        refreshBell();
+        if (!changed) return;             // duplicate hydrate / token refresh / tab refocus — no work
+        _wasAuthed = true;
+        IP.sync.onLogin();
+        // After pro status loads, refresh the topbar badge (no re-render — same
+        // identity) and unlock any pro sections in place.
+        IP.pro.init().then(() => { updateAuthUI(user); hydrateProSections(); });
         // onChange fires on every auth event (INITIAL_SESSION, SIGNED_IN,
         // hourly TOKEN_REFRESHED). Subscribe + prompt only once per session,
         // else channels stack and one notification fires N toasts.
@@ -1826,8 +1853,22 @@
       else if (_v.topic && PREP.topics[_v.topic]) { State.mode = "learn"; State.topic = _v.topic; }
     }
 
-    render();
-    if (_v && _v.scrollY) window.scrollTo(0, _v.scrollY);
+    // First paint. With a backend configured, the first onAuthStateChange event
+    // (INITIAL_SESSION always fires, even logged out) drives the first render —
+    // rendering here too would flash the logged-out landing before the session
+    // resolves. Without a backend no auth event ever comes, so render now.
+    const _scrollY = (_v && _v.scrollY) || 0;
+    if (!IP.auth.enabled()) {
+      _authReady = true;
+      render();
+      if (_scrollY) window.scrollTo(0, _scrollY);
+    } else {
+      _pendingScroll = _scrollY;   // applied on the first auth-driven render
+      // Safety net: never leave the page blank if the SDK never reports.
+      setTimeout(function () {
+        if (!_authReady) { _authReady = true; render(); if (_scrollY) window.scrollTo(0, _scrollY); _pendingScroll = null; }
+      }, 1500);
+    }
 
     // Persist scroll position + current view so a reload/return restores place.
     let _svTimer = null;
