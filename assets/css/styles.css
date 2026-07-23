@@ -715,7 +715,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* ============================================================
    Reminders page
    ============================================================ */
-.reminders-page{max-width:720px}
+.reminders-page{max-width:1100px}
 .rem-day{margin-bottom:18px}
 .rem-day-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);padding:6px 2px}
 .rem-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;flex-wrap:wrap}
