@@ -58,7 +58,12 @@
     swe: "fa-solid fa-code", "ai-engineer": "fa-solid fa-robot",
   };
   function fa(cls) { return `<i class="${cls}"></i>`; }
-  function proBadge(tp) { return tp && tp.tier === "pro" ? `<span class="pro-badge">${fa(ICON.pro)} PRO</span>` : ""; }
+  function proBadge(tp) {
+    if (!(tp && tp.tier === "pro")) return "";
+    // Non-Pro viewers see a lock; Pro viewers see the plain PRO badge.
+    const locked = !(IP.pro && IP.pro.isPro());
+    return `<span class="pro-badge${locked ? " pro-badge--locked" : ""}">${fa(locked ? "fa-solid fa-lock" : ICON.pro)} PRO</span>`;
+  }
   function catIcon(tp) { return ICON[tp.category] || "fa-solid fa-book"; }
 
   /* ---------- State ---------- */
@@ -119,6 +124,9 @@
     cheat: { vi: "Cheat sheet", en: "Cheat sheet" },
     upgrade: { vi: "Nâng cấp Pro", en: "Upgrade to Pro" },
     proActiveUntil: { vi: "Pro của bạn có hiệu lực đến", en: "Your Pro is active until" },
+    proTopicTitle: { vi: "Chủ đề Pro", en: "Pro topic" },
+    proTopicDesc: { vi: "Chủ đề này thuộc gói Pro. Nâng cấp để mở khoá toàn bộ nội dung, thẻ ghi nhớ và trắc nghiệm của chủ đề.", en: "This topic is part of Pro. Upgrade to unlock its full content, flashcards and quizzes." },
+    proUpgradeCta: { vi: "Nâng cấp Pro", en: "Upgrade to Pro" },
     payStep1: { vi: "Quét QR & chuyển khoản đúng nội dung", en: "Scan the QR & transfer with the exact note" },
     iPaid: { vi: "Tôi đã chuyển khoản", en: "I have transferred" },
     waitingApproval: { vi: "Đang chờ duyệt (thường trong vài giờ)", en: "Awaiting approval (usually within hours)" },
@@ -214,6 +222,19 @@
       default:
         return "";
     }
+  }
+
+  function renderPaywall(id) {
+    const tp = PREP.topics[id];
+    const title = tp ? t(tp.title) : "";
+    return `<div class="fade-in paywall-page">
+      <div class="page-head"><h1>${fa("fa-solid fa-lock")} ${title}</h1></div>
+      <div class="qr-card paywall-card">
+        <div class="pw-badge">${fa(ICON.pro)} ${t(UI.proTopicTitle)}</div>
+        <p>${t(UI.proTopicDesc)}</p>
+        <button class="btn lg" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
+      </div>
+    </div>`;
   }
 
   function renderTopic(id) {
@@ -1139,7 +1160,11 @@
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
     else if (State.mode === "reminders") main.innerHTML = renderReminders();
     else if (State.mode === "chat") main.innerHTML = renderChat();
-    else if (State.topic) main.innerHTML = renderTopic(State.topic);
+    else if (State.topic) {
+      main.innerHTML = (PREP.isProTopic(State.topic) && !IP.pro.isPro())
+        ? renderPaywall(State.topic)
+        : renderTopic(State.topic);
+    }
     else main.innerHTML = renderHome();
     // sync mode buttons
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
