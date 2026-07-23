@@ -55,7 +55,7 @@
 
   /* Pure: emoji for a notification/reminder type */
   function notifIcon(type) {
-    return ({ test: "📝", interview: "📅", offer: "🎉", rejection: "🙏", deadline: "⏰", other: "✉️" })[type] || "✉️";
+    return ({ test: "📝", interview: "💼", offer: "🎉", rejection: "🙏", deadline: "⏰", other: "✉️" })[type] || "✉️";
   }
 
   var _notifications = [];
@@ -149,6 +149,29 @@
       _notifications = (_notifications || []).map(function (n) {
         return Object.assign({}, n, { read: true });
       });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* Stateful: delete every read notification for the signed-in user so the bell
+     queue stays short. Unread rows are left untouched. */
+  async function deleteReadNotifications() {
+    if (_apiOn()) {
+      try {
+        await _api().del("/v1/notifications/read");
+        _notifications = (_notifications || []).filter(function (n) { return !n.read; });
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    var c = _client();
+    if (!c) return false;
+    try {
+      await c.from("notifications").delete().eq("read", true);
+      _notifications = (_notifications || []).filter(function (n) { return !n.read; });
       return true;
     } catch (e) {
       return false;
@@ -337,6 +360,7 @@
     unreadCount: unreadCount,
     markRead: markRead,
     markAllRead: markAllRead,
+    deleteReadNotifications: deleteReadNotifications,
     fetchReminders: fetchReminders,
     setReminderStatus: setReminderStatus,
     createReminder: createReminder,
