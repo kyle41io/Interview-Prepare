@@ -907,9 +907,13 @@
      ============================================================ */
   const DAY = 86400000;
   function cardKey(topicId, idx) { return topicId + "#" + idx; }
+  // Topic ids the current user may study (Pro topics dropped for non-Pro).
+  function studyPool() {
+    return IP.gating.visibleTopicPool(PREP.order, PREP.topics, IP.pro && IP.pro.isPro());
+  }
   function allCards() {
     const out = [];
-    PREP.order.forEach(id => (PREP.topics[id].flashcards || []).forEach((c, i) => out.push({ key: cardKey(id, i), topicId: id, idx: i, card: c })));
+    studyPool().forEach(id => (PREP.topics[id].flashcards || []).forEach((c, i) => out.push({ key: cardKey(id, i), topicId: id, idx: i, card: c })));
     return out;
   }
   function countDue(topicId) {
@@ -949,7 +953,7 @@
   function renderCards() {
     const L = State.lang;
     const opts = `<option value="all">${t(UI.allTopics)} (${countDue()} ${t(UI.due)})</option>` +
-      PREP.order.map(id => `<option value="${id}" ${Cards.topic === id ? "selected" : ""}>${t(PREP.topics[id].title)} (${countDue(id)})</option>`).join("");
+      studyPool().map(id => `<option value="${id}" ${Cards.topic === id ? "selected" : ""}>${t(PREP.topics[id].title)} (${countDue(id)})</option>`).join("");
     const head = `<div class="fc-controls">
         <select class="fc-select" id="fcTopic">${opts}</select>
         <span class="fc-progress" id="fcProg"></span>
@@ -998,7 +1002,7 @@
   function buildQuiz(topicId) {
     Quiz.topic = topicId;
     let qs = [];
-    if (topicId === "all") PREP.order.forEach(id => (PREP.topics[id].quiz || []).forEach(q => qs.push({ ...q, _topic: id })));
+    if (topicId === "all") studyPool().forEach(id => (PREP.topics[id].quiz || []).forEach(q => qs.push({ ...q, _topic: id })));
     else qs = (PREP.topics[topicId].quiz || []).map(q => ({ ...q, _topic: topicId }));
     for (let i = qs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[qs[i], qs[j]] = [qs[j], qs[i]]; }
     Quiz.questions = qs.slice(0, topicId === "all" ? 20 : qs.length);
@@ -1008,7 +1012,7 @@
     const L = State.lang;
     if (!Quiz.topic) {
       const opts = `<option value="all">${t(UI.allTopics)}</option>` +
-        PREP.order.map(id => `<option value="${id}">${t(PREP.topics[id].title)} (${(PREP.topics[id].quiz || []).length})</option>`).join("");
+        studyPool().map(id => `<option value="${id}">${t(PREP.topics[id].title)} (${(PREP.topics[id].quiz || []).length})</option>`).join("");
       return `<div class="quiz-wrap fade-in"><div class="quiz-q" style="text-align:center">
         <h2>${fa(ICON.quiz)} ${t(UI.quiz)}</h2>
         <p style="color:var(--muted);margin-bottom:18px">${L === "vi" ? "Chọn chủ đề rồi tự kiểm tra. Có giải thích cho mỗi câu." : "Pick a topic and test yourself. Every question has an explanation."}</p>
