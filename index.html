@@ -80,7 +80,12 @@
 <script>
   window.PREP = { topics:{}, order:[], roles:[], levels:{}, tracks:[],
     register(t){ if(!this.topics[t.id]) this.order.push(t.id); this.topics[t.id]=t; },
-    registerTrack(t){ this.tracks.push(t); } };
+    registerTrack(t){ this.tracks.push(t); },
+    isProTopic(id){
+      return (window.IP && window.IP.gating)
+        ? window.IP.gating.isProTopic(this.topics, id)
+        : !!(this.topics[id] && this.topics[id].tier === "pro");
+    } };
 </script>
 
 <!-- ===== Knowledge data (each file registers itself via PREP.register) ===== -->
@@ -126,6 +131,7 @@
 <script src="assets/js/i18n.js"></script>
 <script src="assets/js/theme.js"></script>
 <script src="assets/js/tracks.js"></script>
+<script src="assets/js/gating.js"></script>
 <script src="assets/js/onboarding.js"></script>
 <script src="assets/js/bookmarks.js"></script>
 <script src="assets/js/streak.js"></script>
