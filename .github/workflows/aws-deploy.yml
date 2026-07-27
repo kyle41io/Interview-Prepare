@@ -1,0 +1,78 @@
+name: aws-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "infra/**"
+      - "assets/**"
+      - "index.html"
+      - ".github/workflows/aws-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+
+concurrency:
+  group: aws-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production   # protection rule -> manual approval gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install & bundle Lambdas
+        working-directory: api
+        run: |
+          npm ci
+          npm run bundle
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.4"
+
+      - name: Terraform init & apply
+        working-directory: infra
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var="github_repo=${{ github.repository }}" \
+            -var="allowed_origin=${{ vars.CLOUDFRONT_ORIGIN }}"
+
+      - name: Read outputs
+        id: tf
+        working-directory: infra
+        run: |
+          echo "bucket=$(terraform output -raw frontend_bucket)" >> "$GITHUB_OUTPUT"
+          echo "dist=$(terraform output -raw cloudfront_distribution_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Sync frontend to S3
+        run: |
+          aws s3 sync . "s3://${{ steps.tf.outputs.bucket }}" \
+            --delete \
+            --exclude ".git/*" --exclude "api/*" --exclude "infra/*" \
+            --exclude "docs/*" --exclude "tests/*" --exclude "node_modules/*" \
+            --exclude ".github/*" --exclude "supabase/*" --exclude ".superpowers/*"
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.tf.outputs.dist }}" \
+            --paths "/*"
