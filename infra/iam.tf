@@ -195,7 +195,8 @@ data "aws_iam_policy_document" "github_deploy" {
       "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource",
       "cloudfront:CreateOriginAccessControl", "cloudfront:GetOriginAccessControl",
       "cloudfront:GetOriginAccessControlConfig", "cloudfront:UpdateOriginAccessControl",
-      "cloudfront:GetInvalidation", "cloudfront:ListInvalidations",
+      "cloudfront:DeleteOriginAccessControl",
+      "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation", "cloudfront:ListInvalidations",
     ]
     resources = ["*"]
   }
