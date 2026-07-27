@@ -12,6 +12,13 @@ locals {
   ssm_arn_prefix = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}"
 }
 
+# All secret params are SecureString (see ssm.tf), encrypted under the
+# account's default AWS-managed SSM key. Grant kms:Decrypt on that key
+# explicitly rather than relying on the key's own default policy.
+data "aws_kms_alias" "ssm" {
+  name = "alias/aws/ssm"
+}
+
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -49,7 +56,10 @@ data "aws_iam_policy_document" "lambda_scoped" {
     ]
     resources = concat(
       [for t in each.value : aws_dynamodb_table.tables[t].arn],
-      [for t in each.value : "${aws_dynamodb_table.tables[t].arn}/index/*"],
+      # Only the "billing" table has a GSI (status-index); scope the
+      # /index/* resource ARN to it alone so other roles don't get an
+      # index-wildcard grant they have no use for.
+      [for t in each.value : "${aws_dynamodb_table.tables[t].arn}/index/*" if t == "billing"],
     )
   }
 
@@ -58,6 +68,13 @@ data "aws_iam_policy_document" "lambda_scoped" {
     effect    = "Allow"
     actions   = ["ssm:GetParameter", "ssm:GetParameters"]
     resources = ["${local.ssm_arn_prefix}/*"]
+  }
+
+  statement {
+    sid       = "SsmKmsDecrypt"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt"]
+    resources = [data.aws_kms_alias.ssm.target_key_arn]
   }
 }
 
@@ -86,9 +103,9 @@ data "aws_iam_policy_document" "github_assume" {
       values   = ["sts.amazonaws.com"]
     }
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
     }
   }
 }
@@ -98,23 +115,143 @@ resource "aws_iam_role" "github_oidc" {
   assume_role_policy = data.aws_iam_policy_document.github_assume.json
 }
 
-# The deploy role manages the whole stack. Scoped to this project's resources
-# where AWS allows resource-level permissions; broad service actions are
-# accepted here as a solo-maintainer deploy role (documented tradeoff).
-resource "aws_iam_role_policy_attachment" "github_admin" {
-  role       = aws_iam_role.github_oidc.name
-  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
+# The deploy role manages the whole stack. Every statement below is scoped
+# to this project's resources (name-prefixed with var.project / "ip_"
+# table names) wherever AWS supports resource-level permissions. A small
+# number of actions have no resource-level ARN support at all (CloudFront)
+# or specifically require "*" for create-time calls before the resource
+# exists (e.g. apigatewayv2:CreateApi) - those are documented per statement
+# and are the only "*" resources here; DynamoDB and KMS are never
+# unqualified.
+data "aws_iam_policy_document" "github_deploy" {
+  statement {
+    sid    = "Lambda"
+    effect = "Allow"
+    actions = [
+      "lambda:CreateFunction", "lambda:GetFunction", "lambda:GetFunctionConfiguration",
+      "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
+      "lambda:DeleteFunction", "lambda:TagResource", "lambda:UntagResource", "lambda:ListTags",
+      "lambda:ListVersionsByFunction", "lambda:PublishVersion", "lambda:GetPolicy",
+      "lambda:AddPermission", "lambda:RemovePermission", "lambda:InvokeFunction",
+    ]
+    resources = ["arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${var.project}-*"]
+  }
+
+  statement {
+    sid    = "ApiGatewayCreateTime"
+    effect = "Allow"
+    # apigatewayv2:CreateApi (and several other API Gateway management
+    # actions) do not support resource-level permissions - AWS requires "*".
+    actions   = ["apigateway:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "DynamoDb"
+    effect = "Allow"
+    actions = [
+      "dynamodb:CreateTable", "dynamodb:DescribeTable", "dynamodb:UpdateTable",
+      "dynamodb:DeleteTable", "dynamodb:TagResource", "dynamodb:UntagResource",
+      "dynamodb:ListTagsOfResource", "dynamodb:DescribeTimeToLive",
+      "dynamodb:UpdateTimeToLive", "dynamodb:DescribeContinuousBackups",
+    ]
+    resources = [
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*/index/*",
+    ]
+  }
+
+  statement {
+    sid       = "S3ProjectBuckets"
+    effect    = "Allow"
+    actions   = ["s3:*"]
+    resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::${var.project}-*/*"]
+  }
+
+  statement {
+    sid       = "S3AccountLevel"
+    effect    = "Allow"
+    actions   = ["s3:ListAllMyBuckets", "s3:GetBucketLocation"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "CloudFront"
+    effect = "Allow"
+    # CloudFront (distributions, origin access control, invalidations)
+    # does not support resource-level IAM permissions.
+    actions   = ["cloudfront:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "Ssm"
+    effect    = "Allow"
+    actions   = ["ssm:*"]
+    resources = ["arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}/*"]
+  }
+
+  statement {
+    sid       = "Scheduler"
+    effect    = "Allow"
+    actions   = ["scheduler:*"]
+    resources = ["arn:aws:scheduler:*:${data.aws_caller_identity.current.account_id}:schedule/*/${var.project}-*"]
+  }
+
+  statement {
+    sid       = "Logs"
+    effect    = "Allow"
+    actions   = ["logs:*"]
+    resources = ["arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project}-*:*"]
+  }
+
+  statement {
+    sid    = "IamRoleAndPolicyLifecycle"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole", "iam:GetRole", "iam:UpdateRole", "iam:DeleteRole", "iam:TagRole", "iam:UntagRole",
+      "iam:CreatePolicy", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions",
+      "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:DeletePolicy", "iam:TagPolicy", "iam:UntagPolicy",
+      "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
+      "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies",
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.project}-*",
+    ]
+  }
+
+  statement {
+    sid       = "IamPassRoleToLambda"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["lambda.amazonaws.com"]
+    }
+  }
+
+  statement {
+    sid       = "OidcProviderRead"
+    effect    = "Allow"
+    actions   = ["iam:GetOpenIDConnectProvider"]
+    resources = [data.aws_iam_openid_connect_provider.github.arn]
+  }
+
+  statement {
+    sid = "AccountLevelReadOnly"
+    # No resource-level ARN support for these read-only lookups (identity,
+    # KMS key discovery for the aws_kms_alias.ssm data source above).
+    effect    = "Allow"
+    actions   = ["sts:GetCallerIdentity", "kms:DescribeKey", "kms:ListAliases"]
+    resources = ["*"]
+  }
 }
 
-resource "aws_iam_role_policy" "github_iam" {
-  name = "${var.project}-github-iam"
-  role = aws_iam_role.github_oidc.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["iam:*"]
-      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*"
-    }]
-  })
+resource "aws_iam_role_policy" "github_deploy" {
+  name   = "${var.project}-github-deploy"
+  role   = aws_iam_role.github_oidc.id
+  policy = data.aws_iam_policy_document.github_deploy.json
 }
