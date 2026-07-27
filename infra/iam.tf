@@ -5,7 +5,7 @@ locals {
   fn_tables = {
     progress   = ["progress"]
     billing    = ["billing"]
-    chat       = ["chat"]
+    chat       = ["chat", "billing"]
     inbox      = ["inbox", "chat"] # inbox classify reuses chat provider/usage
     gmail-scan = ["inbox", "chat"]
   }

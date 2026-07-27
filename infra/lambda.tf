@@ -21,7 +21,10 @@ locals {
   fn_table_env = {
     progress = { DDB_TABLE = aws_dynamodb_table.tables["progress"].name }
     billing  = { DDB_BILLING_TABLE = aws_dynamodb_table.tables["billing"].name }
-    chat     = { DDB_CHAT_TABLE = aws_dynamodb_table.tables["chat"].name }
+    chat = {
+      DDB_CHAT_TABLE    = aws_dynamodb_table.tables["chat"].name
+      DDB_BILLING_TABLE = aws_dynamodb_table.tables["billing"].name
+    }
     inbox = {
       DDB_INBOX_TABLE = aws_dynamodb_table.tables["inbox"].name
       DDB_CHAT_TABLE  = aws_dynamodb_table.tables["chat"].name
