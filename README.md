@@ -55,6 +55,8 @@ npx serve .
 
 A `.nojekyll` file is included so the `assets/` folder is served correctly.
 
+- **AWS deployment:** see [docs/superpowers/DEPLOY-AWS.md](docs/superpowers/DEPLOY-AWS.md).
+
 ## 🗂️ Project structure / Cấu trúc
 
 ```
