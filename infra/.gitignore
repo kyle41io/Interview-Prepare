@@ -3,3 +3,6 @@
 *.tfstate.*
 terraform.tfvars
 .terraform.lock.hcl
+
+# Zipped Lambda bundles produced by archive_file (infra/lambda.tf).
+.build/
