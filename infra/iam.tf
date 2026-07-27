@@ -140,9 +140,15 @@ data "aws_iam_policy_document" "github_deploy" {
   statement {
     sid    = "ApiGatewayCreateTime"
     effect = "Allow"
-    # apigatewayv2:CreateApi (and several other API Gateway management
-    # actions) do not support resource-level permissions - AWS requires "*".
-    actions   = ["apigateway:*"]
+    # API Gateway v2 (HTTP API) IAM does not use granular named actions -
+    # access is controlled by HTTP verb on the apigateway service instead.
+    # These five verbs cover create/read/update/delete/tag for apis, stages,
+    # routes, integrations, and deployments (tagging goes through POST/DELETE
+    # on the /tags resource, so no separate tag action is needed).
+    actions = ["apigateway:GET", "apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE"]
+    # HTTP API IDs are opaque and only known post-create, and the apigateway
+    # ARN form doesn't cleanly resource-scope create-time calls - "*" is
+    # unavoidable here, but the action list above is now a curated verb set.
     resources = ["*"]
   }
 
@@ -179,8 +185,18 @@ data "aws_iam_policy_document" "github_deploy" {
     sid    = "CloudFront"
     effect = "Allow"
     # CloudFront (distributions, origin access control, invalidations)
-    # does not support resource-level IAM permissions.
-    actions   = ["cloudfront:*"]
+    # does not support resource-level IAM permissions, so resources must stay
+    # "*" - but the action list below is now curated to what Terraform's
+    # aws_cloudfront_distribution + aws_cloudfront_origin_access_control +
+    # invalidation handling actually need.
+    actions = [
+      "cloudfront:CreateDistribution", "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
+      "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution", "cloudfront:ListDistributions",
+      "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource",
+      "cloudfront:CreateOriginAccessControl", "cloudfront:GetOriginAccessControl",
+      "cloudfront:GetOriginAccessControlConfig", "cloudfront:UpdateOriginAccessControl",
+      "cloudfront:GetInvalidation", "cloudfront:ListInvalidations",
+    ]
     resources = ["*"]
   }
 
@@ -222,14 +238,17 @@ data "aws_iam_policy_document" "github_deploy" {
   }
 
   statement {
-    sid       = "IamPassRoleToLambda"
+    sid       = "IamPassRoleToServices"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
     resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*"]
+    # Lambda needs its execution role passed at function create/update time;
+    # EventBridge Scheduler needs a target role passed at schedule create
+    # time (aws_scheduler_schedule). Scoped to project-prefixed roles only.
     condition {
       test     = "StringEquals"
       variable = "iam:PassedToService"
-      values   = ["lambda.amazonaws.com"]
+      values   = ["lambda.amazonaws.com", "scheduler.amazonaws.com"]
     }
   }
 
