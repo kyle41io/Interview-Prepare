@@ -2,7 +2,9 @@
   "name": "interview-prep-api",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=18.18 <21" },
+  "engines": {
+    "node": ">=18.18 <21"
+  },
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
@@ -19,16 +21,17 @@
     "create-inbox-table": "ts-node scripts/create-inbox-table.ts"
   },
   "dependencies": {
-    "@nestjs/common": "^10.4.0",
-    "@nestjs/core": "^10.4.0",
-    "@nestjs/platform-express": "^10.4.0",
-    "@nestjs/config": "^3.2.0",
     "@aws-sdk/client-dynamodb": "^3.699.0",
+    "@aws-sdk/client-ssm": "^3.1095.0",
     "@aws-sdk/lib-dynamodb": "^3.699.0",
     "@codegenie/serverless-express": "^4.1.6",
-    "jsonwebtoken": "^9.0.2",
-    "class-validator": "^0.14.1",
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/config": "^3.2.0",
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/platform-express": "^10.4.0",
     "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "jsonwebtoken": "^9.0.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -37,23 +40,29 @@
     "@nestjs/testing": "^10.4.0",
     "@types/aws-lambda": "^8.10.145",
     "@types/jest": "^29.5.12",
-    "@types/node": "^18.19.0",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/supertest": "^6.0.2",
+    "@types/node": "^18.19.0",
     "@types/pg": "^8.11.10",
-    "pg": "^8.13.0",
+    "@types/supertest": "^6.0.2",
     "esbuild": "^0.24.0",
     "jest": "^29.7.0",
+    "pg": "^8.13.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "transform": { "^.+\\.ts$": "ts-jest" },
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
     "testEnvironment": "node"
   }
 }

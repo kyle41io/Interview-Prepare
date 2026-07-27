@@ -5,6 +5,7 @@ import { AppConfigModule } from "../config/config.module";
 import { DynamoModule } from "../db/dynamo.module";
 import { InboxModule } from "../inbox/inbox.module";
 import { ScanService } from "../inbox/scan.service";
+import { hydrateSecretsFromSsm } from "./secrets";
 
 // This entrypoint boots its own isolated Nest application context (no HTTP
 // adapter, no serverless-express). @Global() modules only propagate within a
@@ -18,6 +19,9 @@ let ctx: Awaited<ReturnType<typeof NestFactory.createApplicationContext>> | unde
 
 export const handler: Handler = async () => {
   if (!ctx) {
+    // Same SSM secret hydration as the HTTP lambdas (bootstrap.ts): must run
+    // before the Nest context — and its ConfigModule — initializes.
+    await hydrateSecretsFromSsm();
     ctx = await NestFactory.createApplicationContext(GmailScanModule, {
       logger: ["error", "warn"],
     });
