@@ -19,6 +19,18 @@ variable "allowed_origin" {
   default     = "*"
 }
 
+variable "admin_uids" {
+  description = <<-EOT
+    Comma-separated Supabase user IDs allowed to call /v1/billing/admin/*.
+    AdminGuard splits this and checks the caller's token subject against it, so
+    an empty value means every admin request is rejected with 403. Not a secret:
+    the same list ships in assets/js/config.js for UI gating, and holding a UID
+    grants nothing without a validly signed token for that subject.
+  EOT
+  type        = string
+  default     = "2c2cc2cf-9ced-4642-bdda-dcf7182b3f3a"
+}
+
 variable "supabase_url" {
   description = <<-EOT
     Supabase project URL (public - it ships in assets/js/config.js). Used to

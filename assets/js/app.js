@@ -1877,6 +1877,14 @@
         // After pro status loads, refresh the topbar badge (no re-render — same
         // identity) and unlock any pro sections in place.
         IP.pro.init().then(() => { updateAuthUI(user); hydrateProSections(); });
+        // The saved view is restored before Supabase finishes hydrating the
+        // session, so screens whose data needs an authenticated fetch ran with
+        // getUser() === null and rendered empty — a pending Pro request looked
+        // like it had vanished on reload. Re-load the current screen now that a
+        // user exists. Harmless if the restore already loaded it (one extra
+        // GET); both callers are idempotent.
+        if (State.mode === "upgrade") loadUpgradeData();
+        else if (State.mode === "admin") loadAdminData();
         // onChange fires on every auth event (INITIAL_SESSION, SIGNED_IN,
         // hourly TOKEN_REFRESHED). Subscribe + prompt only once per session,
         // else channels stack and one notification fires N toasts.

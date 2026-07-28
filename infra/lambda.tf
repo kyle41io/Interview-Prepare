@@ -49,6 +49,9 @@ locals {
     # keys to verify access tokens. Without it the guard has only the legacy
     # HS256 secret, which cannot verify the tokens the app actually sends.
     SUPABASE_JWKS_URL = "${var.supabase_url}/auth/v1/.well-known/jwks.json"
+    # AdminGuard checks the caller's token subject against this list. It was
+    # missing, so the list was empty and every /v1/billing/admin/* call 403'd.
+    ADMIN_UIDS = var.admin_uids
   }
 }
 
