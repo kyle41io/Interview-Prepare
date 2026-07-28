@@ -108,10 +108,16 @@ data "aws_iam_policy_document" "github_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
+    # The deploy job declares `environment: production`, and when a job
+    # references an environment GitHub swaps the OIDC sub claim from
+    # "…:ref:refs/heads/main" to "…:environment:production". Matching the
+    # environment form (not the ref form) is also what keeps the approval gate
+    # meaningful: a new workflow that omitted `environment:` would otherwise be
+    # able to assume this role on main and skip the gate entirely.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values   = ["repo:${var.github_repo}:environment:production"]
     }
   }
 }
