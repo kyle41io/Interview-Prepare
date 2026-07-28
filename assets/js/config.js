@@ -6,5 +6,5 @@ window.IP_CONFIG = {
   SUPABASE_URL: "https://tbihofgqjrwfgjtfjyrg.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_VRbWfTmVWD8WmQ51tRaPHw_GpqMpXvF",
   ADMIN_UIDS: ["2c2cc2cf-9ced-4642-bdda-dcf7182b3f3a"],  // public UI-gating; real enforcement is the Edge Function secret
-  API_URL: "",  // Phase F1 NestJS API on Render, filled in at deploy time (Task 8); empty = local-only
+  API_URL: "https://mlu40yvp2e.execute-api.us-east-1.amazonaws.com",  // AWS API Gateway (serverless migration); no trailing slash — paths are /v1/*
 };
