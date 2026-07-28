@@ -9,6 +9,9 @@ locals {
     inbox      = ["inbox", "chat"] # inbox classify reuses chat provider/usage
     gmail-scan = ["inbox", "chat"]
   }
+  # Only these functions Scan the inbox table (gmail-account.service.ts
+  # listActiveAccounts); the rest stay Scan-free per least privilege.
+  scan_fns       = ["inbox", "gmail-scan"]
   ssm_arn_prefix = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}"
 }
 
@@ -49,11 +52,14 @@ data "aws_iam_policy_document" "lambda_scoped" {
   statement {
     sid    = "Ddb"
     effect = "Allow"
-    actions = [
-      "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-      "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchGetItem",
-      "dynamodb:BatchWriteItem",
-    ]
+    actions = concat(
+      [
+        "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+      ],
+      contains(local.scan_fns, each.key) ? ["dynamodb:Scan"] : [],
+    )
     resources = concat(
       [for t in each.value : aws_dynamodb_table.tables[t].arn],
       # Only the "billing" table has a GSI (status-index); scope the
