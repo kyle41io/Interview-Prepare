@@ -92,8 +92,14 @@ resource "aws_iam_role_policy" "lambda_scoped" {
 }
 
 # --- GitHub OIDC deploy role ---
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+# The provider ARN is derived rather than looked up with the
+# aws_iam_openid_connect_provider data source on purpose: that data source
+# resolves by URL via iam:ListOpenIDConnectProviders, an account-level list
+# call on "oidc-provider/*" that the deploy role would then need just to read
+# back its own trust policy. The ARN form is deterministic (account ID + host),
+# so constructing it keeps the role from needing any IAM read permission at all.
+locals {
+  github_oidc_provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
 data "aws_iam_policy_document" "github_assume" {
@@ -101,7 +107,7 @@ data "aws_iam_policy_document" "github_assume" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
     condition {
       test     = "StringEquals"
@@ -309,13 +315,6 @@ data "aws_iam_policy_document" "github_deploy" {
       variable = "iam:PassedToService"
       values   = ["lambda.amazonaws.com", "scheduler.amazonaws.com"]
     }
-  }
-
-  statement {
-    sid       = "OidcProviderRead"
-    effect    = "Allow"
-    actions   = ["iam:GetOpenIDConnectProvider"]
-    resources = [data.aws_iam_openid_connect_provider.github.arn]
   }
 
   statement {
