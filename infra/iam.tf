@@ -140,13 +140,38 @@ data "aws_iam_policy_document" "github_deploy" {
     sid    = "Lambda"
     effect = "Allow"
     actions = [
-      "lambda:CreateFunction", "lambda:GetFunction", "lambda:GetFunctionConfiguration",
+      "lambda:CreateFunction",
       "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
-      "lambda:DeleteFunction", "lambda:TagResource", "lambda:UntagResource", "lambda:ListTags",
-      "lambda:ListVersionsByFunction", "lambda:PublishVersion", "lambda:GetPolicy",
+      "lambda:DeleteFunction", "lambda:TagResource", "lambda:UntagResource",
+      "lambda:PublishVersion",
       "lambda:AddPermission", "lambda:RemovePermission", "lambda:InvokeFunction",
     ]
     resources = ["arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${var.project}-*"]
+  }
+
+  # Read/describe surface, per service, scoped to this project's resources.
+  # These are deliberately broadened per service rather than curated action by
+  # action: the provider's Read path calls more APIs than a hand-written list
+  # covers (it needed lambda:GetFunctionCodeSigningConfig, which no obvious
+  # list would have included), and each omission costs a failed deploy to
+  # discover. Mutating actions stay explicitly enumerated in the statements
+  # above and below; only reads are broadened, and never beyond this project's
+  # own resources.
+  statement {
+    sid    = "ProjectScopedReads"
+    effect = "Allow"
+    actions = [
+      "lambda:Get*", "lambda:List*",
+      "dynamodb:Describe*", "dynamodb:List*",
+      "iam:Get*", "iam:List*",
+    ]
+    resources = [
+      "arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${var.project}-*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*/index/*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.project}-*",
+    ]
   }
 
   statement {
@@ -202,13 +227,14 @@ data "aws_iam_policy_document" "github_deploy" {
     # aws_cloudfront_distribution + aws_cloudfront_origin_access_control +
     # invalidation handling actually need.
     actions = [
-      "cloudfront:CreateDistribution", "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
-      "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution", "cloudfront:ListDistributions",
-      "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource",
-      "cloudfront:CreateOriginAccessControl", "cloudfront:GetOriginAccessControl",
-      "cloudfront:GetOriginAccessControlConfig", "cloudfront:UpdateOriginAccessControl",
+      # Reads broadened for the same reason as ProjectScopedReads above;
+      # CloudFront has no resource-level IAM, so this statement was already "*".
+      "cloudfront:Get*", "cloudfront:List*",
+      "cloudfront:CreateDistribution", "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution",
+      "cloudfront:TagResource", "cloudfront:UntagResource",
+      "cloudfront:CreateOriginAccessControl", "cloudfront:UpdateOriginAccessControl",
       "cloudfront:DeleteOriginAccessControl",
-      "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation", "cloudfront:ListInvalidations",
+      "cloudfront:CreateInvalidation",
     ]
     resources = ["*"]
   }
