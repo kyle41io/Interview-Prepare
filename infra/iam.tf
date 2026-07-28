@@ -221,6 +221,19 @@ data "aws_iam_policy_document" "github_deploy" {
   }
 
   statement {
+    sid    = "AccountLevelListActions"
+    effect = "Allow"
+    # ssm:DescribeParameters and logs:DescribeLogGroups are account-level list
+    # actions: AWS authorizes them against "*" no matter how narrowly the
+    # policy scopes them, so they cannot be resource-restricted. The provider
+    # calls both on every refresh (aws_ssm_parameter metadata and
+    # aws_cloudwatch_log_group). Both return metadata only - never parameter
+    # values, never log contents.
+    actions   = ["ssm:DescribeParameters", "logs:DescribeLogGroups"]
+    resources = ["*"]
+  }
+
+  statement {
     sid       = "Scheduler"
     effect    = "Allow"
     actions   = ["scheduler:*"]
@@ -228,10 +241,17 @@ data "aws_iam_policy_document" "github_deploy" {
   }
 
   statement {
-    sid       = "Logs"
-    effect    = "Allow"
-    actions   = ["logs:*"]
-    resources = ["arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project}-*:*"]
+    sid     = "Logs"
+    effect  = "Allow"
+    actions = ["logs:*"]
+    # Both ARN forms are required. The ":*" suffix form matches the log STREAMS
+    # inside a group, not the group itself, so on its own it silently denies
+    # every group-level call the provider makes for aws_cloudwatch_log_group
+    # (CreateLogGroup, PutRetentionPolicy, TagResource, ListTagsForResource...).
+    resources = [
+      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project}-*",
+      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project}-*:*",
+    ]
   }
 
   statement {
