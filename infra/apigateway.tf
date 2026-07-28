@@ -33,12 +33,26 @@ resource "aws_apigatewayv2_integration" "fn" {
   payload_format_version = "2.0"
 }
 
-# Two routes per prefix: the exact path and the greedy child proxy.
+# One route per (method, path). We enumerate concrete methods instead of
+# using ANY on purpose: with CORS configured, an HTTP API auto-answers
+# preflight OPTIONS with a 204 ONLY when no route matches OPTIONS. An "ANY"
+# route matches OPTIONS, so it shadows that behaviour and sends the preflight
+# into the Lambda (NestJS then 404s on OPTIONS, and a non-2xx preflight is a
+# network error per the Fetch spec, which blocks every authenticated call).
+# These four methods mirror the CORS allow_methods list above; OPTIONS is left
+# out deliberately so the gateway keeps owning preflight.
 locals {
-  route_keys = merge(
-    { for p, fn in local.routes : "ANY ${p}" => fn },
-    { for p, fn in local.routes : "ANY ${p}/{proxy+}" => fn if p != "/health" },
+  http_methods = ["GET", "POST", "PUT", "DELETE"]
+  # exact path + greedy child proxy, for each method
+  path_keys = merge(
+    { for p, fn in local.routes : p => fn },
+    { for p, fn in local.routes : "${p}/{proxy+}" => fn if p != "/health" },
   )
+  route_keys = merge([
+    for path, fn in local.path_keys : {
+      for m in local.http_methods : "${m} ${path}" => fn
+    }
+  ]...)
 }
 
 resource "aws_apigatewayv2_route" "r" {
