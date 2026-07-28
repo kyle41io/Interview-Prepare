@@ -5,7 +5,7 @@ terraform {
   backend "s3" {
     # NOTE: real state bucket name MUST start "interview-prep-" (e.g. interview-prep-tfstate-<suffix>)
     # — GitHub deploy role's S3 policy only authorizes arn:aws:s3:::interview-prep-* buckets.
-    bucket       = "REPLACE_ME_tfstate_bucket"
+    bucket       = "interview-prep-tfstate-403001213633"
     key          = "interview-prep/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true
