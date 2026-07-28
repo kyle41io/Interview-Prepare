@@ -45,6 +45,10 @@ locals {
     SSM_PREFIX   = local.ssm_prefix
     AI_PROVIDER  = "openai"
     GMAIL_MODE   = "live"
+    # Public (not a secret): where JwtAuthGuard fetches Supabase's ES256 public
+    # keys to verify access tokens. Without it the guard has only the legacy
+    # HS256 secret, which cannot verify the tokens the app actually sends.
+    SUPABASE_JWKS_URL = "${var.supabase_url}/auth/v1/.well-known/jwks.json"
   }
 }
 
