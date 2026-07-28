@@ -3,6 +3,30 @@ import { ConfigService } from "@nestjs/config";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
+type ConfigGetter = (key: string) => string | undefined;
+
+/**
+ * Builds DynamoDBClient config. Explicit credentials are used ONLY for
+ * DynamoDB Local (DDB_ENDPOINT set). In real AWS (Lambda, Render) we defer to
+ * the SDK default provider chain: Lambda injects temporary role credentials
+ * that REQUIRE a session token and are periodically refreshed — copying only
+ * the access key id + secret (dropping AWS_SESSION_TOKEN) yields
+ * "security token invalid".
+ */
+export function buildDynamoClientConfig(get: ConfigGetter) {
+  const region = get("AWS_REGION") || "us-east-1";
+  const endpoint = get("DDB_ENDPOINT") || undefined; // set for DynamoDB Local
+  const accessKeyId = get("AWS_ACCESS_KEY_ID");
+  const secretAccessKey = get("AWS_SECRET_ACCESS_KEY");
+  return {
+    region,
+    ...(endpoint ? { endpoint } : {}),
+    ...(endpoint && accessKeyId && secretAccessKey
+      ? { credentials: { accessKeyId, secretAccessKey } }
+      : {}),
+  };
+}
+
 @Injectable()
 export class DynamoService implements OnModuleDestroy {
   private readonly client: DynamoDBClient;
@@ -13,19 +37,13 @@ export class DynamoService implements OnModuleDestroy {
   readonly inboxTable: string;
 
   constructor(config: ConfigService) {
-    const region = config.get<string>("AWS_REGION") || "us-east-1";
-    const endpoint = config.get<string>("DDB_ENDPOINT") || undefined; // set for DynamoDB Local
-    const accessKeyId = config.get<string>("AWS_ACCESS_KEY_ID");
-    const secretAccessKey = config.get<string>("AWS_SECRET_ACCESS_KEY");
     this.table = config.get<string>("DDB_TABLE") || "ip_progress";
     this.billingTable = config.get<string>("DDB_BILLING_TABLE") || "ip_billing";
     this.chatTable = config.get<string>("DDB_CHAT_TABLE") || "ip_chat";
     this.inboxTable = config.get<string>("DDB_INBOX_TABLE") || "ip_inbox";
-    this.client = new DynamoDBClient({
-      region,
-      ...(endpoint ? { endpoint } : {}),
-      ...(accessKeyId && secretAccessKey ? { credentials: { accessKeyId, secretAccessKey } } : {}),
-    });
+    this.client = new DynamoDBClient(
+      buildDynamoClientConfig((k) => config.get<string>(k)),
+    );
     this.doc = DynamoDBDocumentClient.from(this.client, {
       marshallOptions: { removeUndefinedValues: true },
     });
