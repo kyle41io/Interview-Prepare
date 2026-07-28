@@ -4,6 +4,7 @@ locals {
   ssm_prefix = "/${var.project}"
 
   secret_params = [
+    "openai-api-key",
     "anthropic-api-key",
     "supabase-jwt-secret",
     "gmail-oauth-client-id",

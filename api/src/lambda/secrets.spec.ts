@@ -40,6 +40,7 @@ describe("hydrateSecretsFromSsm", () => {
     const env: NodeJS.ProcessEnv = { SSM_PREFIX: PREFIX };
     const client = fakeSsm({
       [`${PREFIX}/supabase-jwt-secret`]: "jwt-from-ssm",
+      [`${PREFIX}/openai-api-key`]: "openai-from-ssm",
       [`${PREFIX}/anthropic-api-key`]: "anthropic-from-ssm",
       [`${PREFIX}/gmail-oauth-client-id`]: "google-id-from-ssm",
       [`${PREFIX}/gmail-oauth-client-secret`]: "google-secret-from-ssm",
@@ -50,6 +51,7 @@ describe("hydrateSecretsFromSsm", () => {
 
     expect(client.send).toHaveBeenCalledTimes(1);
     expect(env.SUPABASE_JWT_SECRET).toBe("jwt-from-ssm");
+    expect(env.OPENAI_API_KEY).toBe("openai-from-ssm");
     expect(env.ANTHROPIC_API_KEY).toBe("anthropic-from-ssm");
     // Code reads GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET, not GMAIL_OAUTH_*.
     expect(env.GOOGLE_CLIENT_ID).toBe("google-id-from-ssm");

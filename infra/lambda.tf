@@ -43,7 +43,7 @@ locals {
   common_env = {
     NODE_OPTIONS = "--enable-source-maps"
     SSM_PREFIX   = local.ssm_prefix
-    AI_PROVIDER  = "anthropic"
+    AI_PROVIDER  = "openai"
     GMAIL_MODE   = "live"
   }
 }

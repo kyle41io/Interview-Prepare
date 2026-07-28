@@ -11,7 +11,8 @@ import { SSMClient, GetParametersCommand } from "@aws-sdk/client-ssm";
  */
 export const SSM_TO_ENV: Record<string, string> = {
   "supabase-jwt-secret": "SUPABASE_JWT_SECRET", // api/src/auth/jwt.guard.ts
-  "anthropic-api-key": "ANTHROPIC_API_KEY", // api/src/chat/provider.service.ts
+  "openai-api-key": "OPENAI_API_KEY", // api/src/chat/provider.service.ts (active provider)
+  "anthropic-api-key": "ANTHROPIC_API_KEY", // api/src/chat/provider.service.ts (kept ready as fallback)
   "gmail-oauth-client-id": "GOOGLE_CLIENT_ID", // api/src/inbox/google.service.ts
   "gmail-oauth-client-secret": "GOOGLE_CLIENT_SECRET", // api/src/inbox/google.service.ts
   "cron-secret": "CRON_SECRET", // api/src/inbox/cron.guard.ts
