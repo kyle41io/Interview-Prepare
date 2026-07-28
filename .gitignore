@@ -11,6 +11,4 @@ node_modules/
 supabase/functions/.env
 docs/SETUP.md
 supabase/seed/cron_gmail.local.sql
-
-# Local AWS setup worksheet — may contain secret values, never commit
-docs/superpowers/AWS-SETUP-CHECKLIST.md
+docs/
