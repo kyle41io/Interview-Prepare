@@ -9,6 +9,9 @@ node_modules/
 .env.*
 !.env.example
 supabase/functions/.env
-docs/SETUP.md
 supabase/seed/cron_gmail.local.sql
+
+# Local-only working notes: specs, plans, deploy runbooks and the AWS setup
+# checklist, which holds real keys while bootstrapping. Kept on disk, never
+# pushed (covers the former docs/SETUP.md entry).
 docs/
