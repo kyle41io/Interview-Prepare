@@ -91,12 +91,24 @@
       // A Gmail refresh token is only returned right after the consent redirect.
       // Capture it once and hand it to the server (never kept client-side).
       if (session && session.provider_refresh_token) {
+        const email = session.user && session.user.email;
+        const _api = root.IP && root.IP.api;
         try {
-          await c.functions.invoke("gmail-connect", { body: {
-            action: "store",
-            refresh_token: session.provider_refresh_token,
-            email: session.user && session.user.email,
-          } });
+          // Since the AWS migration the account lives in DynamoDB behind the
+          // API, not the Supabase Edge Function — that function is no longer
+          // deployed, so storing there left Gmail permanently disconnected.
+          if (_api && _api.configured && _api.configured()) {
+            await _api.post("/v1/gmail/connect", {
+              refresh_token: session.provider_refresh_token,
+              email: email,
+            });
+          } else {
+            await c.functions.invoke("gmail-connect", { body: {
+              action: "store",
+              refresh_token: session.provider_refresh_token,
+              email: email,
+            } });
+          }
         } catch (e) { /* server not deployed / offline — ignore */ }
       }
     } catch (e) { /* network error – stay logged out */ }
