@@ -119,6 +119,11 @@
     retry: { vi: "Làm lại", en: "Retry" },
     noCards: { vi: "Tuyệt vời! Không còn thẻ nào cần ôn lúc này.", en: "All done! No cards due right now." },
     studyAgain: { vi: "Ôn lại tất cả", en: "Study all again" },
+    // Content lives in private S3 and is fetched after sign-in, so "no content"
+    // is a real state on every study screen — distinct from "nothing left to do".
+    contentUnavailable: { vi: "Chưa tải được nội dung. Hãy tải lại trang hoặc đăng nhập lại.", en: "Content could not be loaded. Reload the page, or sign in again." },
+    contentLoading: { vi: "Đang tải nội dung…", en: "Loading content…" },
+    quizNoBank: { vi: "Chủ đề này chưa có câu hỏi trắc nghiệm.", en: "This topic has no quiz questions yet." },
     cheat: { vi: "Cheat sheet", en: "Cheat sheet" },
     upgrade: { vi: "Nâng cấp Pro", en: "Upgrade to Pro" },
     proActiveUntil: { vi: "Pro của bạn có hiệu lực đến", en: "Your Pro is active until" },
@@ -1014,6 +1019,14 @@
       </div>`;
 
     if (Cards.queue.length === 0) {
+      // An empty queue has two very different causes now that the banks are
+      // fetched from private S3: everything is genuinely reviewed, or no content
+      // ever arrived. The all-clear screen congratulates the user for finishing a
+      // deck they never received — and its "Study all again" button does nothing.
+      if (!studyPool().length) {
+        return `<div class="fc-wrap fade-in">
+          <div class="fc-empty"><div class="big">⚠️</div><p>${t(UI.contentUnavailable)}</p></div></div>`;
+      }
       return `<div class="fc-wrap fade-in">${head}
         <div class="fc-empty"><div class="big">🎉</div><p>${t(UI.noCards)}</p>
         <button class="btn ghost" id="fcResetTopic" style="margin-top:18px">${t(UI.studyAgain)}</button></div></div>`;
@@ -1067,6 +1080,14 @@
     Quiz.topic = Quiz.questions.length ? topicId : null;
     Quiz.pos = 0; Quiz.correct = 0; Quiz.answered = false; Quiz.picked = -1; Quiz.finished = false;
   }
+  /* buildQuiz refuses to enter the question view on an empty bank (it would
+     crash on Quiz.questions[Quiz.pos]). Without a word that refusal reads as a
+     dead Start button: the screen just snaps back to the picker. Every entry
+     point into a quiz goes through here so the bounce is always explained. */
+  function startQuiz(topicId) {
+    buildQuiz(topicId);
+    if (!Quiz.topic) toast(t(UI.quizNoBank));
+  }
   function renderQuiz() {
     const L = State.lang;
     if (!Quiz.topic || !Quiz.questions.length) {
@@ -1077,7 +1098,7 @@
       if (!pool.length) {
         return `<div class="quiz-wrap fade-in"><div class="quiz-q" style="text-align:center">
           <h2>${fa(ICON.quiz)} ${t(UI.quiz)}</h2>
-          <p style="color:var(--muted)">${L === "vi" ? "Chưa tải được nội dung. Hãy tải lại trang hoặc đăng nhập lại." : "Content could not be loaded. Reload the page, or sign in again."}</p>
+          <p style="color:var(--muted)">${t(UI.contentUnavailable)}</p>
         </div></div>`;
       }
       const opts = `<option value="all">${t(UI.allTopics)}</option>` +
@@ -1524,11 +1545,13 @@
       if (e.target.id === "cheatTrackOnly") { uiSet("cheatTrackOnly", e.target.checked); render(); return; }
       if (e.target.closest("[data-go-cheat]")) { State.mode = "cheat"; State.topic = null; render(); toTop(); saveView(); return; }
       if (e.target.id === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
-      if (e.target.id === "goQuiz") { setMode("quiz"); buildQuiz(State.topic); render(); return; }
+      if (e.target.id === "goQuiz") { setMode("quiz"); startQuiz(State.topic); render(); return; }
 
       // settings page danger-zone actions
       if (e.target.closest("#clearDataBtn")) {
-        if (confirm(t(UI.confirmClear))) { IP.store.clearAll(); location.reload(); }
+        // store.clearAll only sweeps the "ip_" prefix; the ~1.3 MB content
+        // bundle is cached outside it and would survive a "clear all data".
+        if (confirm(t(UI.confirmClear))) { contentClearCache(); IP.store.clearAll(); location.reload(); }
         return;
       }
       if (e.target.closest("#deleteAccountBtn")) {
@@ -1681,7 +1704,7 @@
       if (e.target.id === "fcResetTopic") { resetTopicCards(); return; }
 
       // quiz
-      if (e.target.id === "quizStart") { buildQuiz(document.getElementById("quizTopic").value); render(); return; }
+      if (e.target.id === "quizStart") { startQuiz(document.getElementById("quizTopic").value); render(); return; }
       const opt = e.target.closest("[data-opt]");
       if (opt && !Quiz.answered) { answerQuiz(parseInt(opt.dataset.opt, 10)); return; }
       if (e.target.id === "quizNext") { nextQuiz(); return; }
@@ -1773,6 +1796,45 @@
   let _renderedUid;          // uid|null of the last content render; undefined = never rendered
   let _renderedPro = false;  // isPro() at the last content render — lets updateAuthUI re-render when entitlement flips under the same uid
   let _pendingScroll = null; // scroll-Y to restore on the first auth-driven render
+  let _paintedMode = null;   // State.mode/topic as of the first paint; null = nothing painted yet
+  let _paintedTopic = null;
+
+  /* IP.content ships as its own <script>. If that file fails to load — CDN blip,
+     blocked request, a syntax error — IP.content is undefined and every bare
+     dereference of it throws. Two of those sit inside the auth listener, and
+     auth.js swallows listener exceptions, so the throw is invisible and the page
+     never paints. A missing content module must degrade to "no content", never
+     take down the boot sequence. */
+  function contentLoad() {
+    try {
+      return Promise.resolve(IP.content && IP.content.load())
+        .catch(function (e) { console.warn("[boot] content load failed", e); return 0; });
+    } catch (e) {
+      console.warn("[boot] content load threw", e);
+      return Promise.resolve(0);
+    }
+  }
+  function contentClearCache() {
+    try { if (IP.content) IP.content.clearCache(); }
+    catch (e) { console.warn("[boot] content cache clear failed", e); }
+  }
+
+  /* The saved scroll belongs to a fully painted page. While content is still in
+     flight — and after the CONTENT_WAIT_MS cap paints an empty app — the page is
+     too short to hold it, so scrolling now lands at the top and consumes the
+     restore for nothing. Hold it until the page it belongs to actually exists. */
+  function applyPendingScroll() {
+    if (_pendingScroll == null) return;
+    const y = _pendingScroll;
+    // Hold only while a signed-in page is still filling in. The logged-out
+    // landing scrolls itself to the top and never honours a saved position, so
+    // consuming it there leaves that path exactly as it was.
+    if (y > 0 && IP.auth.enabled() && IP.auth.getUser()
+        && (document.documentElement.scrollHeight - window.innerHeight) < y) return;
+    _pendingScroll = null;
+    window.scrollTo(0, y);
+  }
+
   function updateAuthUI(user) {
     const signin = document.getElementById("signinBtn");
     const acctRow = document.getElementById("acctRow");
@@ -1827,7 +1889,11 @@
     if (_authReady && (uid !== _renderedUid || proOn !== _renderedPro)) {
       _renderedUid = uid;
       render();
-      if (_pendingScroll != null) { const y = _pendingScroll; _pendingScroll = null; window.scrollTo(0, y); }
+      // Remember what the first paint actually showed: if the user navigates away
+      // from it while content is still loading, a late repaint must not drag them
+      // back (see repaintLate).
+      if (_paintedMode === null) { _paintedMode = State.mode; _paintedTopic = State.topic; }
+      applyPendingScroll();
     }
   }
 
@@ -1901,8 +1967,8 @@
     function whenContentReady() {
       if (_contentReady) return Promise.resolve();
       if (!_contentWait) {
-        const loading = IP.content.load().then(function (n) {
-          if (_contentLate) { _contentLate = false; restoreContentBoundView(); render(); }
+        const loading = contentLoad().then(function (n) {
+          if (_contentLate) { _contentLate = false; repaintLate(); }
           return n;
         });
         _contentWait = Promise.race([
@@ -1914,17 +1980,91 @@
       }
       return _contentWait;
     }
-    IP.auth.onChange(function (user) {
-      _authEventSeen = true;
-      if (user && !_contentReady) {
-        whenContentReady().then(function () {
-          restoreContentBoundView();   // the saved view's PREP-dependent half
-          onAuthChange(user);
-        });
-        return;
+    /* Nothing paints while the bundle is in flight, so a slow connection shows a
+       bare topbar over an empty page for up to CONTENT_WAIT_MS. Fill #content
+       with a legible wait state. It writes directly rather than going through
+       render(), because updateAuthUI(user) has not run yet — render() would draw
+       the logged-out landing. Reuses the chat typing dots, the only loading
+       affordance this app has. */
+    function paintContentLoading() {
+      const main = document.getElementById("content");
+      if (!main || main.innerHTML.trim()) return;   // never paint over a real render
+      main.innerHTML = `<div class="fade-in" style="text-align:center;padding:64px 16px;color:var(--muted)">
+        <div class="chat-bubble typing" style="display:inline-flex;margin-bottom:14px"><span></span><span></span><span></span></div>
+        <p>${t(UI.contentLoading)}</p></div>`;
+    }
+
+    /* The bundle arrived after the cap, so what is on screen was built without
+       content and needs repainting. Two things must survive that repaint. */
+    function repaintLate() {
+      // 1. Navigation. The user had a live, navigable app during the dead window;
+      //    if they opened another tab, re-applying the restored view would yank
+      //    them out of it. The saved view lost that race — retire it.
+      const navigated = _paintedMode !== null
+        && (State.mode !== _paintedMode || State.topic !== _paintedTopic);
+      if (navigated) _restoreDone = true;
+      else restoreContentBoundView();
+      // 2. DOM-only state. render() rebuilds #content from State, so anything the
+      //    DOM holds that State does not is destroyed — most concretely an unsent
+      //    chat draft, which is never persisted.
+      const ta = document.getElementById("chatInput");
+      const draft = ta ? ta.value : "";
+      const caret = ta ? ta.selectionStart : 0;
+      render();
+      if (draft) {
+        const ta2 = document.getElementById("chatInput");
+        if (ta2) {
+          ta2.value = draft;
+          try { ta2.setSelectionRange(caret, caret); ta2.focus(); } catch (e) { /* not focusable yet */ }
+        }
       }
-      onAuthChange(user);
-    });
+      applyPendingScroll();   // the page is populated now, so a held scroll can land
+    }
+
+    /* auth.js swallows exceptions thrown by its listeners, and the 1500 ms
+       blank-page net below stands down the moment an auth event arrives. So an
+       unhandled throw anywhere in the handler means the net never fires and
+       nothing is ever painted — a permanently blank page, where before the wait
+       was introduced the same throw still produced a paint at 1500 ms. Whatever
+       failed, end on a usable page. */
+    function bootFailsafe(e) {
+      console.error("[boot] auth handler failed", e);
+      _authReady = true;
+      try { updateAuthUI(IP.auth.getUser()); }
+      catch (e2) { console.error("[boot] failsafe auth UI failed", e2); }
+      // updateAuthUI renders when the identity changed; if it threw before that,
+      // _renderedUid is still undefined and nothing has been drawn.
+      if (_renderedUid === undefined) {
+        try { render(); } catch (e3) { console.error("[boot] failsafe render failed", e3); }
+      }
+      applyPendingScroll();
+    }
+
+    function handleAuthEvent(user) {
+      _authEventSeen = true;
+      try {
+        if (user && !_contentReady) {
+          paintContentLoading();
+          whenContentReady().then(function () {
+            // A SIGNED_OUT — or a switch to a different account — can land while
+            // the bundle is in flight. That event already painted its own state;
+            // applying this now-stale user on top would put signed-in chrome, an
+            // avatar and a sign-out menu over the logged-out landing, and fire
+            // sync.onLogin(), pro.init() and a notification prompt while signed
+            // out. Re-check identity at the moment the callback actually runs.
+            const cur = IP.auth.getUser();
+            if (!cur || cur.id !== user.id) return;
+            restoreContentBoundView();   // the saved view's PREP-dependent half
+            onAuthChange(user);
+          }).catch(bootFailsafe);
+          return;
+        }
+        onAuthChange(user);
+      } catch (e) {
+        bootFailsafe(e);
+      }
+    }
+    IP.auth.onChange(handleAuthEvent);
     function onAuthChange(user) {
       const uid = user ? user.id : null;
       // Did the signed-in identity actually change since our last render? The
@@ -1961,7 +2101,7 @@
       // store.clearAll only sweeps the "ip_" prefix, so drop the content cache
       // explicitly — otherwise the next person to sign in on this device renders
       // the previous user's cached bundle before their own fetch returns.
-      else if (_wasAuthed) { _wasAuthed = false; IP.content.clearCache(); IP.store.clearAll(); location.reload(); }
+      else if (_wasAuthed) { _wasAuthed = false; contentClearCache(); IP.store.clearAll(); location.reload(); }
     }
     IP.auth.init();
 
