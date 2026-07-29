@@ -929,7 +929,16 @@
 
     const L = State.lang;
     let continueHtml = "";
-    if (State.track) {
+    if (!PREP.order.length) {
+      // Same two-causes problem the flashcard and quiz screens handle: with an
+      // empty registry progressOf() returns 0/0 and nextTopic() returns null, so
+      // the continue-card below would congratulate the user on finishing a track
+      // whose content never arrived. That state lasts from `terraform apply`
+      // until the first content push, and recurs on any API/S3/CORS failure.
+      continueHtml = `<div class="continue-card"><div class="cc-left">
+        <div class="cc-title">⚠️ ${t(UI.contentUnavailable)}</div>
+      </div></div>`;
+    } else if (State.track) {
       const track = currentTrack();
       const prog = IP.tracks.progressOf(track, State.progress, PREP.order);
       const nextId = IP.tracks.nextTopic(track, State.progress, PREP.order);

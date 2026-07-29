@@ -600,3 +600,53 @@ test("the settings clear-all-data action drops the content cache", () => {
   assert.ok(m[1].indexOf("contentClearCache()") < m[1].indexOf("location.reload()"),
     "must clear before the reload that ends the page");
 });
+
+/* ------------------------------------------------------------------ *
+ * Final review — the home dashboard must not congratulate on no content *
+ * ------------------------------------------------------------------ */
+
+/* renderHome is the DEFAULT surface, so it is the screen most users hit during
+   the window between `terraform apply` and the first content push — and on any
+   later API/S3/CORS failure. Flashcards and Quiz each learned to say "content
+   could not be loaded"; home did not, and instead read "Track complete! 🎉" over
+   a 0/0 (0%) bar, because progressOf() returns 0/0 and nextTopic() returns null
+   on an empty registry. */
+function homeHarness(over) {
+  const o = Object.assign({
+    order: [], topics: {}, track: "frontend-junior", pct: 100, done: 3, total: 3, next: null,
+  }, over);
+  const UI = { contentUnavailable: { vi: "Chưa tải được nội dung.", en: "Content could not be loaded." } };
+  return new Function(
+    "PREP", "State", "CATS", "UI", "IP", "t", "fa", "ICON", "pathTopicIds", "countDue",
+    "currentTrack", "roleLabel", "proClass", "proLock", "catIcon", "collectCheats",
+    extract("renderHome") + "\nreturn renderHome();",
+  )(
+    { order: o.order, topics: o.topics },
+    { progress: {}, lang: "en", track: o.track },
+    [], UI,
+    {
+      streak: { get: () => ({ count: 0 }) },
+      tracks: {
+        progressOf: () => ({ done: o.done, total: o.total, pct: o.pct }),
+        nextTopic: () => o.next,
+      },
+    },
+    (s) => (s && s.en) || "", () => "", {},
+    () => [], () => 0, () => ({}), () => "Frontend", () => "", () => "", () => "", () => [],
+  );
+}
+
+test("the home dashboard reports missing content instead of a finished track", () => {
+  const html = homeHarness({ order: [] });          // load failed / bucket not seeded yet
+  assert.match(html, /Content could not be loaded/);
+  assert.doesNotMatch(html, /Track complete/);
+  assert.doesNotMatch(html, /hoàn thành lộ trình/);
+});
+
+test("a genuinely finished track still says so once content is present", () => {
+  // The guard must key on the registry, not on progress — otherwise it would eat
+  // the real all-done state, which is the whole point of the continue-card.
+  const html = homeHarness({ order: ["dsa"], topics: { dsa: {} }, next: null });
+  assert.match(html, /Track complete/);
+  assert.doesNotMatch(html, /Content could not be loaded/);
+});
