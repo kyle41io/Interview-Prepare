@@ -18,7 +18,8 @@
     "create-table": "ts-node scripts/create-table.ts",
     "create-billing-table": "ts-node scripts/create-billing-table.ts",
     "create-chat-table": "ts-node scripts/create-chat-table.ts",
-    "create-inbox-table": "ts-node scripts/create-inbox-table.ts"
+    "create-inbox-table": "ts-node scripts/create-inbox-table.ts",
+    "content:push": "node scripts/content-push.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.699.0",
@@ -39,6 +40,7 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.29.7",
     "@nestjs/cli": "^10.4.0",
     "@nestjs/testing": "^10.4.0",
     "@types/aws-lambda": "^8.10.145",
@@ -59,12 +61,37 @@
     "moduleFileExtensions": [
       "js",
       "json",
-      "ts"
+      "ts",
+      "mjs"
     ],
     "rootDir": "src",
+    "roots": [
+      "<rootDir>",
+      "<rootDir>/../scripts"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.ts$": "ts-jest"
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "allowJs": true
+          }
+        }
+      ],
+      "^.+\\.mjs$": [
+        "babel-jest",
+        {
+          "babelrc": false,
+          "configFile": false,
+          "presets": [
+            "babel-preset-current-node-syntax"
+          ],
+          "plugins": [
+            "@babel/plugin-transform-modules-commonjs"
+          ]
+        }
+      ]
     },
     "testEnvironment": "node"
   }
