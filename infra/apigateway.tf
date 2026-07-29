@@ -13,19 +13,15 @@ locals {
   }
 }
 
-# The frontend is published to TWO origins on every push to main: CloudFront
-# (var.allowed_origin, set from the CLOUDFRONT_ORIGIN CI variable) and GitHub
-# Pages (.github/workflows/deploy-pages.yml uploads the whole repo). Allowing
-# only one of them blocks every API call from the other with a CORS preflight
-# failure, so both are listed. The Pages origin is derived from var.github_repo
-# rather than hardcoded; for a project site GitHub serves it from
-# https://<owner>.github.io/<repo>/, and the browser's Origin header is the
-# scheme+host only.
+# CloudFront is the canonical (and now only) frontend: GitHub Pages publishing
+# was retired with .github/workflows/deploy-pages.yml, so its origin is no
+# longer allowed. extra_allowed_origins exists for adding another browser origin
+# without editing this file - it stays empty by default, keeping the allow-list
+# as narrow as possible.
 locals {
-  pages_origin = "https://${split("/", var.github_repo)[0]}.github.io"
   # var.allowed_origin defaults to "*" before the first apply pins it; "*"
   # cannot be meaningfully combined with a specific origin, so keep it alone.
-  cors_allow_origins = var.allowed_origin == "*" ? ["*"] : distinct([var.allowed_origin, local.pages_origin])
+  cors_allow_origins = var.allowed_origin == "*" ? ["*"] : distinct(concat([var.allowed_origin], var.extra_allowed_origins))
 }
 
 resource "aws_apigatewayv2_api" "http" {

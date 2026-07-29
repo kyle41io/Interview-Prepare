@@ -19,6 +19,17 @@ variable "allowed_origin" {
   default     = "*"
 }
 
+variable "extra_allowed_origins" {
+  description = <<-EOT
+    Additional browser origins allowed by API Gateway CORS, on top of
+    var.allowed_origin. Empty by default: CloudFront is the only frontend since
+    GitHub Pages was retired. Add an entry here rather than widening the
+    allow-list in apigateway.tf.
+  EOT
+  type        = list(string)
+  default     = []
+}
+
 variable "admin_uids" {
   description = <<-EOT
     Comma-separated Supabase user IDs allowed to call /v1/billing/admin/*.
