@@ -64,10 +64,44 @@
     return topics.length;
   }
 
+  /* Called on sign-out. The cache key is not per-user, so on a shared device
+     the next person to sign in would otherwise render the previous user's
+     cached bundle before their own authenticated fetch returns. Dropping it at
+     sign-out keeps the key simple (one entry, no ~1.3 MB copy per uid piling
+     up against the storage quota) while closing that hand-off. */
+  function clearCache() {
+    const store = _storage();
+    if (!store) return;
+    try { store.removeItem(CACHE_KEY); }
+    catch (e) { /* nothing sensible to do; the next fetch overwrites it */ }
+  }
+
+  /* Single-flight. A cold boot delivers two auth events almost together —
+     auth.init()'s own getSession() hydrate and the SDK's INITIAL_SESSION — and
+     both observe "content not loaded yet" while the first fetch is still in
+     flight. Handing the second caller the in-flight promise instead of starting
+     a second load halves cold-boot cost. The slot is released once the load
+     settles, so a later boot still revalidates against the etag. */
+  let _inflight = null;
+  function load() {
+    if (_inflight) return _inflight;
+    _inflight = _load().then(
+      function (n) { _inflight = null; return n; },
+      function (e) {
+        // _load is written not to reject; this only upholds that contract if a
+        // dependency throws in a way it did not anticipate.
+        _inflight = null;
+        console.warn("[content] load failed", e);
+        return 0;
+      },
+    );
+    return _inflight;
+  }
+
   /* Resolves with the number of topics registered. Never rejects: a content
      failure must degrade to the cache, or to an empty app, but never take down
      the boot sequence. */
-  async function load() {
+  async function _load() {
     const cached = _readCache();
     const fallback = function () { return cached ? _registerAll(cached.topics) : 0; };
 
@@ -99,5 +133,5 @@
     return _registerAll(topics);
   }
 
-  return { load: load, __setDeps: __setDeps };
+  return { load: load, clearCache: clearCache, __setDeps: __setDeps };
 });

@@ -112,6 +112,64 @@ test("load resolves 0 when the bucket has no bundle yet", async () => {
   api.__setBase("");
 });
 
+// A cold boot delivers two auth events almost together (auth.init()'s getSession
+// hydrate and the SDK's INITIAL_SESSION). Both see "not loaded yet" while the
+// first fetch is in flight, and each would otherwise pull the same ~1.3 MB.
+test("concurrent load calls share one in-flight fetch", async () => {
+  api.__setBase("https://x.dev");
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  let metaCalls = 0;
+  let bundleCalls = 0;
+  api.__setDeps({
+    fetch: async () => {
+      metaCalls++;
+      await gate;
+      return { ok: true, status: 200, json: async () => signed };
+    },
+    token: async () => "TKN",
+  });
+  const registered = [];
+  content.__setDeps({
+    storage: memStorage(),
+    register: (d) => registered.push(d),
+    fetch: async () => { bundleCalls++; return bundleOk(); },
+  });
+
+  const first = content.load();
+  const second = content.load();
+  assert.strictEqual(second, first, "the second caller must await the in-flight load");
+  release();
+  assert.deepStrictEqual(await Promise.all([first, second]), [2, 2]);
+  assert.strictEqual(metaCalls, 1, "one presign, not one per auth event");
+  assert.strictEqual(bundleCalls, 1, "the bundle must not be downloaded twice");
+  assert.deepStrictEqual(registered.map((t) => t.id), ["dsa", "oop"], "registration must still happen exactly once");
+  api.__setBase("");
+});
+
+test("the in-flight slot is released once a load settles", async () => {
+  setup(() => signed, bundleOk);
+  const first = content.load();
+  await first;
+  const second = content.load();
+  assert.notStrictEqual(second, first, "a later boot must revalidate, not replay the finished promise");
+  await second;
+  api.__setBase("");
+});
+
+test("clearCache drops the bundle so the next user on the device cannot read it", async () => {
+  const ctx = setup(() => signed, bundleOk);
+  await content.load();
+  assert.ok(ctx.storage.getItem("ip.content.bundle"), "precondition: the bundle was cached");
+  content.clearCache();
+  assert.strictEqual(ctx.storage.getItem("ip.content.bundle"), null);
+  // Cache gone and network down: nothing renders, rather than the previous
+  // user's content rendering before the next user's own fetch is authorized.
+  api.__setDeps({ fetch: async () => { throw new Error("offline"); }, token: async () => "TKN" });
+  assert.strictEqual(await content.load(), 0);
+  api.__setBase("");
+});
+
 test("load tolerates an unwritable cache", async () => {
   api.__setBase("https://x.dev");
   api.__setDeps({
