@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import { existsSync } from "node:fs";
 
-const entries = ["progress", "billing", "chat", "inbox", "gmail-scan"];
+const entries = ["progress", "billing", "chat", "inbox", "gmail-scan", "content"];
 
 // Runtime-provided (AWS SDK v3 ships in nodejs20.x) and optional Nest peers
 // that are not installed — marking them external keeps bundles small and
