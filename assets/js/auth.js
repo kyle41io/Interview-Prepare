@@ -95,25 +95,15 @@
      and Gmail stays disconnected until the user consents again. It rides in on
      BOTH the SIGNED_IN event and the getSession() hydrate below, and which one
      wins is a race, so run from both and de-dupe on the token itself. */
-  async function _storeGmailToken(c, session) {
+  async function _storeGmailToken(session) {
     const rt = session && session.provider_refresh_token;
     if (!rt || rt === _gmailStored) return;
     _gmailStored = rt;
     const email = (session.user && session.user.email) || null;
-    const _api = root.IP && root.IP.api;
     try {
       // Since the AWS migration the account lives in DynamoDB behind the API,
-      // not the Supabase Edge Function — that function is no longer deployed,
-      // so storing there left Gmail permanently disconnected.
-      if (_api && _api.configured && _api.configured()) {
-        await _api.post("/v1/gmail/connect", { refresh_token: rt, email: email });
-      } else {
-        await c.functions.invoke("gmail-connect", { body: {
-          action: "store",
-          refresh_token: rt,
-          email: email,
-        } });
-      }
+      // not the Supabase Edge Function — that function is no longer deployed.
+      await root.IP.api.post("/v1/gmail/connect", { refresh_token: rt, email: email });
       _diag("stored", email);
       // The settings screen may have already fetched status before this
       // resolved, showing "not connected" for a connect that did work.
@@ -132,7 +122,7 @@
     c.auth.onAuthStateChange(function (event, session) {
       _notify(session ? session.user : null);
       if (session && session.user) _ensureProfile(c, session.user);
-      if (session) _storeGmailToken(c, session);
+      if (session) _storeGmailToken(session);
       // A fresh sign-in with no refresh token means Google never issued one —
       // a Google-side problem (scope not granted, consent screen skipped), not
       // a problem with our handoff. Ordinary page loads and hourly refreshes
@@ -147,7 +137,7 @@
       const session = data && data.session;
       _notify(session ? session.user : null);
       if (session && session.user) await _ensureProfile(c, session.user);
-      if (session) await _storeGmailToken(c, session);
+      if (session) await _storeGmailToken(session);
     } catch (e) { /* network error – stay logged out */ }
   }
 
