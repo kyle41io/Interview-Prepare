@@ -21,6 +21,15 @@
   --yellow:#e3b341;
   --red:#f85149;
   --cyan:#39d0d8;
+  /* Pro / gold accents — border, glow and the crown watermark behind Pro cards.
+     The crown is a background-image (not a pseudo-element) so it always paints
+     under the card text; its colour is baked in, hence a per-theme override.
+     Drawn as a gold outline over a barely-there fill: a low-alpha solid fill
+     loses its chroma against the near-black panel and reads muddy brown, while
+     a stroke stays unmistakably gold at the same visual weight. */
+  --gold:#e8b93a;
+  --gold-soft:#f4d885;
+  --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23e8b93a' fill-opacity='.08' stroke='%23e8b93a' stroke-opacity='.42' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
   --radius:14px;
   --shadow:0 10px 40px #0007;
   --sidebar-w:288px;
@@ -33,6 +42,8 @@ html[data-theme="light"]{
   --accent:#4f46e5; --accent-d:#4338ca; --green:#0f9d58; --orange:#d97706;
   --purple:#7c3aed; --pink:#db2777; --yellow:#b45309; --red:#dc2626; --cyan:#0891b2;
   --shadow:0 10px 30px #1f243018;
+  --gold:#c98a04; --gold-soft:#e6a817;
+  --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23c98a04' fill-opacity='.09' stroke='%23c98a04' stroke-opacity='.32' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box;margin:0;padding:0}
 /* The [hidden] attribute must win over any element's explicit display
@@ -139,6 +150,18 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
 .nav-item .ni-check{margin-left:auto;font-size:12px;color:var(--green);opacity:0}
 .nav-item.done .ni-check{opacity:1}
 .nav-item.done .ni-label{color:var(--muted)}
+/* Pro topics in the sidebar — gold frame + gold inner glow. No crown watermark
+   here: the row is too short for it to read as anything but clutter behind the
+   label and the lock. The frame alone carries the signal. */
+.nav-item.is-pro{
+  border-color:color-mix(in srgb,var(--gold) 55%,transparent);
+  box-shadow:inset 0 0 18px -6px color-mix(in srgb,var(--gold) 55%,transparent);
+}
+.nav-item.is-pro:hover,.nav-item.is-pro.active{
+  border-color:var(--gold);
+  box-shadow:inset 0 0 20px -5px color-mix(in srgb,var(--gold) 70%,transparent);
+}
+.nav-item .ni-lock{margin-left:auto;font-size:10px;color:var(--gold)}
 
 .content{margin-left:var(--sidebar-w);flex:1;min-width:0;padding:32px 40px 90px;max-width:1100px;transition:margin-left .22s ease}
 @media(max-width:1100px){.content{padding:28px 26px 80px}}
@@ -266,6 +289,29 @@ pre.code code{color:var(--txt);white-space:pre}
 .tcard .tc-done{position:absolute;top:14px;right:14px;color:var(--green);font-size:14px;opacity:0}
 .tcard.done .tc-done{opacity:1}
 .tcard .tc-meta{margin-top:10px;font-size:11px;color:var(--muted2);display:flex;gap:12px}
+/* Pro lessons: gold frame + gold inner glow + oversized crown watermark.
+   Replaces the inline "PRO" pill, which sat in the text flow and knocked the
+   card title / nav label out of alignment. */
+.tcard.is-pro{
+  border-color:var(--gold);
+  /* Crown sits whole in the card's empty bottom-right corner: cropping it
+     against an edge turns the outline into a stray zigzag across the copy, and
+     the top-right corner is taken by the lock / done marker. */
+  background-image:var(--crown-bg);background-repeat:no-repeat;
+  background-position:right 10px bottom 8px;background-size:86px 86px;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 24%,transparent),
+             inset 0 16px 36px -12px color-mix(in srgb,var(--gold) 45%,transparent),
+             inset 0 -16px 36px -16px color-mix(in srgb,var(--gold) 24%,transparent);
+}
+.tcard.is-pro:hover{
+  border-color:var(--gold-soft);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 34%,transparent),
+             inset 0 16px 36px -12px color-mix(in srgb,var(--gold) 58%,transparent),
+             0 10px 30px -8px color-mix(in srgb,var(--gold) 32%,transparent);
+}
+/* Locked marker for non-Pro viewers — icon only, outside the text flow. */
+.tcard .tc-lock{position:absolute;top:14px;right:14px;font-size:12px;color:var(--gold)}
+.tcard.done .tc-lock{display:none}
 
 .section-title{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted2);font-weight:700;margin:28px 0 4px}
 

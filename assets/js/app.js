@@ -63,6 +63,15 @@
     const locked = !(IP.pro && IP.pro.isPro());
     return `<span class="pro-badge${locked ? " pro-badge--locked" : ""}">${fa(locked ? "fa-solid fa-lock" : ICON.pro)} PRO</span>`;
   }
+  /* Topic cards and sidebar rows mark Pro with a gold frame + crown watermark
+     instead of an inline PRO pill, which pushed their titles out of alignment.
+     The lock (non-Pro viewers) is an absolutely positioned icon, also out of flow. */
+  function isProTier(tp) { return !!(tp && tp.tier === "pro"); }
+  function proClass(tp) { return isProTier(tp) ? " is-pro" : ""; }
+  function proLock(tp, cls) {
+    if (!isProTier(tp) || (IP.pro && IP.pro.isPro())) return "";
+    return `<span class="${cls}" title="PRO">${fa("fa-solid fa-lock")}</span>`;
+  }
   function catIcon(tp) { return ICON[tp.category] || "fa-solid fa-book"; }
 
   /* ---------- State ---------- */
@@ -337,10 +346,10 @@
     }
     const cards = ids.map(id => {
       const tp = PREP.topics[id];
-      return `<div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
-        <div class="tc-done">${fa(ICON.check)}</div>
+      return `<div class="tcard ${State.progress[id] ? "done" : ""}${proClass(tp)}" data-go="${id}">
+        <div class="tc-done">${fa(ICON.check)}</div>${proLock(tp, "tc-lock")}
         <div class="tc-icon">${fa(catIcon(tp))}</div>
-        <h3>${t(tp.title)}</h3>${proBadge(tp)}
+        <h3>${t(tp.title)}</h3>
         <p>${t(tp.blurb)}</p>
         <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
       </div>`;
@@ -902,10 +911,10 @@
       const ids = pathIds.filter(id => PREP.topics[id] && PREP.topics[id].category === cat.id);
       if (!ids.length) return "";
       const cardsHtml = ids.map(id => { const tp = PREP.topics[id]; return `
-      <div class="tcard ${State.progress[id] ? "done" : ""}" data-go="${id}">
-        <div class="tc-done">${fa(ICON.check)}</div>
+      <div class="tcard ${State.progress[id] ? "done" : ""}${proClass(tp)}" data-go="${id}">
+        <div class="tc-done">${fa(ICON.check)}</div>${proLock(tp, "tc-lock")}
         <div class="tc-icon">${fa(catIcon(tp))}</div>
-        <h3>${t(tp.title)}</h3>${proBadge(tp)}
+        <h3>${t(tp.title)}</h3>
         <p>${t(tp.blurb)}</p>
         <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
       </div>`; }).join("");
@@ -1147,10 +1156,10 @@
       if (!tp) return;
       const done = !!State.progress[id];
       const current = State.mode === "learn" && State.topic === id;
-      html += `<div class="nav-item ${current ? "active" : ""} ${done ? "done" : ""}" data-topic="${id}">
+      html += `<div class="nav-item ${current ? "active" : ""} ${done ? "done" : ""}${proClass(tp)}" data-topic="${id}">
         <span class="ni-num">${idx + 1}</span>
         <span class="ni-icon">${fa(catIcon(tp))}</span>
-        <span class="ni-label">${t(tp.title)}</span>${proBadge(tp)}<span class="ni-check">${fa(ICON.check)}</span></div>`;
+        <span class="ni-label">${t(tp.title)}</span>${proLock(tp, "ni-lock")}<span class="ni-check">${fa(ICON.check)}</span></div>`;
     });
 
     sb.innerHTML = html;
