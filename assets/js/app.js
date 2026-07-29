@@ -28,8 +28,8 @@
 
   /* ---------- Icon map (Font Awesome classes) ---------- */
   const ICON = {
-    brand: "fa-solid fa-bullseye",
     home: "fa-solid fa-house",
+    cheat: "fa-solid fa-clipboard-list",
     learn: "fa-solid fa-book-open",
     cards: "fa-regular fa-clone",
     quiz: "fa-solid fa-pen-to-square",
@@ -222,7 +222,7 @@
           (b.caption ? `<div class="code-cap">${t(b.caption)}</div>` : "");
       case "callout": {
         const v = b.variant || "tip";
-        const icons = { soundbite: "🎯", tip: "💡", warning: "⚠️", danger: "🛑", key: "🔑" };
+        const icons = { soundbite: "🗣️", tip: "💡", warning: "⚠️", danger: "🛑", key: "🔑" };
         const tags = {
           soundbite: { vi: "Câu nói ăn điểm", en: "Soundbite" },
           tip: { vi: "Mẹo", en: "Tip" }, warning: { vi: "Lưu ý", en: "Watch out" },
@@ -383,7 +383,7 @@
         <div class="cg-body">${g.items.map(b => `<div class="cheat-text">"${t(b)}"</div>`).join("")}</div>
       </div>`).join("");
     return `<div class="fade-in cheat-page">
-      <div class="page-head"><h1>🎯 ${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</h1>
+      <div class="page-head"><h1>${fa(ICON.cheat)} ${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</h1>
         <div class="blurb">${totalN} ${L === "vi" ? "câu \"ăn điểm\" — đọc lướt trước khi vào phỏng vấn." : "soundbites — skim before you walk in."}</div></div>
       <div class="cheat-bar">
         ${State.track ? `<label class="cheat-filter"><input type="checkbox" id="cheatTrackOnly" ${trackOnly ? "checked" : ""}> ${L === "vi" ? "Chỉ lộ trình của tôi" : "My track only"}</label>` : ""}
@@ -886,7 +886,7 @@
     ];
     return `<div class="fade-in landing">
       <div class="landing-hero">
-        <div class="landing-logo">${fa("fa-solid fa-bullseye")}</div>
+        <div class="landing-logo"><img src="assets/favicon.svg" alt="" width="64" height="64"></div>
         <h1>${L === "vi" ? "Ôn thi phỏng vấn IT, bài bản & song ngữ" : "Ace your IT interviews — structured & bilingual"}</h1>
         <p>${L === "vi"
           ? "Interview Prep giúp bạn ôn kiến thức phỏng vấn theo lộ trình, luyện flashcard/quiz, hỏi trợ lý AI và không bỏ lỡ lịch tuyển dụng."
@@ -962,7 +962,7 @@
       ${groupsHtml}
 
       <div class="cheat-cta" data-go-cheat="1">
-        <span class="cc-ic">🎯</span>
+        <span class="cc-ic">${fa(ICON.cheat)}</span>
         <span class="cc-txt"><b>${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</b>
         <span class="cc-sub">${collectCheats(false).reduce((n,g)=>n+g.items.length,0)} ${L === "vi" ? "câu ăn điểm" : "soundbites"}</span></span>
         <span class="cc-arrow">${fa("fa-solid fa-arrow-right")}</span>
