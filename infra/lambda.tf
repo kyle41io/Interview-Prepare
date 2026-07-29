@@ -1,12 +1,14 @@
-# Five Lambda functions (4 HTTP domains + the gmail-scan cron worker) built
-# from the esbuild bundles in api/dist-lambda/<name>/index.js. Each function
-# gets its own least-privilege role (iam.tf), log group, and env config.
+# Six Lambda functions (4 HTTP domains + content + the gmail-scan cron worker)
+# built from the esbuild bundles in api/dist-lambda/<name>/index.js. Each
+# function gets its own least-privilege role (iam.tf), log group, and env
+# config.
 locals {
   functions = {
     progress     = { timeout = 15 }
     billing      = { timeout = 15 }
     chat         = { timeout = 30 } # LLM calls
     inbox        = { timeout = 15 }
+    content      = { timeout = 15 }
     "gmail-scan" = { timeout = 120 } # scan loop over accounts
   }
 
@@ -17,7 +19,10 @@ locals {
   # DDB_TABLE (progress), DDB_BILLING_TABLE, DDB_CHAT_TABLE, DDB_INBOX_TABLE.
   # inbox + gmail-scan touch the inbox table and, via ChatModule's
   # ProviderService/quota (chat classify), the chat table too. Names are
-  # derived from the table resources — never hardcoded.
+  # derived from the table resources — never hardcoded. This map is indexed
+  # directly by each.key in the Lambda environment block, so every function
+  # needs an entry — content stores its data in S3, not DynamoDB, so it
+  # carries the bucket name instead of a table name.
   fn_table_env = {
     progress = { DDB_TABLE = aws_dynamodb_table.tables["progress"].name }
     billing  = { DDB_BILLING_TABLE = aws_dynamodb_table.tables["billing"].name }
@@ -29,6 +34,7 @@ locals {
       DDB_INBOX_TABLE = aws_dynamodb_table.tables["inbox"].name
       DDB_CHAT_TABLE  = aws_dynamodb_table.tables["chat"].name
     }
+    content = { CONTENT_BUCKET = aws_s3_bucket.content.bucket }
     "gmail-scan" = {
       DDB_INBOX_TABLE = aws_dynamodb_table.tables["inbox"].name
       DDB_CHAT_TABLE  = aws_dynamodb_table.tables["chat"].name
