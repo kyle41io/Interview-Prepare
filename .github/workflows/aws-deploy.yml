@@ -69,7 +69,8 @@ jobs:
             --delete \
             --exclude ".git/*" --exclude "api/*" --exclude "infra/*" \
             --exclude "docs/*" --exclude "tests/*" --exclude "node_modules/*" \
-            --exclude ".github/*" --exclude "supabase/*" --exclude ".superpowers/*"
+            --exclude ".github/*" --exclude "supabase/*" --exclude ".superpowers/*" \
+            --exclude "content/*" --exclude ".env"
 
       - name: Invalidate CloudFront
         run: |
