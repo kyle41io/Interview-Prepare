@@ -15,3 +15,6 @@ supabase/seed/cron_gmail.local.sql
 # checklist, which holds real keys while bootstrapping. Kept on disk, never
 # pushed (covers the former docs/SETUP.md entry).
 docs/
+
+# Learning content authoring sources — served from private S3, never committed.
+content/
