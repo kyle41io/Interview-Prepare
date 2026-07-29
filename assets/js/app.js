@@ -1994,16 +1994,37 @@
         <p>${t(UI.contentLoading)}</p></div>`;
     }
 
+    // Declared here rather than beside restoreContentBoundView below because
+    // repaintLate also reads it, and repaintLate can run from a promise callback.
+    // See the note above restoreContentBoundView for what it guards.
+    let _restoreDone = false;
+
     /* The bundle arrived after the cap, so what is on screen was built without
        content and needs repainting. Two things must survive that repaint. */
     function repaintLate() {
+      // The bundle can take arbitrarily long after the cap already let the page
+      // paint, and the session can end in that stretch. render() hard-gates
+      // logged-out, but the restore below still mutates State.mode/State.topic,
+      // and saveView() would then persist a signed-in view over the landing.
+      // Same re-check the deferred auth callback does, for the same reason.
+      if (!IP.auth.getUser()) return;
       // 1. Navigation. The user had a live, navigable app during the dead window;
       //    if they opened another tab, re-applying the restored view would yank
       //    them out of it. The saved view lost that race — retire it.
       const navigated = _paintedMode !== null
         && (State.mode !== _paintedMode || State.topic !== _paintedTopic);
-      if (navigated) _restoreDone = true;
-      else restoreContentBoundView();
+      if (navigated) {
+        // Retire the saved view, but not the PREP-derived caches the current mode
+        // needs: whatever the user navigated to was built against an empty PREP.
+        // Flashcards is the one that cannot recover on its own — buildCardQueue
+        // ran against no content, and renderCards reads that empty queue as "all
+        // caught up" once studyPool() fills in, hiding a full deck that is due.
+        // The reshuffle worry below does not apply: the queue is empty, so there
+        // is no card on screen to swap out from under the user.
+        _restoreDone = true;
+        _restoreTopic = null;
+        if (State.mode === "cards" && PREP.order.length) buildCardQueue();
+      } else restoreContentBoundView();
       // 2. DOM-only state. render() rebuilds #content from State, so anything the
       //    DOM holds that State does not is destroyed — most concretely an unsent
       //    chat draft, which is never persisted.
@@ -2042,6 +2063,15 @@
 
     function handleAuthEvent(user) {
       _authEventSeen = true;
+      // Record that a session existed here, at observation time, not where the
+      // user is finally applied: applying a signed-in user is deferred behind
+      // whenContentReady() for up to CONTENT_WAIT_MS, and a SIGNED_OUT (cross-tab
+      // sign-out, refresh-token invalidation) can land inside that window. It
+      // would reach the sign-out branch in onAuthChange with the flag still
+      // false, so the wipe there would not run and the departing user's ip_*
+      // progress and ~1.3 MB cached bundle would survive for whoever signs in
+      // next on this device — the exact hand-off that wipe exists to prevent.
+      if (user) _wasAuthed = true;
       try {
         if (user && !_contentReady) {
           paintContentLoading();
@@ -2076,7 +2106,8 @@
       updateAuthUI(user);                 // rebuilds #content iff the identity changed
       if (user) {
         if (!changed) return;             // duplicate hydrate / token refresh / tab refocus — no work
-        _wasAuthed = true;
+        // (_wasAuthed is set in handleAuthEvent, before the content wait can
+        //  defer us past a sign-out; see the note there.)
         IP.sync.onLogin();
         // After pro status loads, refresh the topbar badge (no re-render — same
         // identity) and unlock any pro sections in place.
@@ -2134,7 +2165,7 @@
     // two auth events can both resolve off the same settled load, and
     // buildCardQueue reshuffles, so a second pass after the first paint would
     // swap the card already on screen.
-    let _restoreDone = false;
+    // (_restoreDone itself is declared above repaintLate, which also reads it.)
     function restoreContentBoundView() {
       if (_restoreDone || !PREP.order.length) return;
       _restoreDone = true;

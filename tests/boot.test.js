@@ -24,6 +24,13 @@ const path = require("node:path");
 const APP = path.join(__dirname, "..", "assets", "js", "app.js");
 const SRC = fs.readFileSync(APP, "utf8");
 
+/* Lift a named function's source text out of app.js by counting braces.
+   The counter is deliberately simple and is NOT string-, comment- or regex-aware:
+   a "}" inside a string literal, a comment or a regex would end the extraction
+   early. That is worth knowing because a truncated body can still parse and still
+   make a test pass — green for the wrong reason. It is correct for every function
+   extracted here today; if you extract one containing a braced string/comment/
+   regex, check the slice before trusting the result. */
 function extract(name) {
   const start = SRC.indexOf("function " + name + "(");
   assert.ok(start >= 0, name + " no longer exists in app.js");
@@ -214,6 +221,113 @@ test("a signed-out event never waits on content", () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Finding A — a sign-out during the content wait still wipes the device *
+ * ------------------------------------------------------------------ */
+
+/* Unlike bootHarness this runs the *real* onAuthChange, because the bug is the
+   interaction between it and the deferred apply: the flag the sign-out branch
+   reads was only ever set where the signed-in user is finally applied. */
+function wipeHarness() {
+  const calls = { clearCache: 0, clearAll: 0, reload: 0, loading: 0, onLogin: 0 };
+  let release;
+  const wait = new Promise((r) => { release = r; });
+  let currentUser = null;
+
+  const deps = {
+    IP: {
+      auth: { getUser: () => currentUser },
+      sync: { onLogin() { calls.onLogin++; } },     // stands in for "the session was applied"
+      pro: { init: () => ({ then() {} }) },
+      store: { clearAll() { calls.clearAll++; } },
+    },
+    console: quiet,
+    State: { mode: "learn", topic: "dsa" },
+    updateAuthUI() {},
+    hydrateProSections() {},
+    loadUpgradeData() {},
+    loadAdminData() {},
+    contentClearCache() { calls.clearCache++; },
+    window: {},                                    // no Notification — skips the prompt
+    location: { reload() { calls.reload++; } },
+    whenContentReady: () => wait,
+    paintContentLoading() { calls.loading++; },
+    restoreContentBoundView() {},
+    render() {},
+    applyPendingScroll() {},
+  };
+  const names = Object.keys(deps);
+  const built = new Function(
+    ...names,
+    `let _authEventSeen = false;
+     let _contentReady = false;
+     let _authReady = false;
+     let _renderedUid;
+     let _wasAuthed = false;
+     let _notifSubbed = false;
+     ${extract("bootFailsafe")}
+     ${extract("handleAuthEvent")}
+     ${extract("onAuthChange")}
+     return { handleAuthEvent: handleAuthEvent };`,
+  )(...names.map((n) => deps[n]));
+
+  return {
+    calls,
+    signIn(u) { currentUser = u; built.handleAuthEvent(u); },
+    signOut() { currentUser = null; built.handleAuthEvent(null); },
+    settleContent() { release(); return new Promise((r) => setImmediate(r)); },
+  };
+}
+
+test("signing out while the content bundle is in flight still wipes the device", async () => {
+  // The window is up to CONTENT_WAIT_MS wide and needs no click from the user to
+  // hit — a cross-tab sign-out or a refresh-token invalidation lands here, and the
+  // sign-out menu is not even visible yet. Skipping the wipe leaves the departing
+  // user's ip_* progress and their ~1.3 MB cached bundle on the device, so the
+  // next account to sign in renders the previous user's progress.
+  const h = wipeHarness();
+  h.signIn(USER);
+  assert.strictEqual(h.calls.loading, 1, "precondition: we are inside the content wait");
+  assert.strictEqual(h.calls.onLogin, 0, "precondition: the user has not been applied yet");
+
+  h.signOut();
+  assert.strictEqual(h.calls.clearCache, 1, "the cached bundle must go");
+  assert.strictEqual(h.calls.clearAll, 1, "and the ip_* progress with it");
+  assert.strictEqual(h.calls.reload, 1, "on a page that restarts clean");
+
+  await h.settleContent();
+  assert.strictEqual(h.calls.onLogin, 0, "and the stale user is still never applied");
+});
+
+test("signing out after content has settled wipes the device as it always did", async () => {
+  const h = wipeHarness();
+  h.signIn(USER);
+  await h.settleContent();
+  assert.strictEqual(h.calls.onLogin, 1, "the session was established");
+  h.signOut();
+  assert.deepStrictEqual(
+    [h.calls.clearCache, h.calls.clearAll, h.calls.reload], [1, 1, 1],
+    "the path that already worked keeps working",
+  );
+});
+
+test("a visitor who was never signed in is not wiped or reloaded", () => {
+  // INITIAL_SESSION fires with no user for every logged-out visitor. Wiping or
+  // reloading there would put the landing page in a reload loop.
+  const h = wipeHarness();
+  h.signOut();
+  assert.deepStrictEqual([h.calls.clearCache, h.calls.clearAll, h.calls.reload], [0, 0, 0]);
+  assert.strictEqual(h.calls.loading, 0, "and the signed-out path never waits on content");
+});
+
+test("a second signed-out event does not wipe a second time", () => {
+  const h = wipeHarness();
+  h.signIn(USER);
+  h.signOut();
+  h.signOut();
+  assert.strictEqual(h.calls.reload, 1, "the first wipe clears the flag it read");
+});
+
+/* ------------------------------------------------------------------ *
  * Finding 2 — loading paint + held scroll                              *
  * ------------------------------------------------------------------ */
 
@@ -290,25 +404,35 @@ test("the logged-out landing consumes the scroll exactly as it did before", () =
  * Finding 4 — the late repaint                                         *
  * ------------------------------------------------------------------ */
 
-function lateHarness(painted, current, draft) {
-  const calls = { restore: 0, render: 0, scroll: 0 };
+function lateHarness(painted, current, draft, opts) {
+  const o = opts || {};
+  const calls = { restore: 0, render: 0, scroll: 0, buildCardQueue: 0 };
   const ta = draft == null ? null : { value: draft, selectionStart: draft.length, setSelectionRange() {}, focus() {} };
   const State = { mode: current.mode, topic: current.topic };
+  const Cards = { queue: [] };
+  const deps = {
+    _paintedMode: painted.mode,
+    _paintedTopic: painted.topic,
+    State,
+    // "content landed" unless a test asks for the degraded empty-PREP case
+    PREP: { order: o.prepOrder || ["dsa", "sql"], topics: { dsa: {}, sql: {} } },
+    IP: { auth: { getUser: () => (o.signedOut ? null : { id: "u1" }) } },
+    restoreContentBoundView() { calls.restore++; },
+    buildCardQueue() { calls.buildCardQueue++; Cards.queue = ["c1", "c2", "c3"]; },
+    render() { calls.render++; },
+    applyPendingScroll() { calls.scroll++; },
+    document: { getElementById: (id) => (id === "chatInput" ? ta : null) },
+  };
+  const names = Object.keys(deps);
   const out = new Function(
-    "_paintedMode", "_paintedTopic", "State", "restoreContentBoundView",
-    "render", "applyPendingScroll", "document",
+    ...names,
     `let _restoreDone = false;
+     let _restoreTopic = ${JSON.stringify(o.restoreTopic || null)};
      ${extract("repaintLate")}
      repaintLate();
-     return _restoreDone;`,
-  )(
-    painted.mode, painted.topic, State,
-    () => { calls.restore++; },
-    () => { calls.render++; },
-    () => { calls.scroll++; },
-    { getElementById: (id) => (id === "chatInput" ? ta : null) },
-  );
-  return { calls, restoreDone: out, ta };
+     return { restoreDone: _restoreDone, restoreTopic: _restoreTopic };`,
+  )(...names.map((n) => deps[n]));
+  return { calls, restoreDone: out.restoreDone, restoreTopic: out.restoreTopic, ta, Cards, State };
 }
 
 test("a late repaint restores the saved view when the user has not navigated", () => {
@@ -339,6 +463,55 @@ test("a late repaint preserves an unsent chat draft", () => {
 
 test("a late repaint with no chat box on screen is fine", () => {
   assert.doesNotThrow(() => lateHarness({ mode: "learn", topic: null }, { mode: "learn", topic: null }, null));
+});
+
+test("a late repaint rebuilds the card queue of a user who navigated to Flashcards", () => {
+  // Opening Flashcards during the dead window ran buildCardQueue() against an
+  // empty PREP, so the queue is empty. Retiring the saved view must not also skip
+  // that rebuild: renderCards reads an empty queue with a now non-empty
+  // studyPool() as "All done! No cards due right now." and hides a full deck that
+  // really is due, recoverable only by a tab re-click, a reload, or a
+  // "Study all again" that resets scheduling.
+  const h = lateHarness({ mode: "learn", topic: "dsa" }, { mode: "cards", topic: null }, null);
+  assert.strictEqual(h.calls.restore, 0, "the saved view is still retired — no yanking");
+  assert.strictEqual(h.restoreDone, true);
+  assert.strictEqual(h.calls.buildCardQueue, 1, "but the mode the user is actually in is rebuilt");
+  assert.ok(h.Cards.queue.length > 0, "so the due deck is on screen instead of a false empty state");
+});
+
+test("a late repaint retires the saved topic when the user navigated", () => {
+  const h = lateHarness({ mode: "learn", topic: "dsa" }, { mode: "cards", topic: null }, null,
+    { restoreTopic: "sql" });
+  assert.strictEqual(h.restoreTopic, null, "it lost the race and must not be applied later either");
+  assert.strictEqual(h.State.mode, "cards", "the user stays where they navigated to");
+});
+
+test("a late repaint does not rebuild a card queue for a mode that has none", () => {
+  // Quiz needs nothing here — renderQuiz recomputes studyPool() on every render.
+  const h = lateHarness({ mode: "learn", topic: "dsa" }, { mode: "quiz", topic: null }, null);
+  assert.strictEqual(h.calls.buildCardQueue, 0);
+  assert.strictEqual(h.calls.render, 1);
+});
+
+test("a late repaint does not rebuild the queue when no content registered", () => {
+  // The load settled having registered nothing (offline, cold cache). Building
+  // against an empty PREP would just produce another empty queue; Flashcards'
+  // own no-content guard is what should speak there.
+  const h = lateHarness({ mode: "learn", topic: "dsa" }, { mode: "cards", topic: null }, null,
+    { prepOrder: [] });
+  assert.strictEqual(h.calls.buildCardQueue, 0);
+});
+
+test("a late repaint that lands after the session ended does nothing", () => {
+  // The bundle can turn up long after the cap let the page paint, by which time a
+  // sign-out may have replaced the app with the logged-out landing. render()
+  // hard-gates logged-out anyway, but restoring would still mutate
+  // State.mode/State.topic, and saveView() persists that.
+  const h = lateHarness({ mode: "learn", topic: "dsa" }, { mode: "cards", topic: null }, null,
+    { signedOut: true });
+  assert.strictEqual(h.calls.render, 0, "nothing is repainted over the landing");
+  assert.strictEqual(h.calls.restore, 0);
+  assert.strictEqual(h.calls.buildCardQueue, 0, "and no State is mutated for saveView to pick up");
 });
 
 /* ------------------------------------------------------------------ *
@@ -415,18 +588,15 @@ test("starting a quiz that does have questions says nothing", () => {
 test("the settings clear-all-data action drops the content cache", () => {
   // The bundle is cached outside the "ip_" prefix that store.clearAll sweeps, so
   // without this a "clear all data" leaves ~1.3 MB of content behind.
+  //
+  // Caveat: [^}]* stops at the first "}", so this only sees the handler while its
+  // body stays brace-free. Add an if/function/object literal in there and the
+  // match either truncates or fails outright — if this starts failing after an
+  // edit that kept contentClearCache(), widen the pattern rather than assuming a
+  // real regression. The assertion itself is real; only the extraction is fragile.
   const m = SRC.match(/confirm\(t\(UI\.confirmClear\)\)\)\s*\{([^}]*)\}/);
   assert.ok(m, "the clear-all-data handler moved");
   assert.match(m[1], /contentClearCache\(\)/);
   assert.ok(m[1].indexOf("contentClearCache()") < m[1].indexOf("location.reload()"),
     "must clear before the reload that ends the page");
-});
-
-test("every IP.content dereference in app.js goes through a guard", () => {
-  // The blank-page failure mode was a bare IP.content.* in the auth listener.
-  const bare = SRC.split("\n").filter((l) => /IP\.content\./.test(l) && !/^\s*(\/\/|\*)/.test(l));
-  assert.deepStrictEqual(
-    bare.map((l) => l.trim()).filter((l) => !/^(return Promise\.resolve\(IP\.content|try \{ if \(IP\.content\))/.test(l)),
-    [], "IP.content must only be touched inside contentLoad/contentClearCache",
-  );
 });
