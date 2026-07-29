@@ -33,6 +33,38 @@ describe("InboxService", () => {
     const out = await svc(send).listReminders("u1", "upcoming");
     expect(out.map((r) => r.id)).toEqual(["r1", "r2"]);
   });
+
+  /* assets/js/gmail.js fetchReminders() requests "upcoming,done" — the shape of
+     the Supabase .in("status", [...]) query the API replaced. Matching the raw
+     parameter against one status returned nothing, so the reminders page was
+     always empty even with reminders in the table. */
+  it("listReminders accepts a comma-separated set of statuses", async () => {
+    const send = jest.fn().mockResolvedValue({ Items: [
+      { id: "r1", status: "upcoming", due_at: "2026-08-01" },
+      { id: "r2", status: "done", due_at: "2026-08-02" },
+      { id: "r3", status: "dismissed", due_at: "2026-08-03" },
+    ] });
+    const out = await svc(send).listReminders("u1", "upcoming,done");
+    expect(out.map((r) => r.id)).toEqual(["r1", "r2"]);
+  });
+
+  it("listReminders tolerates spaces around the commas", async () => {
+    const send = jest.fn().mockResolvedValue({ Items: [
+      { id: "r1", status: "upcoming", due_at: "2026-08-01" },
+      { id: "r2", status: "done", due_at: "2026-08-02" },
+    ] });
+    const out = await svc(send).listReminders("u1", " upcoming , done ");
+    expect(out.map((r) => r.id)).toEqual(["r1", "r2"]);
+  });
+
+  it("listReminders treats a blank status as no filter", async () => {
+    const send = jest.fn().mockResolvedValue({ Items: [
+      { id: "r1", status: "upcoming", due_at: "2026-08-01" },
+      { id: "r2", status: "dismissed", due_at: "2026-08-02" },
+    ] });
+    const out = await svc(send).listReminders("u1", "");
+    expect(out.map((r) => r.id)).toEqual(["r1", "r2"]);
+  });
 });
 
 /* Endpoints the frontend (assets/js/gmail.js) has always called but which the

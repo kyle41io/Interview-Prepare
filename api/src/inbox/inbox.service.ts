@@ -85,7 +85,18 @@ export class InboxService {
     return { ok: true, updated: n };
   }
 
+  /** `status` is a comma-separated set, not one value: the reminders page asks
+   *  for "upcoming,done" — the shape of the Supabase `.in("status", [...])`
+   *  query this replaced. Comparing the raw parameter against a single status
+   *  matched nothing, so the page rendered empty however many reminders existed.
+   *  An empty/blank set means "no filter". */
   async listReminders(userId: string, status = "upcoming") {
+    const wanted = new Set(
+      String(status)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
     const r = await this.dyn.doc.send(
       new QueryCommand({
         TableName: this.t(),
@@ -94,7 +105,7 @@ export class InboxService {
       }),
     );
     return ((r.Items || []) as any[])
-      .filter((it) => !status || it.status === status)
+      .filter((it) => wanted.size === 0 || wanted.has(it.status))
       .map((it) => ({ id: it.id, kind: it.kind, title: it.title, company: it.company, due_at: it.due_at, deadline_at: it.deadline_at, status: it.status, source: it.source }))
       .sort((a, b) => String(a.due_at || "").localeCompare(String(b.due_at || "")));
   }
