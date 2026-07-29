@@ -248,6 +248,10 @@ data "aws_iam_policy_document" "github_deploy" {
       "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*/index/*",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.project}-*",
+      # aws_iam_user.content_seeder. Without this the provider's Read path
+      # fails on iam:GetUser and the whole plan dies at refresh, before it can
+      # reach a single mutation.
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.project}-*",
     ]
   }
 
@@ -358,7 +362,7 @@ data "aws_iam_policy_document" "github_deploy" {
   }
 
   statement {
-    sid    = "IamRoleAndPolicyLifecycle"
+    sid    = "IamRolePolicyAndUserLifecycle"
     effect = "Allow"
     actions = [
       "iam:CreateRole", "iam:GetRole", "iam:UpdateRole", "iam:DeleteRole", "iam:TagRole", "iam:UntagRole",
@@ -366,10 +370,16 @@ data "aws_iam_policy_document" "github_deploy" {
       "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:DeletePolicy", "iam:TagPolicy", "iam:UntagPolicy",
       "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
       "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies",
+      # aws_iam_user.content_seeder and its inline policy. Access-key actions
+      # are deliberately absent: the seeder's long-lived key is minted by hand,
+      # and CI has no reason to be able to mint another one.
+      "iam:CreateUser", "iam:DeleteUser", "iam:TagUser", "iam:UntagUser",
+      "iam:PutUserPolicy", "iam:DeleteUserPolicy",
     ]
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.project}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.project}-*",
     ]
   }
 
