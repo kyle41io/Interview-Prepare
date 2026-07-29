@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { QueryCommand, UpdateCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, UpdateCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { DynamoService } from "../db/dynamo.service";
 import { userPk } from "../db/keys";
 import { notifSk, reminderSk, NOTIF_PREFIX, REMINDER_PREFIX, parseNotifKey } from "./inbox-keys";
@@ -108,6 +108,36 @@ export class InboxService {
       }),
     );
     return { id };
+  }
+
+  /** Delete is unconditional: removing an already-absent reminder is a no-op,
+   *  and the key is scoped to the caller's own pk so one user cannot delete
+   *  another's row. */
+  async deleteReminder(userId: string, id: string) {
+    await this.dyn.doc.send(
+      new DeleteCommand({ TableName: this.t(), Key: { pk: userPk(userId), sk: reminderSk(id) } }),
+    );
+    return { ok: true };
+  }
+
+  /** Clears notifications the user has already read, leaving unread ones. */
+  async clearReadNotifications(userId: string) {
+    const r = await this.dyn.doc.send(
+      new QueryCommand({
+        TableName: this.t(),
+        KeyConditionExpression: "pk = :p AND begins_with(sk, :pfx)",
+        ExpressionAttributeValues: { ":p": userPk(userId), ":pfx": NOTIF_PREFIX },
+      }),
+    );
+    let n = 0;
+    for (const it of (r.Items || []) as any[]) {
+      if (!it.read) continue;
+      await this.dyn.doc.send(
+        new DeleteCommand({ TableName: this.t(), Key: { pk: userPk(userId), sk: it.sk } }),
+      );
+      n++;
+    }
+    return { ok: true, deleted: n };
   }
 
   async setReminderStatus(userId: string, id: string, status: string) {

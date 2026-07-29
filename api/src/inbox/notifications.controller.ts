@@ -1,4 +1,13 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
 import { InboxService } from "./inbox.service";
@@ -27,5 +36,10 @@ export class NotificationsController {
   @Post("read-all")
   readAll(@CurrentUser() u: AuthUser) {
     return this.svc.markAllRead(u.id);
+  }
+  // Clears already-read notifications; unread ones are kept.
+  @Delete("read")
+  clearRead(@CurrentUser() u: AuthUser) {
+    return this.svc.clearReadNotifications(u.id);
   }
 }

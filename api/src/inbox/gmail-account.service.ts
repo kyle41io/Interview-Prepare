@@ -8,10 +8,26 @@ import { GoogleService } from "./google.service";
 export class GmailAccountService {
   constructor(private readonly dyn: DynamoService, private readonly google: GoogleService) {}
   private t() { return this.dyn.inboxTable; }
+  /**
+   * Two ways in. The browser gets a Google refresh token directly from Supabase
+   * (signInWithOAuth with access_type=offline returns provider_refresh_token),
+   * which is the flow assets/js/auth.js uses; passing it here stores it without
+   * a second Google round-trip. The `code` path remains for a plain OAuth
+   * redirect where only an authorization code is available.
+   */
+  async connectWithRefreshToken(userId: string, refreshToken: string, email: string | null) {
+    await this.store(userId, refreshToken, email ?? null);
+    return { connected: true, email: email ?? null };
+  }
+
   async connect(userId: string, code: string, redirectUri: string) {
     const { refresh_token, email } = await this.google.exchangeCode(code, redirectUri);
-    await this.dyn.doc.send(new PutCommand({ TableName: this.t(), Item: { pk: userPk(userId), sk: GMAIL_ACCOUNT_SK, refresh_token, email, active: true, last_scan: null, updated_at: new Date().toISOString() } }));
+    await this.store(userId, refresh_token, email);
     return { connected: true, email };
+  }
+
+  private async store(userId: string, refresh_token: string, email: string | null) {
+    await this.dyn.doc.send(new PutCommand({ TableName: this.t(), Item: { pk: userPk(userId), sk: GMAIL_ACCOUNT_SK, refresh_token, email, active: true, last_scan: null, updated_at: new Date().toISOString() } }));
   }
   async getAccount(userId: string) {
     const r = await this.dyn.doc.send(new GetCommand({ TableName: this.t(), Key: { pk: userPk(userId), sk: GMAIL_ACCOUNT_SK } }));

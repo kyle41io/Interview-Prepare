@@ -34,3 +34,35 @@ describe("InboxService", () => {
     expect(out.map((r) => r.id)).toEqual(["r1", "r2"]);
   });
 });
+
+/* Endpoints the frontend (assets/js/gmail.js) has always called but which the
+   migrated API never implemented, so they 404'd against AWS. */
+describe("InboxService - delete paths", () => {
+  it("deleteReminder scopes the key to the caller's own pk", async () => {
+    const send = jest.fn().mockResolvedValue({});
+    const out = await svc(send).deleteReminder("u1", "r1");
+    const arg = send.mock.calls[0][0].input;
+    expect(arg.Key).toEqual({ pk: "USER#u1", sk: "REMINDER#r1" });
+    expect(out).toEqual({ ok: true });
+  });
+
+  it("deleteReminder of a missing reminder is a no-op, not an error", async () => {
+    const send = jest.fn().mockResolvedValue({});
+    await expect(svc(send).deleteReminder("u1", "gone")).resolves.toEqual({ ok: true });
+  });
+
+  it("clearReadNotifications deletes read items and keeps unread ones", async () => {
+    const send = jest.fn()
+      .mockResolvedValueOnce({ Items: [
+        { sk: "NOTIF#2026-07-10T00:00:00Z#a", read: true },
+        { sk: "NOTIF#2026-07-09T00:00:00Z#b", read: false },
+        { sk: "NOTIF#2026-07-08T00:00:00Z#c", read: true },
+      ] })
+      .mockResolvedValue({});
+    const out = await svc(send).clearReadNotifications("u1");
+    expect(out).toEqual({ ok: true, deleted: 2 });
+    expect(send).toHaveBeenCalledTimes(3); // 1 query + 2 deletes
+    const deleted = send.mock.calls.slice(1).map((c: any) => c[0].input.Key.sk);
+    expect(deleted).toEqual(["NOTIF#2026-07-10T00:00:00Z#a", "NOTIF#2026-07-08T00:00:00Z#c"]);
+  });
+});

@@ -26,3 +26,37 @@ describe("GmailAccountService", () => {
     expect(arg.ExpressionAttributeValues[":e"]).toBe("");
   });
 });
+
+/* The browser receives a Google refresh token straight from Supabase
+   (provider_refresh_token). Before this path existed, the API only accepted an
+   OAuth code, so assets/js/auth.js kept posting to a Supabase Edge Function
+   that is no longer deployed and Gmail never connected on AWS. */
+describe("GmailAccountService.connectWithRefreshToken", () => {
+  it("stores the supplied refresh token as an active account without calling Google", async () => {
+    const send = jest.fn().mockResolvedValue({});
+    const exchangeCode = jest.fn();
+    const s = new GmailAccountService(
+      { doc: { send }, inboxTable: "ip_inbox" } as any,
+      { exchangeCode } as any,
+    );
+    const out = await s.connectWithRefreshToken("u1", "rt-123", "a@b.c");
+    expect(exchangeCode).not.toHaveBeenCalled();
+    const item = send.mock.calls[0][0].input.Item;
+    expect(item.pk).toBe("USER#u1");
+    expect(item.refresh_token).toBe("rt-123");
+    expect(item.email).toBe("a@b.c");
+    expect(item.active).toBe(true);
+    expect(out).toEqual({ connected: true, email: "a@b.c" });
+  });
+
+  it("tolerates a missing email", async () => {
+    const send = jest.fn().mockResolvedValue({});
+    const s = new GmailAccountService(
+      { doc: { send }, inboxTable: "ip_inbox" } as any,
+      { exchangeCode: jest.fn() } as any,
+    );
+    const out = await s.connectWithRefreshToken("u1", "rt", null);
+    expect(out).toEqual({ connected: true, email: null });
+    expect(send.mock.calls[0][0].input.Item.email).toBeNull();
+  });
+});
