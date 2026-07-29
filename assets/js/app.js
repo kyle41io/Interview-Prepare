@@ -674,6 +674,14 @@
     GmailSettings.loaded = true;
     if (State.mode === "settings") render();
   }
+  // The consent redirect lands us back on the settings screen, which fetches
+  // status while auth.js is still handing the refresh token to the server. That
+  // race renders "not connected" for a connect that succeeded, so re-fetch once
+  // the handoff actually lands.
+  window.addEventListener("ip:gmail-connected", function () {
+    GmailSettings.loaded = false;
+    loadGmailStatus();
+  });
 
   /* ---------- Reminders page (month calendar) ---------- */
   const Reminders = { list: null };

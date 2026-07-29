@@ -13,6 +13,7 @@
   let _client = null;
   let _user = null;               // cached current user (null = logged out)
   let _listeners = [];             // onChange callbacks
+  let _gmailStored = null;         // provider_refresh_token already handed to the server
 
   /* ---- enabled: true only when config + Supabase SDK present ---- */
   function enabled() {
@@ -73,14 +74,72 @@
     } catch (e) { /* offline / already exists — ignore */ }
   }
 
+  /* ---- Gmail connect diagnostics ----
+     Connecting Gmail has two independent halves that fail in ways the UI cannot
+     tell apart: Google/Supabase may never hand us a refresh token, or the handoff
+     to our server may be rejected. Both used to be swallowed, leaving "click
+     Connect, nothing happens" as the only symptom. Record the last outcome and
+     log it under one greppable prefix; read it from the console with
+     IP.auth.gmailDiag(). */
+  let _gmailDiag = null;
+  function _diag(outcome, detail) {
+    _gmailDiag = { outcome: outcome, detail: detail || null, at: new Date().toISOString() };
+    const line = "[ip:gmail-connect] " + outcome + (detail ? " — " + detail : "");
+    if (outcome === "stored") console.info(line); else console.warn(line);
+  }
+  function gmailDiag() { return _gmailDiag; }
+
+  /* ---- _storeGmailToken(): hand the one-shot Google refresh token to the server ----
+     Google issues provider_refresh_token exactly once, on the consent redirect,
+     and Supabase drops it from the session at the next token refresh — miss it
+     and Gmail stays disconnected until the user consents again. It rides in on
+     BOTH the SIGNED_IN event and the getSession() hydrate below, and which one
+     wins is a race, so run from both and de-dupe on the token itself. */
+  async function _storeGmailToken(c, session) {
+    const rt = session && session.provider_refresh_token;
+    if (!rt || rt === _gmailStored) return;
+    _gmailStored = rt;
+    const email = (session.user && session.user.email) || null;
+    const _api = root.IP && root.IP.api;
+    try {
+      // Since the AWS migration the account lives in DynamoDB behind the API,
+      // not the Supabase Edge Function — that function is no longer deployed,
+      // so storing there left Gmail permanently disconnected.
+      if (_api && _api.configured && _api.configured()) {
+        await _api.post("/v1/gmail/connect", { refresh_token: rt, email: email });
+      } else {
+        await c.functions.invoke("gmail-connect", { body: {
+          action: "store",
+          refresh_token: rt,
+          email: email,
+        } });
+      }
+      _diag("stored", email);
+      // The settings screen may have already fetched status before this
+      // resolved, showing "not connected" for a connect that did work.
+      if (root.dispatchEvent) root.dispatchEvent(new CustomEvent("ip:gmail-connected"));
+    } catch (e) {
+      _gmailStored = null; // failed handoff — let the next attempt retry
+      _diag("handoff-failed", (e && (e.error || e.message)) || String(e));
+    }
+  }
+
   /* ---- init(): wire Supabase onAuthStateChange + get initial session ---- */
   async function init() {
     const c = client();
     if (!c) return;
     // Subscribe to auth state changes
-    c.auth.onAuthStateChange(function (_event, session) {
+    c.auth.onAuthStateChange(function (event, session) {
       _notify(session ? session.user : null);
       if (session && session.user) _ensureProfile(c, session.user);
+      if (session) _storeGmailToken(c, session);
+      // A fresh sign-in with no refresh token means Google never issued one —
+      // a Google-side problem (scope not granted, consent screen skipped), not
+      // a problem with our handoff. Ordinary page loads and hourly refreshes
+      // legitimately carry no token, so only a SIGNED_IN is worth reporting.
+      if (event === "SIGNED_IN" && session && !session.provider_refresh_token) {
+        _diag("no-refresh-token", "Google returned no provider_refresh_token");
+      }
     });
     // Hydrate from existing session (e.g. redirect back after OAuth)
     try {
@@ -88,29 +147,7 @@
       const session = data && data.session;
       _notify(session ? session.user : null);
       if (session && session.user) await _ensureProfile(c, session.user);
-      // A Gmail refresh token is only returned right after the consent redirect.
-      // Capture it once and hand it to the server (never kept client-side).
-      if (session && session.provider_refresh_token) {
-        const email = session.user && session.user.email;
-        const _api = root.IP && root.IP.api;
-        try {
-          // Since the AWS migration the account lives in DynamoDB behind the
-          // API, not the Supabase Edge Function — that function is no longer
-          // deployed, so storing there left Gmail permanently disconnected.
-          if (_api && _api.configured && _api.configured()) {
-            await _api.post("/v1/gmail/connect", {
-              refresh_token: session.provider_refresh_token,
-              email: email,
-            });
-          } else {
-            await c.functions.invoke("gmail-connect", { body: {
-              action: "store",
-              refresh_token: session.provider_refresh_token,
-              email: email,
-            } });
-          }
-        } catch (e) { /* server not deployed / offline — ignore */ }
-      }
+      if (session) await _storeGmailToken(c, session);
     } catch (e) { /* network error – stay logged out */ }
   }
 
@@ -139,5 +176,5 @@
     try { await c.auth.signOut(); } catch (e) { /* ignore */ }
   }
 
-  return { enabled, client, getUser, onChange, init, signInWithGoogle, connectGmail, signOut };
+  return { enabled, client, getUser, onChange, init, signInWithGoogle, connectGmail, signOut, gmailDiag };
 });
