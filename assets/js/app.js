@@ -1775,12 +1775,15 @@
     const md = (user && user.user_metadata) || {};
     if (signin) signin.hidden = on || !IP.auth.enabled();
     [acctRow, sep, mOut].forEach(function (el) { if (el) el.hidden = !on; });
+    const proOn = on && IP.pro.isPro();
     // Topbar profile button: show the real avatar when signed in, else the icon.
+    // Pro accounts also get a crown tilted onto the top-right corner.
     const pBtn = document.getElementById("profileBtn");
     if (pBtn) {
-      if (on && md.avatar_url) pBtn.innerHTML = '<img class="pfp" src="' + md.avatar_url + '" alt="" referrerpolicy="no-referrer">';
-      else pBtn.innerHTML = '<i class="' + ICON.profile + '"></i>';
-      pBtn.classList.toggle("pro", on && IP.pro.isPro());
+      const crown = proOn ? '<i class="pro-crown ' + ICON.pro + '"></i>' : "";
+      if (on && md.avatar_url) pBtn.innerHTML = '<img class="pfp" src="' + md.avatar_url + '" alt="" referrerpolicy="no-referrer">' + crown;
+      else pBtn.innerHTML = '<i class="' + ICON.profile + '"></i>' + crown;
+      pBtn.classList.toggle("pro", proOn);
     }
     if (on && acctRow) {
       const nameEl = document.getElementById("acctName");
@@ -1793,7 +1796,6 @@
     }
     const ma = document.getElementById("menuAdmin");
     if (ma) ma.hidden = !(user && IP.pro.isAdmin(user.id, (window.IP_CONFIG || {}).ADMIN_UIDS));
-    const proOn = on && IP.pro.isPro();
     const bell = document.getElementById("bellBtn");
     if (bell) bell.hidden = !proOn;
     const remBtn = document.querySelector('[data-menu="reminders"]');
