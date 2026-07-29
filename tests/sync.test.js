@@ -119,38 +119,16 @@ test("round-trip: empty local -> empty shapes, no throw", () => {
   assert.deepStrictEqual(roundTripped.streak, { count: 0, lastActiveDate: null, dailyGoal: 1 });
 });
 
-/* ---------- gating tests: pull()/push() branch on IP.api.configured() ---------- */
+/* ---------- pull()/push() go through IP.api ---------- */
 
-test("configured()->false: pull() takes the Supabase branch, never touches IP.api (no auth -> null, no throw)", async () => {
+test("pull() resolves to null when the request fails, rather than throwing", async () => {
+  api.__setBase("https://x.dev");
+  api.__setDeps({ fetch: async () => { throw new Error("offline"); }, token: async () => "TKN" });
+  assert.strictEqual(await sync.pull(), null);
   api.__setBase("");
-  const calls = [];
-  api.__setDeps({
-    fetch: async (u, o) => { calls.push(["fetch", u, o]); return { ok: true, json: async () => ({}) }; },
-    token: async () => "TKN",
-  });
-  const origAuth = global.IP && global.IP.auth;
-  if (global.IP) delete global.IP.auth; // no auth configured -> Supabase branch returns null early
-  const result = await sync.pull();
-  assert.strictEqual(result, null);
-  assert.strictEqual(calls.length, 0); // IP.api.get was never invoked
-  if (origAuth) global.IP.auth = origAuth;
 });
 
-test("configured()->false: push() takes the Supabase branch, never touches IP.api", async () => {
-  api.__setBase("");
-  const calls = [];
-  api.__setDeps({
-    fetch: async (u, o) => { calls.push(["fetch", u, o]); return { ok: true, json: async () => ({}) }; },
-    token: async () => "TKN",
-  });
-  const origAuth = global.IP && global.IP.auth;
-  if (global.IP) delete global.IP.auth; // no auth configured -> Supabase branch returns early
-  await sync.push({ progress: { a: true } });
-  assert.strictEqual(calls.length, 0); // IP.api.post was never invoked
-  if (origAuth) global.IP.auth = origAuth;
-});
-
-test("configured()->true: pull() calls IP.api.get('/v1/progress') and adapts the response", async () => {
+test("pull() calls IP.api.get('/v1/progress') and adapts the response", async () => {
   api.__setBase("https://x.dev");
   const calls = [];
   api.__setDeps({
@@ -181,7 +159,14 @@ test("configured()->true: pull() calls IP.api.get('/v1/progress') and adapts the
   api.__setBase(""); // reset for subsequent tests
 });
 
-test("configured()->true: push() calls IP.api.post('/v1/progress/sync', <adapted body>)", async () => {
+test("push() swallows a failed request so a sync error never reaches the caller", async () => {
+  api.__setBase("https://x.dev");
+  api.__setDeps({ fetch: async () => { throw new Error("offline"); }, token: async () => "TKN" });
+  await sync.push({ progress: { a: true } }); // resolves; the retry rides the next "online" event
+  api.__setBase("");
+});
+
+test("push() calls IP.api.post('/v1/progress/sync', <adapted body>)", async () => {
   api.__setBase("https://x.dev");
   const calls = [];
   api.__setDeps({

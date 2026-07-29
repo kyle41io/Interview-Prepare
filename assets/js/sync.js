@@ -1,6 +1,5 @@
-/* IP.sync — local<->server state sync. Routes through IP.api (Task 6/7) when
-   configured (API_URL set); falls back to direct Supabase user_state sync
-   otherwise. merge(), toApiSnapshot(), fromApiSnapshot() are pure. */
+/* IP.sync — local<->server state sync through IP.api.
+   merge(), toApiSnapshot(), fromApiSnapshot() are pure. */
 (function (root, factory) {
   const api = factory(root);
   root.IP = root.IP || {};
@@ -93,7 +92,7 @@
   /* ---------- runtime helpers (lazy, safe in Node) ---------- */
   function _auth()  { return root.IP && root.IP.auth; }
   function _store() { return root.IP && root.IP.store; }
-  function _api()   { return root.IP && root.IP.api; }
+  function _api()   { return root.IP.api; }
   function _loggedIn() {
     const a = _auth();
     return !!(a && a.getUser && a.getUser());
@@ -108,52 +107,17 @@
 
   /* ---------- pull ---------- */
   async function pull() {
-    const ipApi = _api();
-    if (ipApi && ipApi.configured()) {
-      const apiSnap = await ipApi.get("/v1/progress").catch(() => null);
-      const st = _store();
-      return apiSnap ? fromApiSnapshot(apiSnap, st && st.snapshot()) : null;
-    }
-    try {
-      const a = _auth();
-      if (!a) return null;
-      const user = a.getUser && a.getUser();
-      if (!user) return null;
-      const client = a.client && a.client();
-      if (!client) return null;
-      const { data, error } = await client
-        .from("user_state")
-        .select("state")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) { console.warn("[sync] pull error", error.message); return null; }
-      return (data && data.state) ? data.state : null;
-    } catch (e) { console.warn("[sync] pull exception", e); return null; }
+    const apiSnap = await _api().get("/v1/progress").catch(() => null);
+    const st = _store();
+    return apiSnap ? fromApiSnapshot(apiSnap, st && st.snapshot()) : null;
   }
 
   /* ---------- push ---------- */
   async function push(state) {
-    const ipApi = _api();
-    if (ipApi && ipApi.configured()) {
-      try {
-        await ipApi.post("/v1/progress/sync", toApiSnapshot(state));
-        _dirty = false;
-      } catch (e) { console.warn("[sync] api push failed", e); _dirty = true; }
-      return;
-    }
     try {
-      const a = _auth();
-      if (!a) return;
-      const user = a.getUser && a.getUser();
-      if (!user) return;
-      const client = a.client && a.client();
-      if (!client) return;
-      const { error } = await client
-        .from("user_state")
-        .upsert({ user_id: user.id, state: state, updated_at: new Date().toISOString() });
-      if (error) { console.warn("[sync] push error", error.message); _dirty = true; return; }
+      await _api().post("/v1/progress/sync", toApiSnapshot(state));
       _dirty = false;
-    } catch (e) { console.warn("[sync] push exception", e); _dirty = true; }
+    } catch (e) { console.warn("[sync] api push failed", e); _dirty = true; }
   }
 
   /* ---------- schedulePush (debounce ~2500ms) ---------- */
