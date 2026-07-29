@@ -130,9 +130,12 @@ resource "aws_iam_role_policy" "content_read" {
 
 # Content pushes run locally; there's no CI job to federate, so no OIDC path
 # is available and a long-lived key is unavoidable here. Blast radius is one
-# bucket. ListBucket/ListBucketVersions is what `aws s3 sync` needs to diff
-# local vs. remote before uploading; the authoring sources it syncs from are
-# git-ignored (see content/.gitignore from Task 1).
+# bucket. ListBucket/ListBucketVersions is not for diffing uploads -- the push
+# script writes each object with PutObject (api/scripts/content-push.mjs) and
+# never lists. It is granted for the same reason the read role gets it: without
+# ListBucket, S3 answers 403 AccessDenied rather than 404 NotFound for a key
+# that does not exist, which makes "is this already pushed?" unanswerable.
+# The authoring sources it uploads are git-ignored (see .gitignore).
 resource "aws_iam_user" "content_seeder" {
   name = "${var.project}-content-seeder"
 }
