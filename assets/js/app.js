@@ -1894,18 +1894,11 @@
         if (State.mode === "upgrade") loadUpgradeData();
         else if (State.mode === "admin") loadAdminData();
         // onChange fires on every auth event (INITIAL_SESSION, SIGNED_IN,
-        // hourly TOKEN_REFRESHED). Subscribe + prompt only once per session,
-        // else channels stack and one notification fires N toasts.
+        // hourly TOKEN_REFRESHED); prompt only once per session. There is no
+        // realtime push behind the API — DynamoDB has no changefeed, so the
+        // bell polls on open (refreshBell) instead of subscribing.
         if (!_notifSubbed) {
           _notifSubbed = true;
-          IP.gmail.subscribeRealtime((payload) => {
-            refreshBell();
-            const n = payload && payload.new;
-            if (n) {
-              toast(IP.gmail.notifIcon(n.type) + " " + n.title);
-              if (window.Notification && Notification.permission === "granted") new Notification(n.title, { body: n.body || "" });
-            }
-          });
           if (window.Notification && Notification.permission === "default") Notification.requestPermission();
         }
       }
