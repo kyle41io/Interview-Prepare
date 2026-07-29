@@ -1869,7 +1869,22 @@
     updateAuthUI(IP.auth.getUser());
     let _wasAuthed = false;
     let _notifSubbed = false;
+    // Content is fetched from private S3, not shipped in the page, so PREP must
+    // be populated before the first signed-in render: the home dashboard and
+    // both study modes walk every id in PREP.order synchronously. Load once,
+    // then re-enter the normal handler.
+    let _contentLoaded = false;
     IP.auth.onChange(function (user) {
+      if (user && !_contentLoaded) {
+        IP.content.load().then(function () {
+          _contentLoaded = true;
+          onAuthChange(user);
+        });
+        return;
+      }
+      onAuthChange(user);
+    });
+    function onAuthChange(user) {
       const uid = user ? user.id : null;
       // Did the signed-in identity actually change since our last render? The
       // first event flips _authReady, so it always counts as changed. Repeat
@@ -1903,7 +1918,7 @@
         }
       }
       else if (_wasAuthed) { _wasAuthed = false; IP.store.clearAll(); location.reload(); }
-    });
+    }
     IP.auth.init();
 
     // Restore device-local UI state: collapsed sidebar + last view + scroll.
