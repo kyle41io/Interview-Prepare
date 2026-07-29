@@ -17,7 +17,10 @@ class GmailScanModule {}
 
 let ctx: Awaited<ReturnType<typeof NestFactory.createApplicationContext>> | undefined;
 
-export const handler: Handler = async () => {
+// The scheduler sends an empty event. Invoking by hand with {"debug": true}
+// returns a per-message trace of what the scanner saw and decided — the AWS
+// replacement for the old `POST /gmail-scan?debug=1` Supabase function.
+export const handler: Handler = async (event?: { debug?: boolean }) => {
   if (!ctx) {
     // Same SSM secret hydration as the HTTP lambdas (bootstrap.ts): must run
     // before the Nest context — and its ConfigModule — initializes.
@@ -27,6 +30,6 @@ export const handler: Handler = async () => {
     });
   }
   const scan = ctx.get(ScanService, { strict: false });
-  const result = await scan.scanAll();
+  const result = await scan.scanAll({ debug: !!event?.debug });
   return { ok: true, ...result };
 };

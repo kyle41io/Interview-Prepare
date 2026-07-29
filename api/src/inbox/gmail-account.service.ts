@@ -42,9 +42,9 @@ export class GmailAccountService {
     return { connected: false };
   }
   // Scan (T4) uses these — Scan is acceptable: the account count is small.
-  async listActiveAccounts(): Promise<Array<{ userId: string; refresh_token: string }>> {
+  async listActiveAccounts(): Promise<Array<{ userId: string; refresh_token: string; email: string | null }>> {
     const r = await this.dyn.doc.send(new ScanCommand({ TableName: this.t(), FilterExpression: "sk = :s AND active = :t", ExpressionAttributeValues: { ":s": GMAIL_ACCOUNT_SK, ":t": true } }));
-    return ((r.Items || []) as any[]).map((it) => ({ userId: String(it.pk).replace(/^USER#/, ""), refresh_token: it.refresh_token }));
+    return ((r.Items || []) as any[]).map((it) => ({ userId: String(it.pk).replace(/^USER#/, ""), refresh_token: it.refresh_token, email: it.email ?? null }));
   }
   async setLastScan(userId: string) {
     await this.dyn.doc.send(new UpdateCommand({ TableName: this.t(), Key: { pk: userPk(userId), sk: GMAIL_ACCOUNT_SK }, UpdateExpression: "SET last_scan = :n", ExpressionAttributeValues: { ":n": new Date().toISOString() } }));

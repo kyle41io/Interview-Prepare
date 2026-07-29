@@ -26,10 +26,15 @@ export class GoogleService {
     if (!r.ok) return null;
     return (await r.json()).access_token || null;
   }
+  // The Gmail search the scanner runs. Exposed so a debug scan can report which
+  // window it looked at — "no messages" and "wrong query" look identical otherwise.
+  recentQuery(): string {
+    return this.config.get<string>("GMAIL_QUERY") || "newer_than:2d in:inbox";
+  }
   // Returns [{ id }]; mock yields a canned recruiting message.
   async listRecent(access: string): Promise<Array<{ id: string }>> {
     if (this.mock()) return [{ id: "mock-msg-1" }];
-    const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent("newer_than:2d in:inbox") + "&maxResults=20", { headers: { Authorization: "Bearer " + access } });
+    const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=" + encodeURIComponent(this.recentQuery()) + "&maxResults=20", { headers: { Authorization: "Bearer " + access } });
     if (!r.ok) return [];
     return ((await r.json()).messages || []).map((m: any) => ({ id: m.id }));
   }

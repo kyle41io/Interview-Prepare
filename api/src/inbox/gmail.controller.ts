@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
 import { GmailAccountService } from "./gmail-account.service";
@@ -18,5 +18,7 @@ export class GmailController {
   }
   @Get("status") @UseGuards(JwtAuthGuard) status(@CurrentUser() u: AuthUser) { return this.accounts.status(u.id); }
   @Post("disconnect") @UseGuards(JwtAuthGuard) disconnect(@CurrentUser() u: AuthUser) { return this.accounts.disconnect(u.id); }
-  @Post("scan") @UseGuards(CronGuard) scan() { return this.scan_.scanAll(); }
+  // ?debug=1 returns the per-message trace (subjects included), so it stays
+  // behind CronGuard like the scan itself.
+  @Post("scan") @UseGuards(CronGuard) scan(@Query("debug") debug?: string) { return this.scan_.scanAll({ debug: debug === "1" || debug === "true" }); }
 }
