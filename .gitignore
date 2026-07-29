@@ -17,4 +17,6 @@ supabase/seed/cron_gmail.local.sql
 docs/
 
 # Learning content authoring sources — served from private S3, never committed.
-content/
+# Anchored to repo root: an unanchored "content/" also matched api/src/content/,
+# the NestJS module that serves this content, silently blocking it from git add.
+/content/
