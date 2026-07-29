@@ -7,6 +7,7 @@ locals {
     billing    = ["billing"]
     chat       = ["chat", "billing"]
     inbox      = ["inbox", "chat"] # inbox classify reuses chat provider/usage
+    content    = []                # content keeps its data in S3, not DynamoDB
     gmail-scan = ["inbox", "chat"]
   }
   # Only these functions Scan the inbox table (gmail-account.service.ts
@@ -49,24 +50,29 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
 data "aws_iam_policy_document" "lambda_scoped" {
   for_each = local.fn_tables
 
-  statement {
-    sid    = "Ddb"
-    effect = "Allow"
-    actions = concat(
-      [
-        "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-        "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchGetItem",
-        "dynamodb:BatchWriteItem",
-      ],
-      contains(local.scan_fns, each.key) ? ["dynamodb:Scan"] : [],
-    )
-    resources = concat(
-      [for t in each.value : aws_dynamodb_table.tables[t].arn],
-      # Only the "billing" table has a GSI (status-index); scope the
-      # /index/* resource ARN to it alone so other roles don't get an
-      # index-wildcard grant they have no use for.
-      [for t in each.value : "${aws_dynamodb_table.tables[t].arn}/index/*" if t == "billing"],
-    )
+  # content keeps its data in S3 and gets no table grant at all. An empty
+  # resources list is an invalid statement, so skip the whole block for it.
+  dynamic "statement" {
+    for_each = length(each.value) > 0 ? [1] : []
+    content {
+      sid    = "Ddb"
+      effect = "Allow"
+      actions = concat(
+        [
+          "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+        ],
+        contains(local.scan_fns, each.key) ? ["dynamodb:Scan"] : [],
+      )
+      resources = concat(
+        [for t in each.value : aws_dynamodb_table.tables[t].arn],
+        # Only the "billing" table has a GSI (status-index); scope the
+        # /index/* resource ARN to it alone so other roles don't get an
+        # index-wildcard grant they have no use for.
+        [for t in each.value : "${aws_dynamodb_table.tables[t].arn}/index/*" if t == "billing"],
+      )
+    }
   }
 
   statement {
@@ -89,6 +95,71 @@ resource "aws_iam_role_policy" "lambda_scoped" {
   name     = "${var.project}-${each.key}-scoped"
   role     = aws_iam_role.lambda[each.key].id
   policy   = data.aws_iam_policy_document.lambda_scoped[each.key].json
+}
+
+# Read-only: this is a public-facing path that physically cannot mutate
+# content. Writes only ever exist on the seeder user below.
+#
+# ListBucket is deliberately included alongside GetObject even though the
+# content function only ever reads objects, not the bucket listing. Without
+# it, S3 returns 403 AccessDenied instead of 404 NotFound for a missing key,
+# so the service's empty-bundle branch never fires and the dashboard would
+# 500 during the window between deploying this infra and seeding the
+# bucket. PutObject/DeleteObject stay off this role.
+data "aws_iam_policy_document" "content_read" {
+  statement {
+    sid       = "ContentGetObject"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.content.arn}/*"]
+  }
+
+  statement {
+    sid       = "ContentListBucket"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.content.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "content_read" {
+  name   = "${var.project}-content-read"
+  role   = aws_iam_role.lambda["content"].id
+  policy = data.aws_iam_policy_document.content_read.json
+}
+
+# Content pushes run locally; there's no CI job to federate, so no OIDC path
+# is available and a long-lived key is unavoidable here. Blast radius is one
+# bucket. ListBucket/ListBucketVersions is not for diffing uploads -- the push
+# script writes each object with PutObject (api/scripts/content-push.mjs) and
+# never lists. It is granted for the same reason the read role gets it: without
+# ListBucket, S3 answers 403 AccessDenied rather than 404 NotFound for a key
+# that does not exist, which makes "is this already pushed?" unanswerable.
+# The authoring sources it uploads are git-ignored (see .gitignore).
+resource "aws_iam_user" "content_seeder" {
+  name = "${var.project}-content-seeder"
+}
+
+data "aws_iam_policy_document" "content_seeder" {
+  statement {
+    sid       = "ContentWrite"
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"]
+    resources = ["${aws_s3_bucket.content.arn}/*"]
+  }
+
+  statement {
+    sid       = "ContentList"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket", "s3:ListBucketVersions"]
+    resources = [aws_s3_bucket.content.arn]
+  }
+}
+
+resource "aws_iam_user_policy" "content_seeder" {
+  name   = "${var.project}-content-seeder"
+  user   = aws_iam_user.content_seeder.name
+  policy = data.aws_iam_policy_document.content_seeder.json
 }
 
 # --- GitHub OIDC deploy role ---

@@ -11,6 +11,14 @@ locals {
     "/v1/gmail"         = "inbox"
     "/v1/reminders"     = "inbox"
   }
+
+  # content isn't a domain prefix like the ones above: it's a single exact
+  # path, GET-only, with no sibling methods and no {proxy+} child, so it
+  # deliberately doesn't go through the routes/path_keys/route_keys
+  # generator below (that generator would also mint POST/PUT/DELETE and a
+  # proxy route for it). The integration and Lambda permission are still
+  # driven off this same set of function keys so content shares that wiring.
+  api_functions = toset(concat(values(local.routes), ["content"]))
 }
 
 # CloudFront is the canonical (and now only) frontend: GitHub Pages publishing
@@ -36,7 +44,7 @@ resource "aws_apigatewayv2_api" "http" {
 }
 
 resource "aws_apigatewayv2_integration" "fn" {
-  for_each               = toset(values(local.routes))
+  for_each               = local.api_functions
   api_id                 = aws_apigatewayv2_api.http.id
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.fn[each.value].invoke_arn
@@ -73,6 +81,16 @@ resource "aws_apigatewayv2_route" "r" {
   target    = "integrations/${aws_apigatewayv2_integration.fn[each.value].id}"
 }
 
+# GET only; OPTIONS is deliberately left unrouted so API Gateway keeps
+# answering the CORS preflight itself. An ANY route here would shadow that
+# and break every authenticated call with an opaque network error (see the
+# comment above local.http_methods).
+resource "aws_apigatewayv2_route" "content_bundle" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "GET /v1/content/bundle"
+  target    = "integrations/${aws_apigatewayv2_integration.fn["content"].id}"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http.id
   name        = "$default"
@@ -80,7 +98,7 @@ resource "aws_apigatewayv2_stage" "default" {
 }
 
 resource "aws_lambda_permission" "apigw" {
-  for_each      = toset(values(local.routes))
+  for_each      = local.api_functions
   statement_id  = "AllowAPIGW-${each.value}"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.fn[each.value].function_name
