@@ -69,35 +69,14 @@
     _cbs.push(cb);
   }
 
-  function _apiOn() {
-    var a = root.IP && root.IP.api;
-    return !!(a && a.configured && a.configured());
-  }
-
-  /* Stateful: send a chat message; routes through IP.api when configured,
-     else falls back to the Supabase edge fn (accesses root.IP.auth.client() at call time only) */
+  /* Stateful: send a chat message through the API. The user turn is pushed
+     optimistically so the UI can render it immediately, and popped again if the
+     request fails. */
   async function send(text) {
     _hist.push({ role: "user", content: text });
     _emit();
     try {
-      var data;
-      if (_apiOn()) {
-        data = await root.IP.api.post("/v1/chat", { messages: truncateHistory(_hist, 10, 4000) });
-      } else {
-        var c = root.IP && root.IP.auth ? root.IP.auth.client() : null;
-        if (!c) {
-          _hist.pop();
-          _emit();
-          return { error: "not-signed-in" };
-        }
-        var res = await c.functions.invoke("chat", { body: { messages: truncateHistory(_hist, 10, 4000) } });
-        if (res.error || !res.data || res.data.error) {
-          _hist.pop();
-          _emit();
-          return { error: (res.data && res.data.error) || (res.error && res.error.message) || "error" };
-        }
-        data = res.data;
-      }
+      var data = await root.IP.api.post("/v1/chat", { messages: truncateHistory(_hist, 10, 4000) });
       _hist.push({ role: "assistant", content: data.text });
       _emit();
       return { text: data.text, remaining: data.remaining };
