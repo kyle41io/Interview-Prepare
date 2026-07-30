@@ -2,16 +2,19 @@
    Interview Prep — Design System
    ============================================================ */
 :root{
-  --bg:#0d1117;
-  --bg2:#0a0e14;
-  --panel:#161b22;
-  --panel2:#1c2330;
-  --panel3:#222b39;
-  --line:#2d3748;
-  --line2:#384356;
-  --txt:#e6edf3;
-  --muted:#9aa7b5;
-  --muted2:#6e7d8f;
+  /* Dark surfaces are warm neutral greys (Facebook's dark mode), not the
+     blue-black they used to be: a cool near-black made the body text read grey
+     and muddy. Text sits brighter than before so long sections stay readable. */
+  --bg:#18191a;
+  --bg2:#0f1011;
+  --panel:#242526;
+  --panel2:#2d2e30;
+  --panel3:#37383a;
+  --line:#3a3b3d;
+  --line2:#4a4b4d;
+  --txt:#f2f3f5;
+  --muted:#b6bac1;
+  --muted2:#8d9198;
   --accent:#58a6ff;
   --accent-d:#1f6feb;
   --green:#3fb950;
@@ -60,8 +63,8 @@ body{
 }
 html[data-theme="dark"] body{
   background:
-    radial-gradient(1100px 700px at 88% -12%, #1b2a4a44, transparent),
-    radial-gradient(900px 700px at -10% 8%, #3b1b4a33, transparent),
+    radial-gradient(1100px 700px at 88% -12%, #2b2d3a55, transparent),
+    radial-gradient(900px 700px at -10% 8%, #3a302b44, transparent),
     var(--bg);
 }
 a{color:var(--accent);text-decoration:none}
@@ -370,9 +373,9 @@ pre.code code{color:var(--txt);white-space:pre}
 .fc-face{
   position:absolute;inset:0;backface-visibility:hidden;border-radius:18px;padding:30px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  border:1px solid #2d3748;color:#e6edf3;
+  border:1px solid #3a3b3d;color:#f2f3f5;
 }
-.fc-front{background:linear-gradient(135deg,#161b22,#1c2330)}
+.fc-front{background:linear-gradient(135deg,#242526,#2d2e30)}
 .fc-back{background:linear-gradient(135deg,#15233a,#1a2f4a);transform:rotateY(180deg);overflow-y:auto}
 .fc-face .fc-topic{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#58a6ff;font-weight:700}
 .fc-face .fc-q{font-size:21px;font-weight:700;line-height:1.4}

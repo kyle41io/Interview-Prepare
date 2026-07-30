@@ -6,7 +6,7 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   "use strict";
-  const META = { dark: "#0d1117", light: "#f4f5f8" };
+  const META = { dark: "#18191a", light: "#f4f5f8" };   // must track --bg in styles.css
 
   // pure
   function resolve(pref, prefersDark) {
