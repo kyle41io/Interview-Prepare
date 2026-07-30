@@ -33,8 +33,30 @@ export function validateTopic(t) {
    makes. */
 const KINDS = ["flow", "sequence", "layers", "bars"];
 
+/* Measured, not guessed: at the lane label's type size a character costs ~7.3
+   viewBox units, and the budget is the 98-unit row pitch less a 10-unit gap. */
+const LANE_LABEL_MAX = 12;
+
+/* Edge labels measure ~6.4 units per character, 7.4 for the widest glyphs, so
+   these divide the run each route type offers (GAP.x = 56 between adjacent
+   boxes; ~28 across half a gutter for an elbow; ~208 centre-to-centre for a
+   detour below the row or a hop between rows) by 7. */
+const EDGE_LABEL = { forward: 8, elbow: 4, loose: 28 };
+
 function bilingual(node) {
   return !!(node && typeof node === "object" && node.vi && node.en);
+}
+
+/* Labels are injected as innerHTML so a few inline tags can be used for emphasis.
+   The trap is that anything else shaped like a tag is swallowed silently by the
+   parser: a node labelled "<App>" renders as an empty box, and "Array<T>" loses
+   its type. Angle brackets meant as text have to be written &lt; and &gt;. */
+const INLINE_OK = /^\/?(?:b|i|em|strong|code|br|small|sub|sup)$/i;
+
+function swallowedTags(text) {
+  return [...String(text).matchAll(/<\s*([A-Za-z][A-Za-z0-9]*)/g)]
+    .map((m) => m[1])
+    .filter((tag) => !INLINE_OK.test(tag));
 }
 
 export function validateDiagrams(t) {
@@ -49,7 +71,40 @@ export function validateDiagrams(t) {
       if (!bilingual(b.title)) bad("title must have vi and en");
       if (b.caption && !bilingual(b.caption)) bad("caption must have vi and en");
 
+      /* Sweep every short display string for angle brackets the HTML parser would
+         eat. Details and captions are prose where real markup belongs, so they are
+         left alone; labels and subs are the ones that vanish. */
+      const shown = [b.nodes, b.layers, b.items, b.actors].filter(Array.isArray).flat()
+        .flatMap((n) => [["label", n?.label], ["sub", n?.sub], ["display", n?.display]])
+        .concat((b.lanes || []).map((l) => ["lane label", l?.label]))
+        .concat((b.edges || []).map((e) => ["edge label", e?.label]))
+        .concat((b.messages || []).map((m) => ["message label", m?.label]));
+      shown.forEach(([what, val]) => {
+        if (!val || typeof val !== "object") return;
+        ["vi", "en"].forEach((lg) => {
+          const tags = val[lg] ? swallowedTags(val[lg]) : [];
+          if (tags.length) {
+            bad(`${what}.${lg} ("${val[lg]}") contains <${tags[0]}>, which the HTML ` +
+              `parser will swallow — write &lt;${tags[0]}&gt; to show it as text`);
+          }
+        });
+      });
+
       if (b.kind === "flow") {
+        /* A lane label is drawn rotated -90, so its length runs down the figure
+           and has to fit the row pitch (NODE.h + GAP.y = 98 viewBox units).
+           Two lanes on adjacent rows with long labels overlap into each other,
+           which is invisible here and only shows up as mush in the gutter. */
+        (b.lanes || []).forEach((l, i) => {
+          if (!bilingual(l?.label)) return bad(`lanes[${i}].label must have vi and en`);
+          ["vi", "en"].forEach((lg) => {
+            if (l.label[lg].length > LANE_LABEL_MAX) {
+              bad(`lanes[${i}].label.${lg} is ${l.label[lg].length} chars; ` +
+                `max ${LANE_LABEL_MAX} — it is drawn sideways and would run into the next lane`);
+            }
+          });
+        });
+
         const nodes = b.nodes || [];
         if (!nodes.length) bad("no nodes");
         const ids = new Set(), cells = new Set();
@@ -63,9 +118,34 @@ export function validateDiagrams(t) {
           if (cells.has(cell)) bad(`node "${n.id}" shares cell ${cell}`);
           cells.add(cell);
         });
+        const at = new Map(nodes.filter((n) => n?.id).map((n) => [n.id, n]));
         (b.edges || []).forEach((e, i) => {
           if (!ids.has(e?.from)) bad(`edges[${i}].from "${e?.from}" is not a node`);
           if (!ids.has(e?.to)) bad(`edges[${i}].to "${e?.to}" is not a node`);
+          if (!e?.label) return;
+          if (!bilingual(e.label)) return bad(`edges[${i}].label must have vi and en`);
+
+          /* Edge labels are painted before the node boxes, so anything wider
+             than the straight run it sits on slides underneath a box and is
+             simply lost. How much run there is depends on how the edge routes
+             (see route() in diagram.js), so the budget does too. */
+          const a = at.get(e.from), z = at.get(e.to);
+          if (!a || !z) return;
+          const sameRow = (a.row || 0) === (z.row || 0), sameCol = (a.col || 0) === (z.col || 0);
+          const cap = sameRow && !sameCol
+            ? ((z.col || 0) > (a.col || 0) ? EDGE_LABEL.forward : EDGE_LABEL.loose)
+            : sameCol && !sameRow ? EDGE_LABEL.loose : EDGE_LABEL.elbow;
+          const why = cap === EDGE_LABEL.elbow
+            ? "this edge turns a corner, so it only has half a gutter to sit on"
+            : cap === EDGE_LABEL.forward
+              ? "it sits in the gap between two boxes"
+              : "it runs below the row";
+          ["vi", "en"].forEach((lg) => {
+            if (e.label[lg].length > cap) {
+              bad(`edges[${i}].label.${lg} ("${e.label[lg]}") is ${e.label[lg].length} chars; ` +
+                `max ${cap} — ${why}. Move the detail into a node detail or a step.`);
+            }
+          });
         });
         (b.steps || []).forEach((st, i) => {
           if (!bilingual(st?.text)) bad(`steps[${i}].text must have vi and en`);

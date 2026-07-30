@@ -14,7 +14,13 @@
   --line2:#4a4b4d;
   --txt:#f2f3f5;
   --muted:#b6bac1;
-  --muted2:#8d9198;
+  /* --muted2 carries the smallest secondary text in the app: figure captions,
+     code captions, card meta, scale notes. It was #8d9198, which measured only
+     4.30:1 against --panel2 — under WCAG AA's 4.5:1, and none of those sizes
+     qualify for the large-text exemption. Lightened until the worst surface it
+     is drawn on clears 4.5, while staying dimmer than --muted so the two-tier
+     hierarchy still reads. */
+  --muted2:#969aa1;
   --accent:#58a6ff;
   --accent-d:#1f6feb;
   --green:#3fb950;
@@ -45,7 +51,9 @@
 /* default :root above = DARK palette. data-theme makes it explicit. */
 html[data-theme="light"]{
   --bg:#f4f5f8; --bg2:#eceef3; --panel:#ffffff; --panel2:#f3f5f9; --panel3:#e9edf3;
-  --line:#e1e5ec; --line2:#d3d9e3; --txt:#1f2430; --muted:#5b6472; --muted2:#7c8694;
+  /* --muted2 was #7c8694 — 3.38:1 on --panel2, well under AA. Darkened to clear
+     4.5 on every surface it lands on (see the dark-mode note above). */
+  --line:#e1e5ec; --line2:#d3d9e3; --txt:#1f2430; --muted:#5b6472; --muted2:#656e7b;
   --accent:#4f46e5; --accent-d:#4338ca; --green:#0f9d58; --orange:#d97706;
   --purple:#7c3aed; --pink:#db2777; --yellow:#b45309; --red:#dc2626; --cyan:#0891b2;
   --shadow:0 10px 30px #1f243018;
@@ -276,18 +284,38 @@ pre.code code{color:var(--txt);white-space:pre}
 .dg-t-gold{--dg:var(--gold)}
 .dg-t-muted{--dg:var(--muted2)}
 
+/* A figure is a set piece, not another paragraph: it gets more air above and
+   below than the prose blocks around it, so the eye reads it as one object. */
 .dg{
-  margin:18px 0;padding:14px 16px 12px;
+  margin:26px 0;padding:14px 16px 12px;
   background:var(--panel2);border:1px solid var(--line);border-radius:12px;
 }
+/* flex-start, not center: these titles are full sentences and wrap to two or
+   three lines on a phone, where a centred tick floats in the middle of the
+   block instead of marking where the title starts. */
 .dg-title{
-  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+  display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;
   font-size:12px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);
+  line-height:1.45;
 }
-.dg-title::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--accent)}
+.dg-title::before{
+  content:"";flex-shrink:0;width:3px;height:13px;margin-top:2px;border-radius:2px;background:var(--accent);
+}
 /* The picture scales as a unit; below a legibility floor it scrolls instead of
-   shrinking further. Both bounds are inline on the <svg>, from its viewBox. */
-.dg-scroll{overflow-x:auto;overflow-y:hidden;padding-bottom:2px}
+   shrinking further. Both bounds are inline on the <svg>, from its viewBox.
+   The two gradient pairs are the classic scroll-shadow trick: the fixed pair
+   paints the fade, the local pair scrolls in to mask it, so a shadow appears on
+   exactly the sides that still have content off-screen — no JS, and nothing at
+   all when the figure fits. */
+.dg-scroll{
+  overflow-x:auto;overflow-y:hidden;padding-bottom:2px;overscroll-behavior-x:contain;
+  background:
+    linear-gradient(to right,var(--panel2),transparent) left center/22px 100% no-repeat,
+    linear-gradient(to left,var(--panel2),transparent) right center/22px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%,color-mix(in srgb,var(--txt) 16%,transparent),transparent) left center/9px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%,color-mix(in srgb,var(--txt) 16%,transparent),transparent) right center/9px 100% no-repeat;
+  background-attachment:local,local,scroll,scroll;
+}
 .dg-svg{display:block;width:100%;height:auto;margin:0 auto}  /* narrow figures centre */
 .dg-caption{margin-top:11px;font-size:12.5px;color:var(--muted2);line-height:1.55}
 
@@ -301,10 +329,18 @@ pre.code code{color:var(--txt);white-space:pre}
   fill:var(--muted);font-size:10.5px;font-weight:600;
   paint-order:stroke;stroke:var(--panel2);stroke-width:3.5px;stroke-linejoin:round;
 }
+/* Edge labels paint after the boxes, so they would otherwise sit in front of a
+   node's click target and swallow taps meant for the box behind them. */
+.dg-elabel{pointer-events:none}
 .dg-elabel{text-anchor:middle}   /* .dg-mlabel sets its own, per message shape */
+
 .dg-lane rect{fill:color-mix(in srgb,var(--panel3) 55%,transparent)}
+/* Rotated -90, so this label's length runs down the diagram and its budget is
+   the row pitch (NODE.h + GAP.y = 98 units), not the diagram width. Generous
+   letter-spacing spent that budget fast enough for two adjacent lanes to
+   collide, so it is tighter here and capped in validateDiagrams(). */
 .dg-lane text{
-  fill:var(--muted2);font-size:9.5px;font-weight:700;letter-spacing:1.2px;
+  fill:var(--muted2);font-size:9.5px;font-weight:700;letter-spacing:.6px;
   text-transform:uppercase;text-anchor:middle;
 }
 .dg-life{stroke:var(--line2);stroke-width:1.2;stroke-dasharray:4 5}
@@ -332,9 +368,30 @@ pre.code code{color:var(--txt);white-space:pre}
 }
 
 /* ---- shared interaction states ---- */
-.dg-has-detail{cursor:pointer}
+.dg-has-detail{cursor:pointer;position:relative}
 .dg-node,.dg-layer,.dg-bar-row{transition:opacity .18s ease,box-shadow .14s ease,background .14s ease}
 .dg-has-detail:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--dg) 24%,transparent)}
+/* Hover is the wrong place to first learn a block is clickable — half the
+   audience is on a touch screen and never hovers. A dot in the corner says
+   "there is more behind this" while the picture is still at rest, and it is
+   quiet enough not to compete with the label. */
+.dg-has-detail::after{
+  content:"";position:absolute;top:5px;right:5px;width:4px;height:4px;border-radius:50%;
+  background:color-mix(in srgb,var(--dg) 85%,transparent);opacity:.75;transition:opacity .14s ease;
+}
+.dg-has-detail:hover::after,.dg-has-detail.sel::after{opacity:0}
+/* A flow box has empty corners to put the dot in; a stack row and a bar row end
+   in right-aligned text, so they have to reserve a lane for it — otherwise the
+   dot lands three pixels off the last glyph and reads as stray punctuation. */
+.dg-layer.dg-has-detail,.dg-bar-row.dg-has-detail{padding-right:22px}
+.dg-layer.dg-has-detail::after,.dg-bar-row.dg-has-detail::after{top:50%;right:9px;margin-top:-2px}
+.dg-more{fill:color-mix(in srgb,var(--accent) 80%,transparent);pointer-events:none}
+/* Keyboard users get the same emphasis the mouse gets, plus a ring that reads
+   against any tone. Blocks are role="button" and tabbable, so this is not
+   optional decoration. */
+.dg-has-detail:focus-visible,.dg-hit:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
 .dg-node.sel,.dg-layer.sel{
   box-shadow:0 0 0 3px color-mix(in srgb,var(--dg) 45%,transparent);
   background:color-mix(in srgb,var(--dg) 24%,var(--panel));
@@ -359,18 +416,32 @@ pre.code code{color:var(--txt);white-space:pre}
   flex-shrink:0;min-width:32px;text-align:center;font-size:11.5px;font-weight:800;
   color:var(--muted2);font-variant-numeric:tabular-nums;
 }
+/* A rail of dots answers "how far in, how much left" without being read. Past
+   DOT_MAX steps the renderer emits .dg-sn instead, because countable stops
+   being true. */
+.dg-dots{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:0 2px}
+.dg-dots i{
+  width:6px;height:6px;border-radius:50%;background:var(--line2);
+  transition:background .16s ease,transform .16s ease;
+}
+.dg-dots i.done{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+.dg-dots i.on{background:var(--accent);transform:scale(1.45)}
 .dg-stext{flex:1;font-size:13px;line-height:1.5;color:var(--txt)}
 .dg-step{display:none}
 .dg-step.on{display:inline}
 
 /* ---- detail panels (one visible at a time, incl. the initial hint) ---- */
+/* Notes run from two lines to eight, so no reserved height can hold the page
+   still — a min-height would only absorb the smallest swaps while padding every
+   figure with dead space. The fade below softens the reflow instead. */
 .dg-details{margin-top:11px}
 .dg-detail{
   display:none;font-size:13.5px;line-height:1.6;color:var(--txt);
   background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
   border-radius:8px;padding:10px 13px;
 }
-.dg-detail.on{display:block}
+.dg-detail.on{display:block;animation:dg-note .18s ease both}
+@keyframes dg-note{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
 .dg-detail.dg-hint{
   background:transparent;border-style:dashed;border-left-color:var(--line2);
   color:var(--muted2);font-size:12.5px;
@@ -407,9 +478,19 @@ pre.code code{color:var(--txt);white-space:pre}
 .dg-scale-note{margin-top:8px;font-size:11.5px;color:var(--muted2)}
 
 @media(max-width:700px){
-  .dg{padding:12px 11px 11px}
+  .dg{margin:20px 0;padding:12px 11px 11px}
   .dg-bar-row{grid-template-columns:minmax(84px,1fr) minmax(0,2fr) auto;gap:8px;font-size:12.5px}
   .dg-l-sub{display:none}   /* the stack labels matter more than their asides */
+  /* A wide figure has to be dragged sideways here, so the controls below it are
+     the one fixed thing on screen — wrap the step text under the rail rather
+     than squeezing it into a column three words wide. */
+  .dg-walk{flex-wrap:wrap}
+  .dg-stext{flex:1 0 100%;order:3;margin-top:2px}
+  .dg-layer{padding:9px 10px;font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){
+  .dg-node,.dg-layer,.dg-bar-row,.dg-dots i{transition:none}
+  .dg-detail.on{animation:none}
 }
 
 /* mark as learned bar */

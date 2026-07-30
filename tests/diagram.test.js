@@ -218,6 +218,70 @@ test("flow tags each node with the walkthrough steps it belongs to", () => {
   assert.match(html, /data-dg-i="1"[^>]*>Step 1</);
 });
 
+/* The walkthrough gauge: a countable rail of dots, or a numeric counter once the
+   dots stop being countable. walk() drives whichever one it finds. */
+
+test("the walkthrough shows one dot per step and no numeric counter", () => {
+  const html = diagram.render(FLOW, { lang: "en" });
+  assert.match(html, /<span class="dg-dots" aria-hidden="true">/);
+  assert.strictEqual((html.match(/data-dg-dot="\d+"/g) || []).length, 2);
+  assert.ok(!html.includes('class="dg-sn"'), "two steps is countable, so no numeric fallback");
+});
+
+test("past six steps the rail gives way to a numeric counter", () => {
+  const many = { ...FLOW, steps: Array.from({ length: 7 }, () => ({ nodes: ["cdn"], text: { vi: "b", en: "s" } })) };
+  const html = diagram.render(many, { lang: "en" });
+  assert.match(html, /<span class="dg-sn">—<\/span>/);
+  assert.ok(!html.includes("data-dg-dot"), "seven dots would not be countable");
+});
+
+/* A stub standing in for the rendered figure: walk() only ever reads the step
+   attributes and toggles classes, so this is the whole surface it touches. */
+function stubFigure(total) {
+  const el = (attr, val) => ({
+    cls: new Set(),
+    getAttribute: (n) => (n === attr ? val : null),
+    classList: { toggle(c, on) { on ? this.cls.add(c) : this.cls.delete(c); } },
+  });
+  const fix = (e) => { e.classList.cls = e.cls; return e; };
+  const dots = Array.from({ length: total }, (_, i) => fix(el("data-dg-dot", String(i + 1))));
+  const attrs = { "data-dg-total": String(total), "data-dg-step": "0" };
+  return {
+    dots,
+    getAttribute: (n) => attrs[n],
+    setAttribute: (n, v) => { attrs[n] = v; },
+    querySelector: () => null,
+    querySelectorAll: (sel) => (sel === "[data-dg-dot]" ? dots : []),
+  };
+}
+const dotState = (fig) => fig.dots.map((d) => [...d.cls].sort());
+
+test("walk lights the current dot and marks the ones already walked", () => {
+  const fig = stubFigure(3);
+  diagram.walk(fig, 1);
+  assert.deepStrictEqual(dotState(fig), [["on"], [], []], "step 1 is current, none past");
+  diagram.walk(fig, 1);
+  assert.deepStrictEqual(dotState(fig), [["done"], ["on"], []], "step 2 current, step 1 past");
+  diagram.walk(fig, 5);
+  assert.deepStrictEqual(dotState(fig), [["done"], ["done"], ["on"]], "clamped at the last step");
+  diagram.walk(fig, -9);
+  assert.deepStrictEqual(dotState(fig), [[], [], []], "the overview lights nothing");
+});
+
+test("a sequence row with a note carries a margin dot, because a hit strip cannot be hovered on touch", () => {
+  const html = diagram.render({
+    kind: "sequence", title: { vi: "t", en: "t" },
+    actors: [{ id: "c", label: { vi: "C", en: "C" } }, { id: "s", label: { vi: "S", en: "S" } }],
+    messages: [
+      { id: "a", from: "c", to: "s", label: { vi: "1", en: "1" }, detail: { vi: "x", en: "x" } },
+      { from: "s", to: "c", label: { vi: "2", en: "2" } },
+      { id: "b", from: "c", to: "s", label: { vi: "3", en: "3" }, detail: { vi: "y", en: "y" } },
+    ],
+  }, { lang: "en" });
+  assert.strictEqual((html.match(/class="dg-more"/g) || []).length, 2, "one per message with a note");
+  assert.strictEqual((html.match(/class="dg-hit"/g) || []).length, 2);
+});
+
 test("the diagram renders in the requested language", () => {
   const vi = diagram.render(FLOW, { lang: "vi" });
   assert.match(vi, /Luồng yêu cầu/);

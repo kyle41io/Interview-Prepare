@@ -238,19 +238,29 @@
     const paths = deconflict(edges.map((e) => route(boxes[e.from], boxes[e.to])));
 
     const edgeSvg = edges.map((e, i) => {
-      const pts = paths[i];
-      const label = pick(e.label, ctx.lang);
       const cls = "dg-edge" + (e.dashed ? " dashed" : "");
-      const at = labelAt(pts);
-      return `<path class="${cls}" d="${roundedPath(pts, CORNER)}" marker-end="url(#dg-a${uid})"/>` +
-        (label ? `<text class="dg-elabel" x="${at.x}" y="${at.y}">${esc(label)}</text>` : "");
+      return `<path class="${cls}" d="${roundedPath(paths[i], CORNER)}" marker-end="url(#dg-a${uid})"/>`;
+    }).join("");
+
+    /* Labels are split out from their paths so they can be painted last. The run
+       an edge label sits on is only as wide as the gutter, and the widest glyphs
+       cost more per character than validateDiagrams() can predict exactly — so a
+       label sized right at the budget may still overhang a box by a unit or two.
+       Painted after the boxes, its panel-coloured halo keeps it readable instead
+       of it disappearing underneath. Grossly long labels are still a spec bug,
+       which is what the budget in validateDiagrams() is for. */
+    const labelSvg = edges.map((e, i) => {
+      const label = pick(e.label, ctx.lang);
+      if (!label) return "";
+      const at = labelAt(paths[i]);
+      return `<text class="dg-elabel" x="${at.x}" y="${at.y}">${esc(label)}</text>`;
     }).join("");
 
     const nodeSvg = nodes.map((n) => nodeHtml(n, boxes[n.id], ctx, stepsOf)).join("");
 
-    // Lanes first, then edges, then boxes: each layer covers the one before.
+    // Lanes, then edges, then boxes, then edge labels on top of all of it.
     return svgOpen(width, height, pick(spec.title, ctx.lang), uid) +
-      laneSvg + edgeSvg + nodeSvg + `</svg>`;
+      laneSvg + edgeSvg + nodeSvg + labelSvg + `</svg>`;
   }
 
   /* ---------- sequence: lifelines and numbered messages ---------- */
@@ -292,10 +302,13 @@
         tx = r1((from + to) / 2); anchor = "middle";
       }
       // A full-width hit strip: clicking anywhere on the row opens its note,
-      // which is a far kinder target than a 1px arrow.
+      // which is a far kinder target than a 1px arrow. The strip is invisible
+      // until hovered, so a dot in the margin is what says "there is more here"
+      // on a touch screen, where hover never happens.
       const hit = detail
         ? `<rect class="dg-hit" data-dg-detail="${esc(m.id || "m" + i)}" x="${PAD}" y="${r1(y - MSG_Y / 2)}" ` +
-          `width="${r1(width - PAD * 2)}" height="${MSG_Y}" rx="8" role="button" tabindex="0"/>`
+          `width="${r1(width - PAD * 2)}" height="${MSG_Y}" rx="8" role="button" tabindex="0"/>` +
+          `<circle class="dg-more" cx="${PAD + 4}" cy="${r1(y - 4)}" r="2.5"/>`
         : "";
       return hit +
         `<path class="${cls}" d="${path}" marker-end="url(#dg-a${uid})"/>` +
@@ -381,6 +394,11 @@
       `<div class="dg-detail dg-hint on">${esc(pick(hint, ctx.lang))}</div>${panels}</div>`;
   }
 
+  /* A dot rail reads position at a glance, but it stops being legible once the
+     dots outnumber what the eye can count, so past that it falls back to the
+     numeric counter. Either way `walk()` updates whichever one is present. */
+  const DOT_MAX = 6;
+
   function walkHtml(spec, ctx) {
     const steps = spec.steps || [];
     if (!steps.length) return "";
@@ -388,11 +406,15 @@
     const texts = [`<span class="dg-step on" data-dg-i="0">${esc(pick(overview, ctx.lang))}</span>`]
       .concat(steps.map((s, i) => `<span class="dg-step" data-dg-i="${i + 1}">${pick(s.text, ctx.lang)}</span>`))
       .join("");
+    const gauge = steps.length <= DOT_MAX
+      ? `<span class="dg-dots" aria-hidden="true">` +
+        steps.map((s, i) => `<i data-dg-dot="${i + 1}"></i>`).join("") + `</span>`
+      : `<span class="dg-sn">—</span>`;
     return `<div class="dg-walk">` +
       `<button class="dg-sbtn" data-dg-walk="-1" aria-label="previous">◀</button>` +
-      `<span class="dg-sn">—</span>` +
+      gauge +
       `<button class="dg-sbtn" data-dg-walk="1" aria-label="next">▶</button>` +
-      `<span class="dg-stext">${texts}</span></div>`;
+      `<span class="dg-stext" role="status">${texts}</span></div>`;
   }
 
   const KINDS = { flow: renderFlow, sequence: renderSequence, layers: renderLayers, bars: renderBars };
@@ -458,6 +480,13 @@
     });
     const counter = figure.querySelector(".dg-sn");
     if (counter) counter.textContent = at === 0 ? "—" : at + "/" + total;
+    /* "done" for steps already walked, "on" for the current one: the rail then
+       shows both how far along and how far is left. */
+    figure.querySelectorAll("[data-dg-dot]").forEach((el) => {
+      const i = Number(el.getAttribute("data-dg-dot"));
+      el.classList.toggle("on", i === at);
+      el.classList.toggle("done", i < at);
+    });
     return at;
   }
 
