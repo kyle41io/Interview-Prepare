@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { loadTopics, validateTopic, findDuplicateIds } from "./content-lib.mjs";
+import { loadTopics, validateTopic, validateDiagrams, findDuplicateIds } from "./content-lib.mjs";
 
 const DIR = process.argv[2] || "../content";
 const BUCKET = process.env.CONTENT_BUCKET;
@@ -17,7 +17,9 @@ if (topics.length === 0) {
   process.exit(1);
 }
 
-const bad = topics.flatMap((t) => validateTopic(t).map((e) => `${t?.id ?? "<no id>"}: ${e}`));
+const bad = topics.flatMap((t) => validateTopic(t)
+  .concat(validateDiagrams(t))
+  .map((e) => `${t?.id ?? "<no id>"}: ${e}`));
 if (bad.length) {
   console.error("validation failed:\n  " + bad.join("\n  "));
   process.exit(1);
