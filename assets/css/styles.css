@@ -37,9 +37,6 @@
      too weak for a 10px icon — dark mode brightens it, light mode deepens it. */
   --gold-ink:#f0c96a;
   --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23e8b93a' fill-opacity='.08' stroke='%23e8b93a' stroke-opacity='.42' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
-  /* Same crown at UI scale (the sidebar lesson number sits inside it), so it
-     needs a solid stroke and a readable fill rather than a watermark's. */
-  --crown-ui:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23e8b93a' fill-opacity='.16' stroke='%23e8b93a' stroke-opacity='.75' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E");
   --radius:14px;
   --shadow:0 10px 40px #0007;
   --sidebar-w:288px;
@@ -58,7 +55,6 @@ html[data-theme="light"]{
      stays deep enough to keep 10px glyphs legible on white. */
   --gold:#f0a500; --gold-soft:#ffb92b; --gold-ink:#8a5200;
   --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23f0a500' fill-opacity='.13' stroke='%23e09000' stroke-opacity='.42' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --crown-ui:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23f0a500' fill-opacity='.22' stroke='%23d18f00' stroke-opacity='.9' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box;margin:0;padding:0}
 /* The [hidden] attribute must win over any element's explicit display
@@ -710,18 +706,32 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 .tk-num{font-size:11px;color:var(--muted2);white-space:nowrap;flex-shrink:0}
 
 /* Numbered nav item */
-/* The lesson number wears a gold crown. The crown is a background image sized
-   to the box and the digit is padded down into the crown's body (the path's
-   lower two thirds), so the number reads as sitting inside the crown instead of
-   colliding with its points. */
 .nav-item .ni-num{
   font-size:10.5px;font-weight:800;line-height:1;color:var(--muted2);
   width:24px;height:22px;flex-shrink:0;
-  display:grid;place-items:center;padding-top:6px;
-  background:var(--crown-ui) no-repeat center/24px 22px;
+  display:grid;place-items:center;
   transition:color .14s ease;
 }
-.nav-item:hover .ni-num,.nav-item.active .ni-num{color:var(--gold-ink)}
+.nav-item:hover .ni-num,.nav-item.active .ni-num{color:var(--txt)}
+
+/* Only Pro lessons wear a crown — it marks the tier, so putting one on every
+   lesson would say nothing. It is the same solid Font Awesome crown as the Pro
+   avatar badge rather than a second hand-drawn outline, held at low opacity so
+   the digit reads straight through it. The digit is nudged down into the
+   crown's body, clear of the points. */
+.nav-item.is-pro .ni-num{position:relative;padding-top:4px}
+.nav-item.is-pro .ni-num::before{
+  content:"\f521";
+  font-family:"Font Awesome 6 Free";font-weight:900;font-size:21px;line-height:1;
+  position:absolute;inset:0;display:grid;place-items:center;
+  color:var(--gold);opacity:.32;pointer-events:none;
+  transition:opacity .14s ease;
+}
+.nav-item.is-pro .ni-num,
+.nav-item.is-pro:hover .ni-num,
+.nav-item.is-pro.active .ni-num{color:var(--gold-ink)}
+.nav-item.is-pro:hover .ni-num::before,
+.nav-item.is-pro.active .ni-num::before{opacity:.5}
 
 /* Profile button + dropdown */
 .profile-wrap{position:relative}
