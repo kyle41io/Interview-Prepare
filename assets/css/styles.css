@@ -32,7 +32,14 @@
      a stroke stays unmistakably gold at the same visual weight. */
   --gold:#e8b93a;
   --gold-soft:#f4d885;
+  /* --gold-ink is the gold that carries small glyphs (locks, badges). It is a
+     separate token because the fill gold that looks right on a large border is
+     too weak for a 10px icon — dark mode brightens it, light mode deepens it. */
+  --gold-ink:#f0c96a;
   --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23e8b93a' fill-opacity='.08' stroke='%23e8b93a' stroke-opacity='.42' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* Same crown at UI scale (the sidebar lesson number sits inside it), so it
+     needs a solid stroke and a readable fill rather than a watermark's. */
+  --crown-ui:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23e8b93a' fill-opacity='.16' stroke='%23e8b93a' stroke-opacity='.75' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E");
   --radius:14px;
   --shadow:0 10px 40px #0007;
   --sidebar-w:288px;
@@ -45,8 +52,13 @@ html[data-theme="light"]{
   --accent:#4f46e5; --accent-d:#4338ca; --green:#0f9d58; --orange:#d97706;
   --purple:#7c3aed; --pink:#db2777; --yellow:#b45309; --red:#dc2626; --cyan:#0891b2;
   --shadow:0 10px 30px #1f243018;
-  --gold:#c98a04; --gold-soft:#e6a817;
-  --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23c98a04' fill-opacity='.09' stroke='%23c98a04' stroke-opacity='.32' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* Light-mode gold was #c98a04 — a dark mustard that read olive-brown against
+     white, closer to "expired" than "premium". A vivid marigold carries the
+     same Pro signal with the freshness the dark theme already had; --gold-ink
+     stays deep enough to keep 10px glyphs legible on white. */
+  --gold:#f0a500; --gold-soft:#ffb92b; --gold-ink:#8a5200;
+  --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23f0a500' fill-opacity='.13' stroke='%23e09000' stroke-opacity='.42' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --crown-ui:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23f0a500' fill-opacity='.22' stroke='%23d18f00' stroke-opacity='.9' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box;margin:0;padding:0}
 /* The [hidden] attribute must win over any element's explicit display
@@ -166,7 +178,17 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
   border-color:var(--gold);
   box-shadow:inset 0 0 20px -5px color-mix(in srgb,var(--gold) 70%,transparent);
 }
-.nav-item .ni-lock{margin-left:auto;font-size:10px;color:var(--gold)}
+/* On white, a 55%-transparent gold border fades to pale peach; over a dark
+   panel the same mix still reads as gold. Light mode gets the frame at full
+   strength and a warmer inner glow to keep the Pro signal as loud. */
+html[data-theme="light"] .nav-item.is-pro{
+  border-color:color-mix(in srgb,var(--gold) 85%,transparent);
+  box-shadow:inset 0 0 16px -5px color-mix(in srgb,var(--gold) 45%,transparent);
+}
+html[data-theme="light"] .nav-item.is-pro:hover,html[data-theme="light"] .nav-item.is-pro.active{
+  box-shadow:inset 0 0 18px -4px color-mix(in srgb,var(--gold) 60%,transparent);
+}
+.nav-item .ni-lock{margin-left:auto;font-size:10px;color:var(--gold-ink)}
 
 .content{margin-left:var(--sidebar-w);flex:1;min-width:0;padding:32px 40px 90px;max-width:1100px;transition:margin-left .22s ease}
 @media(max-width:1100px){.content{padding:28px 26px 80px}}
@@ -314,8 +336,22 @@ pre.code code{color:var(--txt);white-space:pre}
              inset 0 16px 36px -12px color-mix(in srgb,var(--gold) 58%,transparent),
              0 10px 30px -8px color-mix(in srgb,var(--gold) 32%,transparent);
 }
+/* Same correction as the sidebar: the inset washes need more gold to register
+   against a white card, and the hover lift wants a real gold cast under it. */
+html[data-theme="light"] .tcard.is-pro{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent),
+             inset 0 16px 40px -14px color-mix(in srgb,var(--gold) 32%,transparent),
+             inset 0 -16px 40px -18px color-mix(in srgb,var(--gold) 20%,transparent);
+}
+html[data-theme="light"] .tcard.is-pro:hover{
+  border-color:var(--gold-soft);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 55%,transparent),
+             inset 0 16px 40px -14px color-mix(in srgb,var(--gold) 45%,transparent),
+             0 10px 26px -10px color-mix(in srgb,var(--gold) 55%,transparent);
+}
+
 /* Locked marker for non-Pro viewers — icon only, outside the text flow. */
-.tcard .tc-lock{position:absolute;top:14px;right:14px;font-size:12px;color:var(--gold)}
+.tcard .tc-lock{position:absolute;top:14px;right:14px;font-size:12px;color:var(--gold-ink)}
 .tcard.done .tc-lock{display:none}
 
 .section-title{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted2);font-weight:700;margin:28px 0 4px}
@@ -741,14 +777,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .paywall-card{
   position:relative;overflow:hidden;text-align:center;
   max-width:520px;margin:44px auto 0;padding:34px 30px;gap:16px;
-  border-color:color-mix(in srgb,var(--yellow) 40%,var(--line));
-  box-shadow:0 10px 34px color-mix(in srgb,var(--yellow) 13%,transparent);
+  /* Gold, not --yellow: --yellow is the semantic warning colour and its light
+     override (#b45309) turned this upsell brown. */
+  border-color:color-mix(in srgb,var(--gold) 45%,var(--line));
+  box-shadow:0 10px 34px color-mix(in srgb,var(--gold) 15%,transparent);
 }
 /* soft gold halo blooming from behind the crown/title */
 .paywall-card::before{
   content:"";position:absolute;top:-70px;left:50%;transform:translateX(-50%);
   width:240px;height:240px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,color-mix(in srgb,var(--yellow) 22%,transparent),transparent 70%);
+  background:radial-gradient(circle,color-mix(in srgb,var(--gold) 24%,transparent),transparent 70%);
 }
 /* locked chat: vertically center the card in the tall chat column */
 .chat-page .paywall-card{margin:auto}
@@ -756,7 +794,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
   position:relative;display:inline-flex;align-items:center;gap:9px;
   font-size:19px;font-weight:800;color:var(--txt);letter-spacing:-.01em;
 }
-.pw-badge i{color:var(--yellow);font-size:22px}
+.pw-badge i{color:var(--gold);font-size:22px}
 .paywall-card p{
   position:relative;max-width:400px;margin:0 auto;
   color:var(--muted);font-size:14.5px;line-height:1.6;
