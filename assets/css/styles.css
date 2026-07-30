@@ -265,6 +265,157 @@ pre.code code{color:var(--txt);white-space:pre}
 .qa .q::before{content:"Q. ";color:var(--accent)}
 .qa .a{color:var(--muted);font-size:14px}
 
+/* ============================================================
+   Lesson diagrams (IP.diagram)
+   One --dg variable per tone drives every surface, so a node, a stack layer
+   and a bar all tint from the same token and a new tone is one declaration.
+   ============================================================ */
+.dg-t-accent{--dg:var(--accent)}
+.dg-t-green{--dg:var(--green)}
+.dg-t-orange{--dg:var(--orange)}
+.dg-t-purple{--dg:var(--purple)}
+.dg-t-pink{--dg:var(--pink)}
+.dg-t-red{--dg:var(--red)}
+.dg-t-cyan{--dg:var(--cyan)}
+.dg-t-gold{--dg:var(--gold)}
+.dg-t-muted{--dg:var(--muted2)}
+
+.dg{
+  margin:18px 0;padding:14px 16px 12px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+}
+.dg-title{
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+  font-size:12px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);
+}
+.dg-title::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--accent)}
+/* The picture scales as a unit; below a legibility floor it scrolls instead of
+   shrinking further. Both bounds are inline on the <svg>, from its viewBox. */
+.dg-scroll{overflow-x:auto;overflow-y:hidden;padding-bottom:2px}
+.dg-svg{display:block;width:100%;height:auto;margin:0 auto}  /* narrow figures centre */
+.dg-caption{margin-top:11px;font-size:12.5px;color:var(--muted2);line-height:1.55}
+
+/* ---- flow / sequence primitives ---- */
+.dg-edge{fill:none;stroke:var(--line2);stroke-width:1.6}
+.dg-edge.dashed{stroke-dasharray:6 5}
+.dg-arrow{fill:var(--line2)}
+/* paint-order:stroke turns the panel-coloured stroke into a halo, so a label
+   crossing an edge stays readable without a background rect to position. */
+.dg-elabel,.dg-mlabel{
+  fill:var(--muted);font-size:10.5px;font-weight:600;
+  paint-order:stroke;stroke:var(--panel2);stroke-width:3.5px;stroke-linejoin:round;
+}
+.dg-elabel{text-anchor:middle}   /* .dg-mlabel sets its own, per message shape */
+.dg-lane rect{fill:color-mix(in srgb,var(--panel3) 55%,transparent)}
+.dg-lane text{
+  fill:var(--muted2);font-size:9.5px;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;text-anchor:middle;
+}
+.dg-life{stroke:var(--line2);stroke-width:1.2;stroke-dasharray:4 5}
+.dg-hit{fill:transparent;cursor:pointer}
+.dg-hit:hover{fill:color-mix(in srgb,var(--accent) 9%,transparent)}
+.dg-hit.sel{fill:color-mix(in srgb,var(--accent) 15%,transparent)}
+
+.dg-node,.dg-actor{
+  height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:5px 8px;border-radius:10px;text-align:center;overflow:hidden;
+  border:1.5px solid color-mix(in srgb,var(--dg) 65%,transparent);
+  background:color-mix(in srgb,var(--dg) 12%,var(--panel));
+  color:var(--txt);font-size:12.5px;line-height:1.25;
+}
+.dg-actor{border-radius:999px;font-weight:700;flex-direction:row;gap:6px}
+.dg-n-icon{font-size:14px;line-height:1}
+/* Clamped, not overflowing: a Vietnamese label runs longer than its English
+   twin and the box geometry is fixed before either is measured. */
+.dg-n-label{
+  font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.dg-n-sub{
+  color:var(--muted);font-size:10px;line-height:1.2;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+
+/* ---- shared interaction states ---- */
+.dg-has-detail{cursor:pointer}
+.dg-node,.dg-layer,.dg-bar-row{transition:opacity .18s ease,box-shadow .14s ease,background .14s ease}
+.dg-has-detail:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--dg) 24%,transparent)}
+.dg-node.sel,.dg-layer.sel{
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--dg) 45%,transparent);
+  background:color-mix(in srgb,var(--dg) 24%,var(--panel));
+}
+.dg-bar-row.sel{background:color-mix(in srgb,var(--dg) 14%,transparent)}
+/* Walkthrough emphasis: the step's own nodes lift, the rest recede. */
+.dg-node.hi{box-shadow:0 0 0 3px color-mix(in srgb,var(--dg) 42%,transparent)}
+.dg-node.dim{opacity:.3}
+
+/* ---- walkthrough bar ---- */
+.dg-walk{
+  display:flex;align-items:center;gap:9px;margin-top:12px;padding-top:11px;
+  border-top:1px dashed var(--line2);
+}
+.dg-sbtn{
+  flex-shrink:0;width:27px;height:27px;border-radius:8px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line2);color:var(--muted);
+  font-size:10px;display:grid;place-items:center;transition:.14s;
+}
+.dg-sbtn:hover{border-color:var(--accent);color:var(--accent)}
+.dg-sn{
+  flex-shrink:0;min-width:32px;text-align:center;font-size:11.5px;font-weight:800;
+  color:var(--muted2);font-variant-numeric:tabular-nums;
+}
+.dg-stext{flex:1;font-size:13px;line-height:1.5;color:var(--txt)}
+.dg-step{display:none}
+.dg-step.on{display:inline}
+
+/* ---- detail panels (one visible at a time, incl. the initial hint) ---- */
+.dg-details{margin-top:11px}
+.dg-detail{
+  display:none;font-size:13.5px;line-height:1.6;color:var(--txt);
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:8px;padding:10px 13px;
+}
+.dg-detail.on{display:block}
+.dg-detail.dg-hint{
+  background:transparent;border-style:dashed;border-left-color:var(--line2);
+  color:var(--muted2);font-size:12.5px;
+}
+.dg-d-head{display:block;margin-bottom:3px}
+
+/* ---- layers ---- */
+.dg-layers{display:flex;flex-direction:column;gap:6px}
+.dg-layer{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;font-size:13.5px;
+  border:1px solid color-mix(in srgb,var(--dg) 50%,transparent);
+  background:color-mix(in srgb,var(--dg) 10%,var(--panel));
+}
+.dg-l-n{
+  flex-shrink:0;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+  font-size:11px;font-weight:800;background:color-mix(in srgb,var(--dg) 28%,transparent);
+}
+.dg-l-label{font-weight:700}
+.dg-l-sub{margin-left:auto;text-align:right;color:var(--muted);font-size:12.5px}
+
+/* ---- bars ---- */
+.dg-bars{display:flex;flex-direction:column;gap:7px}
+.dg-bar-row{
+  display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,3fr) auto;
+  align-items:center;gap:10px;padding:3px 5px;border-radius:7px;font-size:13px;
+}
+.dg-b-track{height:14px;border-radius:7px;overflow:hidden;background:color-mix(in srgb,var(--line) 65%,transparent)}
+.dg-b-fill{display:block;height:100%;border-radius:7px;background:color-mix(in srgb,var(--dg) 78%,transparent)}
+.dg-b-value{
+  min-width:58px;text-align:right;
+  font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);
+  white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.dg-scale-note{margin-top:8px;font-size:11.5px;color:var(--muted2)}
+
+@media(max-width:700px){
+  .dg{padding:12px 11px 11px}
+  .dg-bar-row{grid-template-columns:minmax(84px,1fr) minmax(0,2fr) auto;gap:8px;font-size:12.5px}
+  .dg-l-sub{display:none}   /* the stack labels matter more than their asides */
+}
+
 /* mark as learned bar */
 .learn-bar{display:flex;align-items:center;gap:12px;margin:24px 0 10px;flex-wrap:wrap}
 .btn{

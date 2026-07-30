@@ -235,6 +235,10 @@
         return `<div class="qa"><div class="q">${t(b.q)}</div><div class="a">${t(b.a)}</div></div>`;
       case "chips":
         return `<div class="kv">${(b.items || []).map(i => `<span class="chip">${t(i)}</span>`).join("")}</div>`;
+      case "diagram":
+        // IP.diagram returns "" for a spec it cannot draw, which falls through
+        // to the same "render nothing" as an unknown block type.
+        return (IP.diagram && IP.diagram.render(b, { lang: State.lang })) || "";
       default:
         return "";
     }
@@ -1545,6 +1549,12 @@
       const tog = e.target.closest("[data-toggle]");
       if (tog) { tog.parentElement.classList.toggle("collapsed"); return; }
 
+      // diagrams: reveal a block's explanation, or step the walkthrough
+      const dgHit = e.target.closest("[data-dg-detail]");
+      if (dgHit) { IP.diagram.select(dgHit.closest(".dg"), dgHit.getAttribute("data-dg-detail")); return; }
+      const dgWalk = e.target.closest("[data-dg-walk]");
+      if (dgWalk) { IP.diagram.walk(dgWalk.closest(".dg"), Number(dgWalk.dataset.dgWalk)); return; }
+
       // learn buttons
       if (e.target.id === "learnBtn") {
         State.progress[State.topic] = !State.progress[State.topic];
@@ -1762,6 +1772,11 @@
         return;
       }
       if (e.key === "/") { e.preventDefault(); si.focus(); return; }
+      // Diagram blocks are role="button" — honour the keys that implies.
+      if (e.key === "Enter" || e.key === " ") {
+        const dg = e.target.closest && e.target.closest("[data-dg-detail]");
+        if (dg) { e.preventDefault(); IP.diagram.select(dg.closest(".dg"), dg.getAttribute("data-dg-detail")); return; }
+      }
       if (State.mode === "cards" && Cards.queue.length) {
         if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!Cards.flipped) { Cards.flipped = true; render(); } }
         else if (Cards.flipped && ["1", "2", "3", "4"].includes(e.key)) { rateCard(parseInt(e.key, 10) - 1); }
