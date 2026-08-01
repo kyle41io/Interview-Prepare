@@ -1378,7 +1378,9 @@
   }
 
   /* Validate, call Supabase, paint errors. Shared by both auth forms and the
-     demo cards. On success the Supabase auth listener re-renders for us. */
+     demo cards. On success the Supabase auth listener re-renders for us.
+     Returns { ok } so callers (e.g. the demo sign-in handler) can tell
+     whether the attempt actually succeeded before acting on it. */
   async function submitAuth(kind, vals) {
     const AP = IP.authpages;
     const errs = kind === "signup" ? AP.validateSignUp(vals) : AP.validateSignIn(vals);
@@ -1391,7 +1393,7 @@
         const el = document.querySelector(`[data-auth-err="${f}"]`);
         if (el) { el.textContent = t(errs[f]); el.hidden = false; }
       });
-      return;
+      return { ok: false };
     }
 
     const res = kind === "signup"
@@ -1402,6 +1404,7 @@
       alert.textContent = t(AP.mapAuthError(res.code));
       alert.hidden = false;
     }
+    return res;
   }
 
   /* ============================================================
@@ -1423,11 +1426,16 @@
 
     // Demo sign-in: seed a track so reviewers land in populated content rather
     // than the onboarding picker. State.track is read from storage once at
-    // load, so writing only to storage would leave this session stale.
+    // load, so writing only to storage would leave this session stale. Only
+    // commit the seed once sign-in actually succeeds — if it fails (accounts
+    // not seeded yet, Supabase unreachable), the visitor stays logged out and
+    // a later real sign-up must still see the onboarding wizard.
     IP.authpages.onDemoSignIn(async ({ email, password, track }) => {
-      State.track = { role: track.role, level: track.level };
-      LS.set("track", State.track);
-      await submitAuth("signin", { email, password });
+      const res = await submitAuth("signin", { email, password });
+      if (res.ok) {
+        State.track = { role: track.role, level: track.level };
+        LS.set("track", State.track);
+      }
     });
 
     // Form submit for both auth screens. Lives here, not in authpages, because

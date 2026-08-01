@@ -34,11 +34,23 @@ test("the selected auth screen lives on State.authView", () => {
   assert.match(appJs, /authView:\s*State\.authView/, "render ctx must carry State.authView");
 });
 
-test("demo sign-in sets both State.track and storage", () => {
-  const m = appJs.match(/onDemoSignIn\([\s\S]{0,600}?\}\);/);
+test("demo sign-in sets both State.track and storage only after a successful submitAuth", () => {
+  const m = appJs.match(/onDemoSignIn\(async[\s\S]{0,600}?\n {4}\}\);/);
   assert.ok(m, "onDemoSignIn not wired");
   assert.match(m[0], /State\.track\s*=/);
   assert.match(m[0], /LS\.set\("track"/);
+
+  // Regression guard for the "seeds localStorage before sign-in succeeds"
+  // bug: submitAuth must be awaited and its result checked *before*
+  // State.track / LS.set are touched, so a failed demo sign-in never
+  // leaves a stray track in storage for a later real sign-up to inherit.
+  const submitIdx = m[0].indexOf("submitAuth(");
+  const trackAssignIdx = m[0].indexOf("State.track =");
+  const lsSetIdx = m[0].indexOf('LS.set("track"');
+  assert.ok(submitIdx > -1, "submitAuth not called");
+  assert.ok(submitIdx < trackAssignIdx, "submitAuth must be called before State.track is set");
+  assert.ok(submitIdx < lsSetIdx, "submitAuth must be called before LS.set(\"track\", ...)");
+  assert.match(m[0], /res\.ok/, "State.track/LS.set must be gated on submitAuth's success result");
 });
 
 test("auth screen styles exist", () => {
