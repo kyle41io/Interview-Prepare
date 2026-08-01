@@ -211,8 +211,11 @@
         ${formHtml}
         <div class="auth-alert" data-auth-alert hidden></div>
         <div class="auth-or"><span>${esc(ctx.t(COPY.or))}</span></div>
+        <!-- Not fa-brands fa-google: the repo vendors only fa-solid-900 and
+             fa-regular-400, so any fa-brands glyph 404s and renders as an
+             empty box. -->
         <button type="button" class="btn ghost wide" onclick="IP.auth.signInWithGoogle()">
-          ${ctx.fa("fa-brands fa-google")} ${esc(ctx.t(COPY.google))}
+          ${ctx.fa("fa-solid fa-right-to-bracket")} ${esc(ctx.t(COPY.google))}
         </button>
         <div class="auth-foot">${footHtml}</div>
       </div>

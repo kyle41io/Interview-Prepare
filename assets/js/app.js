@@ -109,6 +109,9 @@
     saved: { vi: "Đã lưu", en: "Saved" },
     clearData: { vi: "Xoá dữ liệu", en: "Clear data" },
     confirmClear: { vi: "Xoá toàn bộ dữ liệu học? Không thể hoàn tác.", en: "Clear all study data? This cannot be undone." },
+    // Still used by the Chat/Upgrade signed-out fallbacks, which are reachable
+    // only when IP.auth.enabled() is false — otherwise render() short-circuits
+    // to the auth page. No longer bound to any [data-i18n] element.
     signIn: { vi: "Đăng nhập", en: "Sign in" },
     signOut: { vi: "Đăng xuất", en: "Sign out" },
     deleteAccount: { vi: "Xoá tài khoản", en: "Delete account" },
@@ -1484,10 +1487,6 @@
       themeBtn.firstElementChild.className = IP.theme.current() === "dark" ? ICON.themeDark : ICON.themeLight;
     };
 
-    // sign-in button
-    const sBtn = document.getElementById("signinBtn");
-    if (sBtn) sBtn.onclick = () => IP.auth.signInWithGoogle();
-
     // profile menu toggle
     const pBtn = document.getElementById("profileBtn");
     const pMenu = document.getElementById("profileMenu");
@@ -1916,13 +1915,11 @@
   }
 
   function updateAuthUI(user) {
-    const signin = document.getElementById("signinBtn");
     const acctRow = document.getElementById("acctRow");
     const sep = document.getElementById("acctSep");
     const mOut = document.getElementById("menuSignout");
     const on = !!user;
     const md = (user && user.user_metadata) || {};
-    if (signin) signin.hidden = on || !IP.auth.enabled();
     [acctRow, sep, mOut].forEach(function (el) { if (el) el.hidden = !on; });
     const proOn = on && IP.pro.isPro();
     // Topbar profile button: show the real avatar when signed in, else the icon.
@@ -1998,7 +1995,6 @@
     setI("upgrade", UI.upgrade);
     setI("admin", UI.admin);
     setI("settings", UI.settings);
-    setI("signIn", UI.signIn);
     setI("signOut", UI.signOut);
     setI("chatAI", UI.chatAI);
   }
