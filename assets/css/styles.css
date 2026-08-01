@@ -1126,21 +1126,42 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* Logged-out: force-hide gated topbar controls (override their display) */
 .modes[hidden],.search-box[hidden],.kbd-help[hidden]{display:none !important}
 
-/* Landing (logged-out intro) */
-.landing{max-width:820px;margin:0 auto;padding-top:24px}
-.landing-hero{text-align:center;padding:24px 16px 8px}
-.landing-logo{width:64px;height:64px;margin:0 auto 18px;border-radius:16px;display:grid;place-items:center;box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
-.landing-logo img{width:100%;height:100%;display:block}
-.landing-hero h1{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.5px;margin-bottom:12px;line-height:1.2}
-.landing-hero p{color:var(--muted);font-size:16px;max-width:620px;margin:0 auto 22px;line-height:1.6}
-.landing-hero .btn.lg{font-size:15px;padding:12px 22px;display:inline-flex;align-items:center;gap:10px}
-.landing-note{color:var(--muted2);font-size:12.5px;margin-top:12px}
-.landing-feats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:32px 0 8px}
-.landing-feat{display:flex;gap:13px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-.landing-feat .lf-ic{flex-shrink:0;width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-size:16px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
-.landing-feat b{display:block;font-size:14px;margin-bottom:3px}
-.landing-feat span{color:var(--muted);font-size:13px;line-height:1.5}
-@media(max-width:640px){.landing-feats{grid-template-columns:1fr}}
+/* ---- auth screens (sign-in / sign-up) ---- */
+.auth-page{max-width:1000px;margin:0 auto;padding:24px 16px;display:grid;gap:28px;grid-template-columns:1fr 380px;align-items:start}
+.auth-brand{padding-top:12px}
+.auth-brand-logo{width:56px;height:56px;margin-bottom:16px;border-radius:14px;display:grid;place-items:center;box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
+.auth-brand-logo img{width:100%;height:100%;display:block}
+.auth-brand h1{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.5px;line-height:1.2;margin-bottom:20px}
+.auth-feats{display:grid;gap:14px}
+.auth-feat{display:flex;gap:12px;align-items:flex-start}
+.auth-feat b{display:block;font-size:14px}
+.auth-feat span{display:block;font-size:13px;opacity:.75}
+.auth-card{border:1px solid var(--line);border-radius:16px;padding:22px;background:var(--card)}
+.auth-card h2{font-size:20px;font-weight:800;margin-bottom:16px}
+.auth-field{display:block;margin-bottom:12px}
+.auth-field>span{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.auth-field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:inherit;font:inherit}
+.auth-err{display:block;margin-top:5px;font-size:12px;font-style:normal;color:var(--danger,#e5484d)}
+.auth-alert{margin:12px 0;padding:9px 11px;border-radius:9px;font-size:13px;background:color-mix(in srgb,var(--danger,#e5484d) 12%,transparent);color:var(--danger,#e5484d)}
+.auth-or{display:flex;align-items:center;gap:10px;margin:16px 0;font-size:12px;opacity:.6}
+.auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.auth-foot{margin-top:14px;font-size:13px;text-align:center;opacity:.85}
+.btn.wide{width:100%;justify-content:center}
+/* Fixed corner button — a reviewer arriving from a CV should find the way in
+   without scrolling or reading the form first. */
+/* column-reverse: the panel opens above the button, so the button itself
+   never moves when the panel toggles. */
+.auth-demo{position:fixed;right:20px;bottom:20px;z-index:50;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:10px}
+.auth-demo-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:inherit;font:inherit;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.18)}
+.auth-demo-panel{width:min(320px,calc(100vw - 40px));max-height:min(60vh,520px);overflow-y:auto;display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:0 10px 34px rgba(0,0,0,.22)}
+.auth-demo-panel[hidden]{display:none}
+.auth-demo-panel>p{font-size:12px;opacity:.75;margin:0}
+.auth-demo-card{border:1px solid var(--line);border-radius:11px;padding:12px}
+.auth-demo-card b{display:block;margin-bottom:8px;font-size:14px}
+.auth-demo-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:5px}
+.auth-demo-row code{font-size:12px;user-select:all}
+.auth-demo-card .btn{margin-top:8px;width:100%;justify-content:center}
+@media(max-width:820px){.auth-page{grid-template-columns:1fr;padding-bottom:88px}}
 
 /* Logged-out landing: no sidebar, content spans the full viewport (centered). */
 body.logged-out .sidebar{display:none}
