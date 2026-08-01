@@ -17,4 +17,5 @@ export function clampMessages(raw: any): ChatMsg[] {
     .map((m: any) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
 }
 export const usageSk = (day: string) => `CHATUSAGE#${day}`;
+export const sessionSk = (sessionId: string) => `CHATSESSION#${sessionId}`;
 export const todayUtc = () => new Date().toISOString().slice(0, 10);

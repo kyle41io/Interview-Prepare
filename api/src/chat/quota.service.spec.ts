@@ -1,4 +1,5 @@
 import { QuotaService } from "./quota.service";
+import { sessionSk } from "./scope";
 function svc(send: jest.Mock) {
   const dyn = { doc: { send }, chatTable: "ip_chat" } as any;
   return new QuotaService(dyn);
@@ -34,5 +35,21 @@ describe("QuotaService.getQuota", () => {
   it("no item → used 0", async () => {
     const out = await svc(jest.fn().mockResolvedValue({})).getQuota("u1", 3);
     expect(out.used).toBe(0); expect(out.remaining).toBe(3);
+  });
+});
+describe("QuotaService.bumpSession", () => {
+  it("bumps a session-scoped key with a 24h TTL", async () => {
+    const send = jest.fn().mockResolvedValue({ Attributes: { count: 2 } });
+    const out = await svc(send).bumpSession("u1", "sess-1", 5);
+    expect(out).toEqual({ ok: true, remaining: 3 });
+    const arg = send.mock.calls[0][0].input;
+    expect(arg.Key.sk).toBe(sessionSk("sess-1"));
+    expect(arg.ConditionExpression).toContain("< :limit");
+    expect(arg.ExpressionAttributeValues[":limit"]).toBe(5);
+  });
+  it("at/over limit (ConditionalCheckFailedException) → ok:false, remaining 0", async () => {
+    const err: any = new Error("cond"); err.name = "ConditionalCheckFailedException";
+    const out = await svc(jest.fn().mockRejectedValue(err)).bumpSession("u1", "sess-1", 5);
+    expect(out).toEqual({ ok: false, remaining: 0 });
   });
 });
