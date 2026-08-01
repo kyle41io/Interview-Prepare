@@ -93,6 +93,7 @@
   const State = {
     lang: LS.get("lang", "vi"),
     mode: "learn",            // learn | cards | quiz
+    authView: "signin",       // signin | signup — logged-out only, kept apart from mode
     topic: null,              // current topic id (learn mode)
     track: LS.get("track", null),        // {role, level} or null
     progress: LS.get("progress", {}),   // {topicId:true}
@@ -875,35 +876,6 @@
   /* ============================================================
      RENDER: home dashboard
      ============================================================ */
-  function renderLanding() {
-    const L = State.lang;
-    const feats = L === "vi" ? [
-      ["fa-solid fa-route", "Lộ trình theo vai trò", "SWE (Fresher→Senior), DevOps, AI Engineer — học có hệ thống."],
-      ["fa-regular fa-clone", "Thẻ ghi nhớ & Trắc nghiệm", "Ôn nhanh bằng flashcard spaced-repetition và quiz."],
-      ["fa-solid fa-comments", "Trợ lý AI", "Hỏi đáp về lập trình, phỏng vấn, CV — song ngữ Việt/Anh."],
-      ["fa-solid fa-bell", "Nhắc lịch tuyển dụng", "Tự phát hiện email mời phỏng vấn/bài test và nhắc lịch."],
-    ] : [
-      ["fa-solid fa-route", "Role-based tracks", "SWE (Fresher→Senior), DevOps, AI Engineer — structured prep."],
-      ["fa-regular fa-clone", "Flashcards & Quizzes", "Review fast with spaced-repetition cards and quizzes."],
-      ["fa-solid fa-comments", "AI assistant", "Ask about coding, interviews, CV — bilingual VI/EN."],
-      ["fa-solid fa-bell", "Recruiting reminders", "Auto-detect interview/test emails and remind you."],
-    ];
-    return `<div class="fade-in landing">
-      <div class="landing-hero">
-        <div class="landing-logo"><img src="assets/favicon.svg" alt="" width="64" height="64"></div>
-        <h1>${L === "vi" ? "Ôn thi phỏng vấn IT, bài bản & song ngữ" : "Ace your IT interviews — structured & bilingual"}</h1>
-        <p>${L === "vi"
-          ? "Interview Prep giúp bạn ôn kiến thức phỏng vấn theo lộ trình, luyện flashcard/quiz, hỏi trợ lý AI và không bỏ lỡ lịch tuyển dụng."
-          : "Interview Prep helps you study by track, drill flashcards & quizzes, ask an AI assistant, and never miss a recruiting deadline."}</p>
-        <button class="btn lg" onclick="IP.auth.signInWithGoogle()">${fa("fa-solid fa-right-to-bracket")} ${L === "vi" ? "Đăng nhập với Google để bắt đầu" : "Sign in with Google to start"}</button>
-        <div class="landing-note">${L === "vi" ? "Miễn phí. Đăng nhập để lưu tiến độ và đồng bộ nhiều thiết bị." : "Free. Sign in to save progress and sync across devices."}</div>
-      </div>
-      <div class="landing-feats">
-        ${feats.map(f => `<div class="landing-feat"><div class="lf-ic">${fa(f[0])}</div><div><b>${f[1]}</b><span>${f[2]}</span></div></div>`).join("")}
-      </div>
-    </div>`;
-  }
-
   function renderHome() {
     // Stat tiles summarise the current path only — the same topic set the grid
     // below renders — not the whole catalog. countDue(id) draws from the study
@@ -1229,7 +1201,7 @@
     // Logged-out gate: when a backend is configured but nobody is signed in,
     // show only a small intro landing — no track picker, no learning UI.
     if (IP.auth.enabled() && !IP.auth.getUser()) {
-      main.innerHTML = renderLanding();
+      main.innerHTML = IP.authpages.render({ t, fa, lang: State.lang, authView: State.authView });
       document.getElementById("sidebar").innerHTML = "";
       window.scrollTo(0, 0);
       return;
@@ -1405,6 +1377,36 @@
     }
   }
 
+  /* Validate, call Supabase, paint errors. Shared by both auth forms and the
+     demo cards. On success the Supabase auth listener re-renders for us.
+     Returns { ok } so callers (e.g. the demo sign-in handler) can tell
+     whether the attempt actually succeeded before acting on it. */
+  async function submitAuth(kind, vals) {
+    const AP = IP.authpages;
+    const errs = kind === "signup" ? AP.validateSignUp(vals) : AP.validateSignIn(vals);
+    document.querySelectorAll("[data-auth-err]").forEach((el) => { el.hidden = true; el.textContent = ""; });
+    const alert = document.querySelector("[data-auth-alert]");
+    if (alert) { alert.hidden = true; alert.textContent = ""; }
+
+    if (Object.keys(errs).length) {
+      Object.keys(errs).forEach((f) => {
+        const el = document.querySelector(`[data-auth-err="${f}"]`);
+        if (el) { el.textContent = t(errs[f]); el.hidden = false; }
+      });
+      return { ok: false };
+    }
+
+    const res = kind === "signup"
+      ? await IP.auth.signUpWithPassword({ email: vals.email, username: vals.username, password: vals.password })
+      : await IP.auth.signInWithPassword({ email: vals.email, password: vals.password });
+
+    if (!res.ok && alert) {
+      alert.textContent = t(AP.mapAuthError(res.code));
+      alert.hidden = false;
+    }
+    return res;
+  }
+
   /* ============================================================
      EVENTS
      ============================================================ */
@@ -1416,6 +1418,40 @@
       State.topic = null;
       State.mode = "learn";
       render();
+    });
+
+    // State is private to this IIFE, so authpages reports screen switches back
+    // rather than setting them. The delegated handler above does the render.
+    IP.authpages.onViewChange((v) => { State.authView = v; });
+
+    // Demo sign-in: seed a track so reviewers land in populated content rather
+    // than the onboarding picker. State.track is read from storage once at
+    // load, so writing only to storage would leave this session stale. Only
+    // commit the seed once sign-in actually succeeds — if it fails (accounts
+    // not seeded yet, Supabase unreachable), the visitor stays logged out and
+    // a later real sign-up must still see the onboarding wizard.
+    IP.authpages.onDemoSignIn(async ({ email, password, track }) => {
+      const res = await submitAuth("signin", { email, password });
+      if (res.ok) {
+        State.track = { role: track.role, level: track.level };
+        LS.set("track", State.track);
+      }
+    });
+
+    // Form submit for both auth screens. Lives here, not in authpages, because
+    // it needs IP.auth and render().
+    document.body.addEventListener("submit", (e) => {
+      const form = e.target.closest("[data-auth-form]");
+      if (!form) return;
+      e.preventDefault();
+      const kind = form.dataset.authForm;
+      const val = (n) => { const el = form.querySelector(`[name="${n}"]`); return el ? el.value : ""; };
+      submitAuth(kind, {
+        email: val("email").trim(),
+        username: val("username").trim(),
+        password: val("password"),
+        confirm: val("confirm"),
+      });
     });
 
     // language
@@ -1498,6 +1534,14 @@
 
     // delegated clicks
     document.body.addEventListener("click", e => {
+      // auth screens — must precede onboarding: a logged-out visitor has no
+      // track, so shouldShow() would otherwise swallow every auth click.
+      if (IP.auth.enabled() && !IP.auth.getUser()) {
+        const ares = IP.authpages.handleClick(e.target);
+        if (ares === "rerender") { e.preventDefault(); render(); return; }
+        if (ares === true) { e.preventDefault(); return; }
+      }
+
       // onboarding — must be first
       if (IP.onboarding.shouldShow()) {
         const ob = IP.onboarding.handleClick(e.target);

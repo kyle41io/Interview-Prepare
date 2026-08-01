@@ -50,7 +50,10 @@ export class JwtAuthGuard implements CanActivate {
     const payload = alg.startsWith("HS") ? this.verifyHs(token) : await this.verifyJwks(token, alg);
 
     if (!payload?.sub) throw new UnauthorizedException("no subject");
-    req.user = { id: payload.sub, email: payload.email };
+    // session_id identifies one login session; the chat per-session cap keys on
+    // it. Legacy HS256 tokens may omit it, so it stays optional — callers must
+    // treat a missing value as "no session tier", never as "no cap".
+    req.user = { id: payload.sub, email: payload.email, sessionId: payload.session_id };
     return true;
   }
 

@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { DynamoService } from "../db/dynamo.service";
 import { userPk } from "../db/keys";
-import { usageSk, todayUtc } from "./scope";
+import { usageSk, sessionSk, todayUtc } from "./scope";
 @Injectable()
 export class QuotaService {
   constructor(private readonly dyn: DynamoService) {}
@@ -15,6 +15,29 @@ export class QuotaService {
       const r = await this.dyn.doc.send(new UpdateCommand({
         TableName: this.dyn.chatTable,
         Key: this.key(userId, day),
+        UpdateExpression: "ADD #c :one SET #ttl = if_not_exists(#ttl, :ttl)",
+        ConditionExpression: "attribute_not_exists(#c) OR #c < :limit",
+        ExpressionAttributeNames: { "#c": "count", "#ttl": "ttl" },
+        ExpressionAttributeValues: { ":one": 1, ":ttl": ttl, ":limit": limit },
+        ReturnValues: "UPDATED_NEW",
+      }));
+      const count = Number(r.Attributes?.count) || 0;
+      return { ok: true, remaining: Math.max(0, limit - count) };
+    } catch (e: any) {
+      if (e.name === "ConditionalCheckFailedException") return { ok: false, remaining: 0 };
+      throw e;
+    }
+  }
+
+  /* Same conditional-increment as bump(), but keyed off one login session. A
+     Supabase session can outlive the 24h TTL, in which case the counter resets and
+     the visitor gets another allowance — harmless, since the daily cap still binds. */
+  async bumpSession(userId: string, sessionId: string, limit: number): Promise<{ ok: boolean; remaining: number }> {
+    const ttl = Math.floor(Date.now() / 1000) + 86400;
+    try {
+      const r = await this.dyn.doc.send(new UpdateCommand({
+        TableName: this.dyn.chatTable,
+        Key: { pk: userPk(userId), sk: sessionSk(sessionId) },
         UpdateExpression: "ADD #c :one SET #ttl = if_not_exists(#ttl, :ttl)",
         ConditionExpression: "attribute_not_exists(#c) OR #c < :limit",
         ExpressionAttributeNames: { "#c": "count", "#ttl": "ttl" },

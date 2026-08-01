@@ -10,7 +10,7 @@ interface ChatBody { messages?: Array<{ role: string; content: string }>; }
 export class ChatController {
   constructor(private readonly svc: ChatService) {}
   @Post()
-  chat(@CurrentUser() u: AuthUser, @Body() b: ChatBody) { return this.svc.chat(u.id, b?.messages); }
+  chat(@CurrentUser() u: AuthUser, @Body() b: ChatBody) { return this.svc.chat(u, b?.messages); }
   @Get("quota")
-  quota(@CurrentUser() u: AuthUser) { return this.svc.quotaFor(u.id); }
+  quota(@CurrentUser() u: AuthUser) { return this.svc.quotaFor(u); }
 }
