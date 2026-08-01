@@ -65,8 +65,19 @@ jobs:
 
       - name: Sync frontend to S3
         run: |
+          # no-cache = "store it, but revalidate before every use". Without an
+          # explicit Cache-Control, browsers fall back to heuristic freshness
+          # (a fraction of the Last-Modified age), which expires per-file at
+          # different times. That let a browser run a cached old app.js against
+          # a freshly fetched styles.css after a deploy — the old markup's
+          # selectors no longer existed, so the page rendered unstyled.
+          # Filenames aren't content-hashed, so revalidation is what keeps the
+          # asset set consistent. ETags make the common case a cheap 304, and
+          # the CloudFront invalidation below only ever clears the EDGE cache,
+          # never the browser's.
           aws s3 sync . "s3://${{ steps.tf.outputs.bucket }}" \
             --delete \
+            --cache-control "no-cache" \
             --exclude ".git/*" --exclude "api/*" --exclude "infra/*" \
             --exclude "docs/*" --exclude "tests/*" --exclude "node_modules/*" \
             --exclude ".github/*" --exclude "supabase/*" --exclude ".superpowers/*" \
