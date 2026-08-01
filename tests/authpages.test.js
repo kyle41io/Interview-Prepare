@@ -88,3 +88,127 @@ test("mapAuthError handles a missing code", () => {
   const m = ap.mapAuthError(undefined);
   assert.ok(m.vi && m.en);
 });
+
+/* ---------- rendering ---------- */
+
+function ctx(authView) {
+  return {
+    t: (n) => (n && typeof n === "object" ? (n.en || n.vi) : String(n == null ? "" : n)),
+    fa: (c) => `<i class="${c}"></i>`,
+    lang: "en",
+    authView: authView,
+  };
+}
+const CTX = ctx("signin");
+
+test("render dispatches on ctx.authView", () => {
+  assert.match(ap.render(ctx("signup")), /data-auth-form="signup"/);
+  assert.match(ap.render(ctx("signin")), /data-auth-form="signin"/);
+});
+
+test("render falls back to sign-in for a missing or unknown view", () => {
+  assert.match(ap.render(ctx(undefined)), /data-auth-form="signin"/);
+  assert.match(ap.render(ctx("nonsense")), /data-auth-form="signin"/);
+});
+
+test("sign-in screen has email and password inputs and no username", () => {
+  const html = ap.renderSignIn(CTX);
+  assert.match(html, /name="email"/);
+  assert.match(html, /name="password"/);
+  assert.ok(!/name="username"/.test(html), "sign-in must not ask for a username");
+  assert.ok(!/name="confirm"/.test(html), "sign-in must not ask for confirmation");
+});
+
+test("sign-up screen has exactly the four specified fields", () => {
+  const html = ap.renderSignUp(ctx("signup"));
+  ["email", "username", "password", "confirm"].forEach((f) => {
+    assert.match(html, new RegExp(`name="${f}"`), `missing field ${f}`);
+  });
+  // Fields dropped from the PyEz reference — see spec section 5.1
+  ["firstName", "lastName", "class", "gender", "avatar"].forEach((f) => {
+    assert.ok(!new RegExp(`name="${f}"`).test(html), `unexpected field ${f}`);
+  });
+});
+
+test("password fields carry the right autocomplete hint per screen", () => {
+  // Wrong hints make browsers offer to overwrite a saved password on sign-up,
+  // or refuse to offer the saved one on sign-in.
+  assert.match(ap.renderSignIn(CTX), /name="password"[^>]*autocomplete="current-password"/);
+  const up = ap.renderSignUp(ctx("signup"));
+  assert.match(up, /name="password"[^>]*autocomplete="new-password"/);
+  assert.match(up, /name="confirm"[^>]*autocomplete="new-password"/);
+  assert.match(up, /name="username"[^>]*autocomplete="nickname"/);
+});
+
+test("both screens keep Google sign-in and carry the brand panel copy", () => {
+  [ap.renderSignIn(CTX), ap.renderSignUp(ctx("signup"))].forEach((html) => {
+    assert.match(html, /IP\.auth\.signInWithGoogle\(\)/);
+    assert.match(html, /auth-brand/);
+  });
+});
+
+test("neither screen offers password reset", () => {
+  // Excluded by the spec: it cannot work without email delivery.
+  [ap.renderSignIn(CTX), ap.renderSignUp(ctx("signup"))].forEach((html) => {
+    assert.ok(!/forgot/i.test(html), "must not show a dead 'forgot password' link");
+  });
+});
+
+test("the demo panel lists both accounts with their exact credentials", () => {
+  const html = ap.renderSignIn(CTX);
+  assert.match(html, /data-auth-demo-toggle/);
+  ap.DEMO_ACCOUNTS.forEach((a) => {
+    assert.ok(html.includes(a.email), `missing ${a.email}`);
+    assert.ok(html.includes(a.password), `missing password for ${a.email}`);
+    assert.match(html, new RegExp(`data-auth-demo-use="${a.id}"`));
+  });
+});
+
+test("demo cards are labelled Email, never Username", () => {
+  // Email is what the form accepts; labelling it 'username' hands reviewers a
+  // value the form rejects.
+  const html = ap.renderSignIn(CTX);
+  const panel = html.slice(html.indexOf("auth-demo-panel"));
+  assert.ok(!/username/i.test(panel), "demo panel must not say 'username'");
+});
+
+test("handleClick reports a view change through onViewChange", () => {
+  let seen = null;
+  ap.onViewChange((v) => { seen = v; });
+  const r = ap.handleClick({ closest: (s) => (s === "[data-auth-go]" ? { dataset: { authGo: "signup" } } : null) });
+  assert.strictEqual(r, "rerender");
+  assert.strictEqual(seen, "signup");
+});
+
+test("handleClick ignores a view change to an unknown screen", () => {
+  let seen = null;
+  ap.onViewChange((v) => { seen = v; });
+  ap.handleClick({ closest: (s) => (s === "[data-auth-go]" ? { dataset: { authGo: "nonsense" } } : null) });
+  assert.strictEqual(seen, null);
+});
+
+test("handleClick toggles the demo panel and asks for a re-render", () => {
+  const toggle = { closest: (s) => (s === "[data-auth-demo-toggle]" ? { dataset: {} } : null) };
+  assert.strictEqual(ap.handleClick(toggle), "rerender");
+  assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*>/, "panel should now be open");
+  assert.strictEqual(ap.handleClick(toggle), "rerender");
+  assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*hidden/, "panel should now be closed");
+});
+
+test("handleClick fires onDemoSignIn with credentials and the default track", () => {
+  let got = null;
+  ap.onDemoSignIn((payload) => { got = payload; });
+  const r = ap.handleClick({ closest: (s) => (s === "[data-auth-demo-use]" ? { dataset: { authDemoUse: "pro" } } : null) });
+  assert.strictEqual(r, true);
+  assert.strictEqual(got.email, "demo.pro@example.com");
+  assert.strictEqual(got.password, "DemoPass123!");
+  assert.deepStrictEqual(got.track, { role: "swe", level: "junior" });
+});
+
+test("handleClick returns false for unrelated targets", () => {
+  assert.strictEqual(ap.handleClick({ closest: () => null }), false);
+});
+
+test("handleClick tolerates a null target", () => {
+  assert.strictEqual(ap.handleClick(null), false);
+});
