@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /* Seed the two published demo accounts.
  *
+ * Prerequisite: from the repo root, run `npm install` once so
+ * @supabase/supabase-js and the AWS SDK packages this script imports are
+ * resolvable (they live in root devDependencies, not api/).
+ *
  * Idempotent: re-running updates rather than duplicating. Run once after the
  * infrastructure deploys, with credentials in the environment:
  *
