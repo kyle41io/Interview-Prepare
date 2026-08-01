@@ -58,6 +58,10 @@ locals {
     # AdminGuard checks the caller's token subject against this list. It was
     # missing, so the list was empty and every /v1/billing/admin/* call 403'd.
     ADMIN_UIDS = var.admin_uids
+    # ChatService applies the demo caps to callers whose token email is in this
+    # list. Keyed on email, not UID, because UIDs do not exist until the seed
+    # script runs — which is after this infrastructure deploys.
+    DEMO_EMAILS = var.demo_emails
   }
 }
 

@@ -42,6 +42,17 @@ variable "admin_uids" {
   default     = "2c2cc2cf-9ced-4642-bdda-dcf7182b3f3a"
 }
 
+variable "demo_emails" {
+  description = <<-EOT
+    Comma-separated emails of the seeded demo accounts. ChatService splits this
+    and applies the demo chat caps (5/session, 30/day) to matching callers, so
+    an empty value means the demo accounts get ordinary free-tier limits. Not a
+    secret: the same credentials are published on the sign-in screen.
+  EOT
+  type        = string
+  default     = "demo@example.com,demo.pro@example.com"
+}
+
 variable "supabase_url" {
   description = <<-EOT
     Supabase project URL (public - it ships in assets/js/config.js). Used to
