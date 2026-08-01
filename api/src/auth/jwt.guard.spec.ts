@@ -136,3 +136,22 @@ describe("JwtAuthGuard - misconfiguration", () => {
     await expect(guard.canActivate(ctx("Bearer " + t))).rejects.toThrow(UnauthorizedException);
   });
 });
+
+describe("JwtAuthGuard session_id", () => {
+  it("forwards session_id onto req.user", async () => {
+    const token = jwt.sign({ sub: "u1", email: "a@b.com", session_id: "sess-1" }, SECRET);
+    const req = { headers: { authorization: `Bearer ${token}` } } as any;
+    const guard = new JwtAuthGuard(hsOnly);
+    await guard.canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as any);
+    expect(req.user).toEqual({ id: "u1", email: "a@b.com", sessionId: "sess-1" });
+  });
+
+  it("leaves sessionId undefined when the claim is absent", async () => {
+    const token = jwt.sign({ sub: "u1", email: "a@b.com" }, SECRET);
+    const req = { headers: { authorization: `Bearer ${token}` } } as any;
+    const guard = new JwtAuthGuard(hsOnly);
+    await guard.canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as any);
+    expect(req.user.sessionId).toBeUndefined();
+    expect(req.user.id).toBe("u1");
+  });
+});
