@@ -28,16 +28,20 @@ export class ChatService {
 
     const { daily, session } = await this.limits(user);
 
-    // Daily first: it's the real spend ceiling, and bumping the session
-    // counter on a request the daily cap will reject would burn session
-    // allowance on a request that never runs.
-    const q = await this.quota.bump(user.id, daily);
-    if (!q.ok) throw new HttpException({ error: "quota", remaining: 0 }, HttpStatus.TOO_MANY_REQUESTS);
-
+    // Session first: the demo accounts are shared logins, so the daily pool is
+    // shared too. Letting a request the session cap will reject still bump the
+    // daily counter is exactly the failure the session tier exists to prevent —
+    // one visitor burning the day's allowance leaves the next reviewer a dead
+    // chat button. The reverse waste is harmless: a visitor the daily cap
+    // rejects is blocked for the rest of the day anyway, so a spent session
+    // turn costs nothing real.
     if (session !== null && user.sessionId) {
       const s = await this.quota.bumpSession(user.id, user.sessionId, session);
       if (!s.ok) throw new HttpException({ error: "quota-session", remaining: 0 }, HttpStatus.TOO_MANY_REQUESTS);
     }
+
+    const q = await this.quota.bump(user.id, daily);
+    if (!q.ok) throw new HttpException({ error: "quota", remaining: 0 }, HttpStatus.TOO_MANY_REQUESTS);
 
     try {
       const { text } = await this.provider.complete({ system: SYSTEM, messages, maxTokens: 1024 });

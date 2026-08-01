@@ -31,16 +31,19 @@ describe("ChatService demo caps", () => {
     expect(quota.bumpSession).toHaveBeenCalledWith("u1", "s1", 5);
   });
 
-  it("rejects on the daily cap without ever touching the session tier", async () => {
-    const { svc, quota, provider } = build({ quota: { bump: jest.fn().mockResolvedValue({ ok: false, remaining: 0 }) } });
+  it("rejects on the session cap without ever touching the daily counter", async () => {
+    const { svc, quota, provider } = build({ quota: { bumpSession: jest.fn().mockResolvedValue({ ok: false, remaining: 0 }) } });
     await expect(svc.chat({ id: "u1", email: "demo@example.com", sessionId: "s1" }, MSGS)).rejects.toThrow(HttpException);
-    expect(quota.bumpSession).not.toHaveBeenCalled();
+    // The daily pool is shared across every reviewer using the demo login, so a
+    // request rejected by the session cap must not consume any of it.
+    expect(quota.bump).not.toHaveBeenCalled();
     expect(provider.complete).not.toHaveBeenCalled();
   });
 
-  it("rejects on the session cap once the daily check has passed", async () => {
-    const { svc, provider } = build({ quota: { bumpSession: jest.fn().mockResolvedValue({ ok: false, remaining: 0 }) } });
+  it("rejects on the daily cap once the session check has passed", async () => {
+    const { svc, quota, provider } = build({ quota: { bump: jest.fn().mockResolvedValue({ ok: false, remaining: 0 }) } });
     await expect(svc.chat({ id: "u1", email: "demo@example.com", sessionId: "s1" }, MSGS)).rejects.toThrow(HttpException);
+    expect(quota.bumpSession).toHaveBeenCalledWith("u1", "s1", 5);
     expect(provider.complete).not.toHaveBeenCalled();
   });
 
