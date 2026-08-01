@@ -53,6 +53,22 @@ test("send maps a 429 rejection to error:quota", async () => {
   const r = await chat.send("hi");
   assert.strictEqual(r.error, "quota");
 });
+test("send maps a session-cap 429 to error:quota-session", async () => {
+  const err = new Error("http-429"); err.status = 429; err.error = "http-429";
+  err.body = { error: "quota-session", remaining: 0 };
+  setup({ reject: err });
+  const r = await chat.send("hi");
+  // The two tiers must stay distinct: the daily cap is about spend, the session
+  // cap clears on re-login, and they need different copy.
+  assert.strictEqual(r.error, "quota-session");
+});
+test("send maps a daily-cap 429 body to error:quota", async () => {
+  const err = new Error("http-429"); err.status = 429; err.error = "http-429";
+  err.body = { error: "quota", remaining: 0 };
+  setup({ reject: err });
+  const r = await chat.send("hi");
+  assert.strictEqual(r.error, "quota");
+});
 test("a failed send rolls back the optimistic user turn", async () => {
   const err = new Error("boom"); err.error = "server-error";
   setup({ reject: err });

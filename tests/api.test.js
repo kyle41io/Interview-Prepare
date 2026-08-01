@@ -74,6 +74,30 @@ test("non-2xx response rejects with status-carrying error", async () => {
   assert.strictEqual(r.error, "http-500");
 });
 
+test("a non-2xx rejection carries the parsed error body", async () => {
+  api.__setBase("https://x.dev");
+  api.__setDeps({
+    fetch: async () => ({ ok: false, status: 429, json: async () => ({ error: "quota-session", remaining: 0 }) }),
+    token: async () => "TKN",
+  });
+  const r = await api.post("/v1/chat", {}).catch((e) => e);
+  assert.strictEqual(r.error, "http-429");
+  assert.strictEqual(r.status, 429);
+  assert.strictEqual(r.body.error, "quota-session");
+});
+
+test("a non-2xx response with an unreadable body still rejects", async () => {
+  api.__setBase("https://x.dev");
+  api.__setDeps({
+    // No json method at all — a bodyless 502 from a gateway.
+    fetch: async () => ({ ok: false, status: 502 }),
+    token: async () => "TKN",
+  });
+  const r = await api.get("/v1/progress").catch((e) => e);
+  assert.strictEqual(r.error, "http-502");
+  assert.strictEqual(r.body, null);
+});
+
 test("network error rejects", async () => {
   api.__setBase("https://x.dev");
   api.__setDeps({

@@ -39,7 +39,13 @@
       headers,
       body: body != null ? JSON.stringify(body) : undefined,
     });
-    if (!res.ok) return Promise.reject({ error: "http-" + res.status, status: res.status });
+    if (!res.ok) {
+      // Carry the server's error body so callers can tell apart failures that
+      // share a status code — the chat 429s are two different quota tiers.
+      let body = null;
+      try { body = await res.json(); } catch (_) { /* empty or non-JSON body */ }
+      return Promise.reject({ error: "http-" + res.status, status: res.status, body });
+    }
     return res.json();
   }
 

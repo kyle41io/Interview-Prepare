@@ -158,6 +158,7 @@
     chatQuota: { vi: "Còn lại hôm nay", en: "Left today" },
     chatQuotaOut: { vi: "Đã hết lượt hôm nay.", en: "Out of messages for today." },
     chatUpgradeCta: { vi: "Nâng cấp Pro để chat nhiều hơn (50/ngày)", en: "Upgrade to Pro for more (50/day)" },
+    chatQuotaSession: { vi: "Đã dùng hết 5 lượt của phiên demo này. Đăng xuất rồi đăng nhập lại để bắt đầu phiên mới.", en: "You've used all 5 messages in this demo session. Sign out and back in to start a new one." },
     chatProTitle: { vi: "Chat AI là tính năng Pro", en: "AI Chat is a Pro feature" },
     chatProDesc: { vi: "Trợ lý AI song ngữ giúp bạn luyện phỏng vấn, giải thích khái niệm và góp ý CV. Nâng cấp Pro để mở khoá.", en: "The bilingual AI assistant helps you rehearse interviews, explain concepts and review your CV. Upgrade to Pro to unlock it." },
     chatEmpty: { vi: "Trợ lý IT — hỏi về lập trình, thuật toán, phỏng vấn, CV. Chỉ hỗ trợ chủ đề CNTT.", en: "IT assistant — ask about coding, algorithms, interviews, CV. IT topics only." },
@@ -503,6 +504,8 @@
     const res = await IP.chat.send(text);
     Chat.sending = false; render(); scrollChat();
     if (res.error === "not-signed-in") return;
+    // Session cap first: Pro doesn't lift it, so the upgrade CTA below would be wrong.
+    if (res.error === "quota-session") { toast(t(UI.chatQuotaSession)); return; }
     if (res.error === "quota") { toast(t(UI.chatQuotaOut) + (IP.pro.isPro() ? "" : " " + t(UI.chatUpgradeCta))); return; }
     if (res.error === "ai-unavailable") { toast(t(UI.chatUnavailable)); return; }
     if (res.error) { toast(t(UI.chatError)); return; }

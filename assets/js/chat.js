@@ -83,7 +83,12 @@
     } catch (e) {
       _hist.pop();
       _emit();
-      if (e && e.status === 429) return { error: "quota", remaining: 0 }; // API 429 → same signal app.js expects
+      // API 429 → the signal app.js expects. Two tiers share the status: the
+      // daily cap and, on demo accounts, the 5-turn session cap.
+      if (e && e.status === 429) {
+        var code = e.body && e.body.error;
+        return { error: code === "quota-session" ? "quota-session" : "quota", remaining: 0 };
+      }
       return { error: (e && e.error) || (e && e.message) || "error" };
     }
   }
