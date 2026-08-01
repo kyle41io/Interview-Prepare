@@ -11,6 +11,7 @@
 
   /* ---- internal state ---- */
   let _client = null;
+  let _supabaseInstance = null;    // track if root.supabase changes (for testing)
   let _user = null;               // cached current user (null = logged out)
   let _listeners = [];             // onChange callbacks
   let _gmailStored = null;         // provider_refresh_token already handed to the server
@@ -27,7 +28,16 @@
 
   /* ---- client(): lazy singleton ---- */
   function client() {
-    if (!enabled()) return null;
+    if (!enabled()) {
+      _client = null;
+      _supabaseInstance = null;
+      return null;
+    }
+    // If root.supabase has changed (e.g. in tests), recreate the client
+    if (root.supabase !== _supabaseInstance) {
+      _client = null;
+      _supabaseInstance = root.supabase;
+    }
     if (!_client) {
       _client = root.supabase.createClient(
         root.IP_CONFIG.SUPABASE_URL,
@@ -147,6 +157,36 @@
     try { await c.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href.split("#")[0] } }); } catch (e) { /* offline / provider misconfig — stay logged out */ }
   }
 
+  /* ---- signUpWithPassword(): email+password registration ----
+     username rides in as user_metadata.full_name because _ensureProfile()
+     already reads full_name into profiles.display_name — so both sign-up
+     paths populate one column and nothing downstream changes.
+     Unlike the OAuth helpers these do NOT swallow errors: the form has to
+     tell the user why it failed. */
+  async function signUpWithPassword(opts) {
+    const c = client();
+    if (!c) return { ok: false, code: "auth-unavailable" };
+    const { data, error } = await c.auth.signUp({
+      email: opts.email,
+      password: opts.password,
+      options: { data: { full_name: opts.username } },
+    });
+    if (error) return { ok: false, code: error.message };
+    return { ok: true };
+  }
+
+  /* ---- signInWithPassword(): email+password sign-in ---- */
+  async function signInWithPassword(opts) {
+    const c = client();
+    if (!c) return { ok: false, code: "auth-unavailable" };
+    const { data, error } = await c.auth.signInWithPassword({
+      email: opts.email,
+      password: opts.password,
+    });
+    if (error) return { ok: false, code: error.message };
+    return { ok: true };
+  }
+
   /* ---- connectGmail(): OAuth with gmail.readonly + offline (captures refresh token) ---- */
   async function connectGmail() {
     const c = client(); if (!c) return;
@@ -166,5 +206,5 @@
     try { await c.auth.signOut(); } catch (e) { /* ignore */ }
   }
 
-  return { enabled, client, getUser, onChange, init, signInWithGoogle, connectGmail, signOut, gmailDiag };
+  return { enabled, client, getUser, onChange, init, signInWithGoogle, signUpWithPassword, signInWithPassword, connectGmail, signOut, gmailDiag };
 });
