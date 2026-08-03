@@ -1404,9 +1404,27 @@
       return { ok: false };
     }
 
+    // A successful sign-in is deferred behind whenContentReady() while the
+    // content bundle downloads — seconds during which this screen stays up and
+    // paintContentLoading() is hidden behind it. Mark the screen busy so the
+    // click is acknowledged instead of looking ignored.
+    const page = document.querySelector(".auth-page");
+    const primary = document.querySelector('.auth-card button[type="submit"]');
+    const prevLabel = primary ? primary.textContent : null;
+    if (page) page.dataset.busy = "1";
+    if (primary) primary.textContent = t(AP.busyLabel);
+
     const res = kind === "signup"
       ? await IP.auth.signUpWithPassword({ email: vals.email, username: vals.username, password: vals.password })
       : await IP.auth.signInWithPassword({ email: vals.email, password: vals.password });
+
+    // Stay inert only when a repaint is actually coming. A failure, or a
+    // sign-up that needs email confirmation, leaves the user on this screen —
+    // both must hand the form back or it sticks on "Signing in…" forever.
+    if (!res.ok || (kind === "signup" && res.needsConfirm)) {
+      if (page) delete page.dataset.busy;
+      if (primary && prevLabel !== null) primary.textContent = prevLabel;
+    }
 
     if (!res.ok && alert) {
       alert.textContent = t(AP.mapAuthError(res.code));

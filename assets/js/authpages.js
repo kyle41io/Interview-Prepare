@@ -154,6 +154,7 @@
     noAccount: { vi: "Chưa có tài khoản?", en: "Don't have an account?" },
     hasAccount: { vi: "Đã có tài khoản?", en: "Already have an account?" },
     goSignUp: { vi: "Đăng ký", en: "Sign Up" },
+    busy: { vi: "Đang đăng nhập…", en: "Signing in…" },
     /* {email} is substituted by the caller, not by t(). */
     signUpConfirm: {
       vi: "Đã tạo tài khoản. Mở email {email}, bấm liên kết xác nhận rồi quay lại đăng nhập.",
@@ -281,6 +282,7 @@
   return {
     DEMO_ACCOUNTS, DEMO_TRACK,
     signUpConfirm: COPY.signUpConfirm,
+    busyLabel: COPY.busy,
     validateSignUp, validateSignIn, mapAuthError,
     render, renderSignIn, renderSignUp, handleClick, onDemoSignIn, onViewChange,
   };

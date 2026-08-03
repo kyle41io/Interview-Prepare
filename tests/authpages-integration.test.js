@@ -63,7 +63,7 @@ test("sign-up tells the user to confirm their email when no session is created",
   // The project has mailer_autoconfirm off, so a successful signUp returns no
   // session and the auth listener never fires. Without this notice the form
   // just sits there and the user assumes sign-up is broken.
-  const m = appJs.match(/async function submitAuth[\s\S]{0,2500}?\n {2}\}/);
+  const m = appJs.match(/async function submitAuth[\s\S]{0,4000}?\n {2}\}/);
   assert.ok(m, "submitAuth not found");
   assert.match(m[0], /res\.needsConfirm/, "submitAuth must branch on needsConfirm");
   assert.match(m[0], /signUpConfirm/, "the confirmation copy must be painted");
@@ -74,6 +74,37 @@ test("sign-up tells the user to confirm their email when no session is created",
 
 test("the auth alert has a success variant distinct from the error styling", () => {
   assert.ok(css.includes(".auth-alert.ok"), "missing .auth-alert.ok style");
+});
+
+test("a submitted auth form marks itself busy until it either fails or repaints", () => {
+  // A successful sign-in is deferred behind whenContentReady() while the
+  // content bundle downloads, so the auth screen stays up for seconds with
+  // paintContentLoading() hidden behind it. Without a busy state the click
+  // looks ignored.
+  const m = appJs.match(/async function submitAuth[\s\S]{0,4000}?\n {2}\}/);
+  assert.ok(m, "submitAuth not found");
+  const setIdx = m[0].indexOf("dataset.busy");
+  const awaitIdx = m[0].indexOf("await IP.auth");
+  assert.ok(setIdx > -1, "submitAuth must set a busy flag");
+  assert.ok(setIdx < awaitIdx, "the busy flag must be set before the await, not after");
+  // Stay busy only when a repaint is coming. Both a failure and a sign-up
+  // awaiting email confirmation leave the user on this screen, so both must
+  // hand the form back — otherwise it sticks on "Signing in…" forever.
+  const clearIdx = m[0].search(/delete [\w.]*dataset\.busy/);
+  assert.ok(clearIdx > awaitIdx, "busy must be cleared after the await");
+  const guard = m[0].slice(awaitIdx, clearIdx);
+  assert.match(guard, /!res\.ok/, "the failure path must clear busy");
+  assert.match(guard, /needsConfirm/, "the sign-up confirm path must clear busy too");
+});
+
+test("the busy auth screen is visibly inert", () => {
+  assert.ok(/\.auth-page\[data-busy\]/.test(css), "missing .auth-page[data-busy] styling");
+});
+
+test("authpages exports a bilingual busy label", () => {
+  const authpages = require("../assets/js/authpages.js");
+  assert.ok(authpages.busyLabel, "busyLabel not exported");
+  ["vi", "en"].forEach((l) => assert.strictEqual(typeof authpages.busyLabel[l], "string"));
 });
 
 test("authpages exports bilingual sign-up confirmation copy", () => {
