@@ -20,3 +20,13 @@ docs/
 # Anchored to repo root: an unanchored "content/" also matched api/src/content/,
 # the NestJS module that serves this content, silently blocking it from git add.
 /content/
+
+# Terraform working dirs and generated zips, at any stack depth.
+**/.terraform/
+**/.build/
+*.tfstate
+*.tfstate.*
+
+# esbuild output, per service.
+**/dist/
+**/dist-lambda/

@@ -1,8 +1,21 @@
 {
+  "name": "interview-prep",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "bundle": "npm run bundle --workspaces --if-present",
+    "boundaries": "depcruise services packages --config .dependency-cruiser.js"
+  },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.699.0",
     "@aws-sdk/lib-dynamodb": "^3.699.0",
     "@supabase/supabase-js": "^2.111.0",
+    "dependency-cruiser": "^16.3.10",
     "supabase": "^2.109.1"
   }
 }
