@@ -187,25 +187,57 @@ test("handleClick ignores a view change to an unknown screen", () => {
   assert.strictEqual(seen, null);
 });
 
-test("handleClick toggles the demo panel and asks for a re-render", () => {
-  const toggle = { closest: (s) => (s === "[data-auth-demo-toggle]" ? { dataset: {} } : null) };
-  assert.strictEqual(ap.handleClick(toggle), "rerender");
-  assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*>/, "panel should now be open");
-  assert.strictEqual(ap.handleClick(toggle), "rerender");
-  assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*hidden/, "panel should now be closed");
+/* The panel is a popover, like the notification bell — it must open in place.
+   Re-rendering rebuilt the whole screen on every click, which was visible as a
+   flicker and threw away anything already typed into the form. */
+test("handleClick toggles the demo panel in place, without a re-render", () => {
+  const panel = { hidden: true };
+  const attrs = {};
+  const toggle = {
+    dataset: {},
+    setAttribute: (k, v) => { attrs[k] = v; },
+    closest: (s) => (s === ".auth-demo" ? { querySelector: () => panel } : null),
+  };
+  const target = { closest: (s) => (s === "[data-auth-demo-toggle]" ? toggle : null) };
+
+  assert.strictEqual(ap.handleClick(target), true, "must report handled, not rerender");
+  assert.strictEqual(panel.hidden, false, "panel should be shown in place");
+  assert.strictEqual(attrs["aria-expanded"], "true");
+
+  assert.strictEqual(ap.handleClick(target), true);
+  assert.strictEqual(panel.hidden, true, "panel should be hidden in place");
+  assert.strictEqual(attrs["aria-expanded"], "false");
+});
+
+/* A genuine re-render still happens for other reasons (switching language),
+   so the open flag has to survive one. */
+test("the demo panel's open state survives a re-render", () => {
+  const panel = { hidden: true };
+  const toggle = {
+    dataset: {}, setAttribute: () => {},
+    closest: (s) => (s === ".auth-demo" ? { querySelector: () => panel } : null),
+  };
+  const target = { closest: (s) => (s === "[data-auth-demo-toggle]" ? toggle : null) };
+  ap.handleClick(target);
+  assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*>/, "open panel should re-render open");
+  ap.handleClick(target);
+  assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*hidden/, "closed panel should re-render closed");
 });
 
 /* Dropped at the user's request: the two labelled cards say what they are. */
 test("the demo panel carries no intro paragraph", () => {
-  const toggle = { closest: (s) => (s === "[data-auth-demo-toggle]" ? { dataset: {} } : null) };
-  ap.handleClick(toggle);
+  const toggle = {
+    dataset: {}, setAttribute: () => {},
+    closest: (s) => (s === ".auth-demo" ? { querySelector: () => ({}) } : null),
+  };
+  ap.handleClick({ closest: (s) => (s === "[data-auth-demo-toggle]" ? toggle : null) });
   const html = ap.renderSignIn(CTX);
   assert.match(html, /auth-demo-panel"\s*>/, "panel must be open for this to be meaningful");
   // Bounded at the busy overlay, which legitimately carries a <p> of its own.
   const panel = html.slice(html.indexOf("auth-demo-panel"), html.indexOf("data-auth-loading"));
   assert.ok(!/<p>/.test(panel), "no <p> inside the demo panel");
   assert.ok(!ap.DEMO_INTRO, "the intro copy should be gone entirely");
-  ap.handleClick(toggle);
+  ap.handleClick({ closest: (s) => (s === "[data-auth-demo-toggle]" ? toggle : null) });
 });
 
 test("handleClick fires onDemoSignIn with credentials and the default track", () => {

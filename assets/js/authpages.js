@@ -308,7 +308,22 @@
       return "rerender";
     }
 
-    if (target.closest("[data-auth-demo-toggle]")) { _demoOpen = !_demoOpen; return "rerender"; }
+    /* Popover, not a screen change: toggle the panel in place. Asking for a
+       re-render here rebuilt the entire auth screen on every click, which
+       flickered and discarded whatever was already typed into the form.
+       _demoOpen is still tracked so a re-render triggered by something else
+       (switching language) reopens it. All the DOM access is guarded because
+       the tests drive this with plain objects, not elements. */
+    const toggle = target.closest("[data-auth-demo-toggle]");
+    if (toggle) {
+      _demoOpen = !_demoOpen;
+      const wrap = typeof toggle.closest === "function" ? toggle.closest(".auth-demo") : null;
+      const panel = wrap && typeof wrap.querySelector === "function"
+        ? wrap.querySelector(".auth-demo-panel") : null;
+      if (panel) panel.hidden = !_demoOpen;
+      if (typeof toggle.setAttribute === "function") toggle.setAttribute("aria-expanded", String(_demoOpen));
+      return true;
+    }
 
     const use = target.closest("[data-auth-demo-use]");
     if (use) {
