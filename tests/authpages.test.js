@@ -212,3 +212,48 @@ test("handleClick returns false for unrelated targets", () => {
 test("handleClick tolerates a null target", () => {
   assert.strictEqual(ap.handleClick(null), false);
 });
+
+/* GoTrue validates the address format before it checks any rate limit — a
+   deliberately loose client regex therefore turns a typo into an opaque
+   HTTP 400 instead of an inline field error. These are addresses the old
+   /^[^\s@]+@[^\s@]+\.[^\s@]+$/ accepted and the server rejects. */
+test("validateSignUp rejects addresses GoTrue treats as malformed", () => {
+  ["tên@gmail.com", ".a@b.com", "a.@b.com", "a..b@c.com", "a,b@c.com", "a@b.com."].forEach((email) => {
+    const errs = ap.validateSignUp({ email, username: "k", password: "hunter22", confirm: "hunter22" });
+    assert.ok(errs.email, `${email} should be rejected client-side`);
+  });
+});
+
+test("validateSignUp still accepts ordinary addresses", () => {
+  ["a@b.com", "first.last@sub.example.co.uk", "user+tag@gmail.com", "x_y-z@a-b.io"].forEach((email) => {
+    const errs = ap.validateSignUp({ email, username: "k", password: "hunter22", confirm: "hunter22" });
+    assert.ok(!errs.email, `${email} should be accepted`);
+  });
+});
+
+/* Every one of these arrived as a generic "something went wrong", which is
+   what made sign-up look broken rather than blocked. */
+test("mapAuthError distinguishes the sign-up failures this project actually hits", () => {
+  const generic = ap.mapAuthError("some brand new upstream failure");
+  [
+    "email rate limit exceeded",
+    "Unable to validate email address: invalid format",
+    "Error sending confirmation email",
+    "Password should be at least 6 characters.",
+    "Signups not allowed for this instance",
+  ].forEach((code) => {
+    const m = ap.mapAuthError(code);
+    assert.notStrictEqual(m.en, generic.en, `${code} should not fall back to the generic message`);
+    assert.notStrictEqual(m.vi, generic.vi, `${code} needs Vietnamese copy too`);
+  });
+});
+
+/* The mailer quota is a server-side cap on the whole project, not this
+   visitor clicking too fast — saying "you tried too many times" sends the
+   user to wait out a limit that is not theirs. */
+test("mapAuthError separates the email quota from per-user throttling", () => {
+  const quota = ap.mapAuthError("email rate limit exceeded");
+  const throttle = ap.mapAuthError("Request rate limit reached");
+  assert.notStrictEqual(quota.en, throttle.en);
+  assert.notStrictEqual(quota.vi, throttle.vi);
+});

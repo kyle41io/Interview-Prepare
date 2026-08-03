@@ -33,9 +33,17 @@
   const DEMO_TRACK = Object.freeze({ role: "swe", level: "junior" });
 
   const MIN_PASSWORD = 8;
-  // Deliberately loose: real address validity is unknowable client-side, and
-  // nothing is ever emailed. This only catches obvious typos.
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  /* Sign-up DOES send mail (confirmation), and GoTrue validates the address
+     before it checks anything else — so an address this regex waves through
+     but the server rejects surfaces as an opaque HTTP 400 with no field
+     highlighted. Match GoTrue's dot-atom parse: ASCII only, no leading,
+     trailing or doubled dots, and a real TLD. Deliverability is still
+     unknowable here; this only has to agree with the server on format. */
+  const ATOM = "[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+";
+  const LABEL = "[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?";
+  const EMAIL_RE = new RegExp(
+    "^" + ATOM + "(?:\\." + ATOM + ")*@" + LABEL + "(?:\\." + LABEL + ")+$"
+  );
 
   const ERR = {
     email:    { vi: "Email không hợp lệ.", en: "Enter a valid email address." },
@@ -81,6 +89,33 @@
     [/email.*not confirmed/i, {
       vi: "Tài khoản chưa được xác nhận.",
       en: "This account has not been confirmed.",
+    }],
+    /* The mailer quota is a cap on the whole project (the built-in Supabase
+       mailer allows only a couple of confirmation emails an hour), not this
+       visitor clicking too fast. It must be matched before the generic rate
+       limit below, and must not tell the user to slow down — waiting does
+       not help them, so point at the demo accounts instead. */
+    [/email rate limit|over_email_send_rate_limit/i, {
+      vi: "Hệ thống gửi email đang đầy, tạm thời không tạo được tài khoản. Hãy dùng tài khoản dùng thử, hoặc thử lại sau.",
+      en: "The sign-up email quota is full, so we can't create the account right now. Use a demo account, or try again later.",
+    }],
+    [/error sending (confirmation )?email/i, {
+      vi: "Không gửi được email xác nhận. Hãy dùng tài khoản dùng thử, hoặc thử lại sau.",
+      en: "We couldn't send the confirmation email. Use a demo account, or try again later.",
+    }],
+    /* Reachable even with client-side validation in place: our regex agrees
+       with GoTrue on format, not on which domains it will accept. */
+    [/unable to validate email|email_address_invalid/i, {
+      vi: "Email không hợp lệ.",
+      en: "Enter a valid email address.",
+    }],
+    [/password should be at least|weak_password/i, {
+      vi: "Mật khẩu quá yếu. Hãy dùng mật khẩu dài hơn.",
+      en: "That password is too weak. Please choose a longer one.",
+    }],
+    [/signups? not allowed|signup_disabled/i, {
+      vi: "Đăng ký đang tạm đóng. Hãy dùng tài khoản dùng thử.",
+      en: "Sign-up is closed right now. Please use a demo account.",
     }],
     [/rate limit|too many/i, {
       vi: "Bạn thử quá nhiều lần. Vui lòng đợi một lát.",

@@ -1427,6 +1427,11 @@
     }
 
     if (!res.ok && alert) {
+      // mapAuthError deliberately never renders the upstream string, which
+      // also means an unmapped failure is invisible to whoever has to debug
+      // it. Log the raw code under one greppable prefix, as IP.auth does for
+      // Gmail — this is how "sign-up just fails" becomes diagnosable.
+      console.warn("[ip:auth] " + kind + " failed — " + res.code);
       alert.textContent = t(AP.mapAuthError(res.code));
       alert.hidden = false;
     }
