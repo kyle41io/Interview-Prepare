@@ -1133,6 +1133,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .auth-field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:inherit;font:inherit}
 .auth-err{display:block;margin-top:5px;font-size:12px;font-style:normal;color:var(--danger,#e5484d)}
 .auth-alert{margin:12px 0;padding:9px 11px;border-radius:9px;font-size:13px;background:color-mix(in srgb,var(--danger,#e5484d) 12%,transparent);color:var(--danger,#e5484d)}
+/* Same element carries the sign-up "confirm your email" notice, which is good
+   news, not a failure — the .ok modifier flips it off the danger palette. */
+.auth-alert.ok{background:color-mix(in srgb,var(--green,#2e9e5b) 12%,transparent);color:var(--green,#2e9e5b)}
 .auth-or{display:flex;align-items:center;gap:10px;margin:16px 0;font-size:12px;opacity:.6}
 .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .auth-foot{margin-top:14px;font-size:13px;text-align:center;opacity:.85}

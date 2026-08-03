@@ -1392,7 +1392,9 @@
     const errs = kind === "signup" ? AP.validateSignUp(vals) : AP.validateSignIn(vals);
     document.querySelectorAll("[data-auth-err]").forEach((el) => { el.hidden = true; el.textContent = ""; });
     const alert = document.querySelector("[data-auth-alert]");
-    if (alert) { alert.hidden = true; alert.textContent = ""; }
+    // Success and failure share this element, so drop the success styling too
+    // or a later error inherits the green treatment.
+    if (alert) { alert.hidden = true; alert.textContent = ""; alert.classList.remove("ok"); }
 
     if (Object.keys(errs).length) {
       Object.keys(errs).forEach((f) => {
@@ -1408,6 +1410,15 @@
 
     if (!res.ok && alert) {
       alert.textContent = t(AP.mapAuthError(res.code));
+      alert.hidden = false;
+    }
+
+    // Sign-up with email confirmation required: Supabase made the account but
+    // issued no session, so the auth listener this function otherwise relies on
+    // never fires. Say so, or the form appears to do nothing at all.
+    if (res.ok && kind === "signup" && res.needsConfirm && alert) {
+      alert.classList.add("ok");
+      alert.textContent = t(AP.signUpConfirm).replace("{email}", vals.email);
       alert.hidden = false;
     }
     return res;

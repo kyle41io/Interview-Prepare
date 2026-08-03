@@ -58,3 +58,29 @@ test("auth screen styles exist", () => {
     assert.ok(css.includes("." + c), `missing style for .${c}`);
   });
 });
+
+test("sign-up tells the user to confirm their email when no session is created", () => {
+  // The project has mailer_autoconfirm off, so a successful signUp returns no
+  // session and the auth listener never fires. Without this notice the form
+  // just sits there and the user assumes sign-up is broken.
+  const m = appJs.match(/async function submitAuth[\s\S]{0,2500}?\n {2}\}/);
+  assert.ok(m, "submitAuth not found");
+  assert.match(m[0], /res\.needsConfirm/, "submitAuth must branch on needsConfirm");
+  assert.match(m[0], /signUpConfirm/, "the confirmation copy must be painted");
+  // Success and failure share one element, so the success styling has to be
+  // cleared on every submit or an error inherits the green treatment.
+  assert.match(m[0], /classList\.remove\("ok"\)/, "the ok class must be reset per submit");
+});
+
+test("the auth alert has a success variant distinct from the error styling", () => {
+  assert.ok(css.includes(".auth-alert.ok"), "missing .auth-alert.ok style");
+});
+
+test("authpages exports bilingual sign-up confirmation copy", () => {
+  const authpages = require("../assets/js/authpages.js");
+  assert.ok(authpages.signUpConfirm, "signUpConfirm not exported");
+  ["vi", "en"].forEach((l) => {
+    assert.strictEqual(typeof authpages.signUpConfirm[l], "string");
+    assert.match(authpages.signUpConfirm[l], /\{email\}/, `${l} copy must interpolate the address`);
+  });
+});

@@ -172,7 +172,10 @@
       options: { data: { full_name: opts.username } },
     });
     if (error) return { ok: false, code: error.message };
-    return { ok: true };
+    // With email confirmation on (mailer_autoconfirm off, which is Supabase's
+    // default), signUp succeeds but returns no session — onChange never fires,
+    // so the caller has to say "check your email" itself or the form looks dead.
+    return { ok: true, needsConfirm: !(data && data.session) };
   }
 
   /* ---- signInWithPassword(): email+password sign-in ---- */

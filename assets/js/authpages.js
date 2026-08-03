@@ -154,6 +154,11 @@
     noAccount: { vi: "Chưa có tài khoản?", en: "Don't have an account?" },
     hasAccount: { vi: "Đã có tài khoản?", en: "Already have an account?" },
     goSignUp: { vi: "Đăng ký", en: "Sign Up" },
+    /* {email} is substituted by the caller, not by t(). */
+    signUpConfirm: {
+      vi: "Đã tạo tài khoản. Mở email {email}, bấm liên kết xác nhận rồi quay lại đăng nhập.",
+      en: "Account created. Open the confirmation link we sent to {email}, then sign in.",
+    },
     goSignIn: { vi: "Đăng nhập", en: "Sign In" },
     demoBtn: { vi: "Tài khoản dùng thử", en: "Demo accounts" },
     demoIntro: { vi: "Dành cho nhà tuyển dụng — đăng nhập ngay, không cần đăng ký.",
@@ -275,6 +280,7 @@
 
   return {
     DEMO_ACCOUNTS, DEMO_TRACK,
+    signUpConfirm: COPY.signUpConfirm,
     validateSignUp, validateSignIn, mapAuthError,
     render, renderSignIn, renderSignUp, handleClick, onDemoSignIn, onViewChange,
   };

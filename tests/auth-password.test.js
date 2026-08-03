@@ -10,15 +10,25 @@ function stubSupabase(behaviour) {
   global.supabase = { createClient: () => ({ auth: behaviour }) };
 }
 
-test("signUpWithPassword returns ok on success", async () => {
+test("signUpWithPassword reports needsConfirm when no session comes back", async () => {
   let seen = null;
   stubSupabase({ signUp: async (args) => { seen = args; return { data: {}, error: null }; } });
   const r = await auth.signUpWithPassword({ email: "a@b.com", username: "kyle", password: "hunter22" });
-  assert.deepStrictEqual(r, { ok: true });
+  // The project has email confirmation on, so signUp creates the user but no
+  // session. Callers need to know, or the form silently does nothing.
+  assert.deepStrictEqual(r, { ok: true, needsConfirm: true });
   assert.strictEqual(seen.email, "a@b.com");
   assert.strictEqual(seen.password, "hunter22");
   // username rides in as full_name so _ensureProfile picks it up unchanged
   assert.strictEqual(seen.options.data.full_name, "kyle");
+});
+
+test("signUpWithPassword clears needsConfirm when Supabase returns a session", async () => {
+  // What a project with mailer_autoconfirm enabled returns: the auth listener
+  // fires and re-renders, so no "check your email" notice should be shown.
+  stubSupabase({ signUp: async () => ({ data: { session: { access_token: "t" } }, error: null }) });
+  const r = await auth.signUpWithPassword({ email: "a@b.com", username: "k", password: "hunter22" });
+  assert.deepStrictEqual(r, { ok: true, needsConfirm: false });
 });
 
 test("signUpWithPassword surfaces the Supabase error message", async () => {
