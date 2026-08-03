@@ -197,8 +197,6 @@
     },
     goSignIn: { vi: "Đăng nhập", en: "Sign In" },
     demoBtn: { vi: "Tài khoản dùng thử", en: "Demo accounts" },
-    demoIntro: { vi: "Dành cho nhà tuyển dụng — đăng nhập ngay, không cần đăng ký.",
-                 en: "For reviewers — sign in now, no sign-up needed." },
     demoUse: { vi: "Đăng nhập bằng tài khoản này", en: "Sign in as this account" },
     demoEmail: { vi: "Email", en: "Email" },
     demoPassword: { vi: "Mật khẩu", en: "Password" },
@@ -238,7 +236,6 @@
         ${ctx.fa("fa-solid fa-book")} ${esc(ctx.t(COPY.demoBtn))}
       </button>
       <div class="auth-demo-panel" ${_demoOpen ? "" : "hidden"}>
-        <p>${esc(ctx.t(COPY.demoIntro))}</p>
         ${cards}
       </div>
     </div>`;

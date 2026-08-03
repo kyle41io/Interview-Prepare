@@ -195,6 +195,19 @@ test("handleClick toggles the demo panel and asks for a re-render", () => {
   assert.match(ap.renderSignIn(CTX), /auth-demo-panel"\s*hidden/, "panel should now be closed");
 });
 
+/* Dropped at the user's request: the two labelled cards say what they are. */
+test("the demo panel carries no intro paragraph", () => {
+  const toggle = { closest: (s) => (s === "[data-auth-demo-toggle]" ? { dataset: {} } : null) };
+  ap.handleClick(toggle);
+  const html = ap.renderSignIn(CTX);
+  assert.match(html, /auth-demo-panel"\s*>/, "panel must be open for this to be meaningful");
+  // Bounded at the busy overlay, which legitimately carries a <p> of its own.
+  const panel = html.slice(html.indexOf("auth-demo-panel"), html.indexOf("data-auth-loading"));
+  assert.ok(!/<p>/.test(panel), "no <p> inside the demo panel");
+  assert.ok(!ap.DEMO_INTRO, "the intro copy should be gone entirely");
+  ap.handleClick(toggle);
+});
+
 test("handleClick fires onDemoSignIn with credentials and the default track", () => {
   let got = null;
   ap.onDemoSignIn((payload) => { got = payload; });
