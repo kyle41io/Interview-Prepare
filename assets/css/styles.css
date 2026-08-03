@@ -1138,9 +1138,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .auth-alert.ok{background:color-mix(in srgb,var(--green,#2e9e5b) 12%,transparent);color:var(--green,#2e9e5b)}
 /* Sign-in succeeds well before the content bundle lands, and this screen stays
    up until it does. Make the wait legible and swallow repeat clicks. */
-.auth-page[data-busy] .auth-card,.auth-page[data-busy] .auth-demo-panel{opacity:.6}
 .auth-page[data-busy] button,.auth-page[data-busy] input{pointer-events:none}
 .auth-page[data-busy] .auth-card button[type="submit"]{cursor:progress}
+/* The overlay sits above the demo panel (z-index 50) so the wait is legible
+   whichever button started it — the demo buttons are outside .auth-card.
+   The scrim is deliberately near-opaque: at lower values the page behind
+   stays fully readable and the screen reads as broken rather than busy. */
+.auth-loading{display:none}
+.auth-page[data-busy] .auth-loading{position:fixed;inset:0;z-index:60;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  background:color-mix(in srgb,var(--bg) 92%,transparent);
+  font-size:14px;font-weight:600;color:var(--txt)}
+.auth-spinner{width:38px;height:38px;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--accent);
+  animation:authSpin .8s linear infinite}
+@keyframes authSpin{to{transform:rotate(360deg)}}
+/* Respect a reduced-motion preference: keep the overlay, drop the rotation. */
+@media (prefers-reduced-motion:reduce){.auth-spinner{animation:none}}
 .auth-or{display:flex;align-items:center;gap:10px;margin:16px 0;font-size:12px;opacity:.6}
 .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .auth-foot{margin-top:14px;font-size:13px;text-align:center;opacity:.85}

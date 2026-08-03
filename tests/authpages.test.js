@@ -257,3 +257,14 @@ test("mapAuthError separates the email quota from per-user throttling", () => {
   assert.notStrictEqual(quota.en, throttle.en);
   assert.notStrictEqual(quota.vi, throttle.vi);
 });
+
+/* The demo buttons live outside .auth-card, so dimming the card alone leaves
+   "Sign in as this account" with no feedback at all — and sign-in takes
+   seconds while the content bundle downloads. Both screens get an overlay. */
+test("both auth screens render a busy overlay with the spinner and a label", () => {
+  [ap.renderSignIn(CTX), ap.renderSignUp(ctx("signup"))].forEach((html) => {
+    assert.match(html, /data-auth-loading/, "missing the busy overlay");
+    assert.match(html, /auth-spinner/, "missing the spinner element");
+    assert.ok(html.includes(ap.busyLabel.en), "overlay must carry the busy label");
+  });
+});

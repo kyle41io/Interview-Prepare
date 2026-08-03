@@ -1408,11 +1408,10 @@
     // content bundle downloads — seconds during which this screen stays up and
     // paintContentLoading() is hidden behind it. Mark the screen busy so the
     // click is acknowledged instead of looking ignored.
+    // The overlay this reveals covers the demo panel too, so the wait reads
+    // the same whichever button started it.
     const page = document.querySelector(".auth-page");
-    const primary = document.querySelector('.auth-card button[type="submit"]');
-    const prevLabel = primary ? primary.textContent : null;
     if (page) page.dataset.busy = "1";
-    if (primary) primary.textContent = t(AP.busyLabel);
 
     const res = kind === "signup"
       ? await IP.auth.signUpWithPassword({ email: vals.email, username: vals.username, password: vals.password })
@@ -1423,7 +1422,6 @@
     // both must hand the form back or it sticks on "Signing in…" forever.
     if (!res.ok || (kind === "signup" && res.needsConfirm)) {
       if (page) delete page.dataset.busy;
-      if (primary && prevLabel !== null) primary.textContent = prevLabel;
     }
 
     if (!res.ok && alert) {

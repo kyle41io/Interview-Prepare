@@ -261,6 +261,14 @@
         <div class="auth-foot">${footHtml}</div>
       </div>
       ${demoPanel(ctx)}
+      <!-- Shown by CSS while .auth-page carries data-busy. It covers the demo
+           panel as well as the card, because "Sign in as this account" sits
+           outside the card and would otherwise give no feedback at all during
+           the seconds a sign-in takes. -->
+      <div class="auth-loading" data-auth-loading role="status" aria-live="polite">
+        <div class="auth-spinner" aria-hidden="true"></div>
+        <p>${esc(ctx.t(COPY.busy))}</p>
+      </div>
     </div>`;
   }
 
