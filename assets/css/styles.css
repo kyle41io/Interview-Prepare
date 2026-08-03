@@ -1116,8 +1116,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .modes[hidden],.search-box[hidden],.kbd-help[hidden]{display:none !important}
 
 /* ---- auth screens (sign-in / sign-up) ---- */
-.auth-page{max-width:1000px;margin:0 auto;padding:24px 16px;display:grid;gap:28px;grid-template-columns:1fr 380px;align-items:start}
-.auth-brand{padding-top:12px}
+/* Spans the viewport below the topbar so align-items can actually centre the
+   two columns — .content's own padding is what used to strand it near the top
+   (see body.logged-out .content below). */
+.auth-page{max-width:1000px;margin:0 auto;padding:24px 16px;display:grid;gap:28px;
+  grid-template-columns:1fr 380px;align-items:center;min-height:calc(100vh - var(--topbar-h))}
 .auth-brand-logo{width:56px;height:56px;margin-bottom:16px;border-radius:14px;display:grid;place-items:center;box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
 .auth-brand-logo img{width:100%;height:100%;display:block}
 .auth-brand h1{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.5px;line-height:1.2;margin-bottom:20px}
@@ -1176,7 +1179,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 
 /* Logged-out landing: no sidebar, content spans the full viewport (centered). */
 body.logged-out .sidebar{display:none}
-body.logged-out .content{margin-left:0;max-width:none}
+/* padding:0 so .auth-page's own min-height spans the full viewport below the
+   topbar; .content's 32px/90px padding is what pushed the card off-centre. */
+body.logged-out .content{margin-left:0;max-width:none;padding:0}
 
 /* Non-Learn tabs (cards / quiz / chat / settings / …): the topic sidebar is
    hidden entirely and the content column spans full width — same treatment as

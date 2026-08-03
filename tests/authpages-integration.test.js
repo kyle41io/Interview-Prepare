@@ -115,3 +115,15 @@ test("authpages exports bilingual sign-up confirmation copy", () => {
     assert.match(authpages.signUpConfirm[l], /\{email\}/, `${l} copy must interpolate the address`);
   });
 });
+
+test("the logged-out auth screen fills the viewport so it can centre", () => {
+  // .content's 32px/90px padding pushed the card toward the top; the auth
+  // screen owns the whole viewport, so it centres against that instead.
+  assert.match(css, /body\.logged-out \.content\{[^}]*padding:0/,
+    "logged-out content padding must be dropped");
+  const m = css.match(/^\.auth-page\{[^}]*\}/m);
+  assert.ok(m, ".auth-page rule not found");
+  assert.match(m[0], /min-height:calc\(100vh - var\(--topbar-h\)\)/,
+    ".auth-page must span the viewport below the topbar");
+  assert.match(m[0], /align-items:center/, ".auth-page must centre its columns");
+});
