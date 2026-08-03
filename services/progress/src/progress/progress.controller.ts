@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt.guard";
-import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard, CurrentUser, AuthUser } from "@ip/auth";
 import { ProgressService } from "./progress.service";
 import { TopicDto, FlashcardDto, QuizDto, BookmarkDto, StreakDto, SettingsDto } from "./dto";
 import { Snapshot } from "./merge";

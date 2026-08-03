@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryCommand, GetCommand, PutCommand, DeleteCommand, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoService } from "../db/dynamo.service";
-import { userPk, topicSk, cardSk, quizSk, bookSk, STREAK_SK, SETTINGS_SK, parseSk } from "../db/keys";
+import { DynamoService } from "@ip/dynamo";
+import { userPk, topicSk, cardSk, quizSk, bookSk, STREAK_SK, SETTINGS_SK, parseSk } from "@ip/dynamo";
 import { mergeSnapshot, Snapshot } from "./merge";
 import { FlashcardDto, StreakDto, SettingsDto } from "./dto";
 
