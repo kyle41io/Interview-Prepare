@@ -1,8 +1,7 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoService } from "../db/dynamo.service";
-import { userPk } from "../db/keys";
+import { DynamoService, userPk } from "@ip/dynamo";
 import { ENTITLEMENT_SK, paymentSk, payStatusPk } from "./billing-keys";
 import { toView, Entitlement, extendExpiry } from "./entitlement";
 import { genProCode, buildVietqrUrl } from "./vietqr";

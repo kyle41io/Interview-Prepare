@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt.guard";
-import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard, CurrentUser, AuthUser } from "@ip/auth";
 import { BillingService } from "./billing.service";
 import { CreatePaymentDto, AdminDecideDto, AdminListQueryDto } from "./dto";
 import { AdminGuard } from "./admin.guard";

@@ -1,5 +1,5 @@
 import { ENTITLEMENT_SK, paymentSk, payStatusPk, parsePaymentCode } from "./billing-keys";
-import { userPk } from "../db/keys";
+import { userPk } from "@ip/dynamo";
 
 describe("billing-keys", () => {
   it("builds keys", () => {
