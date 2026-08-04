@@ -1,0 +1,72 @@
+name: deploy-web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # Read the platform stack's published config instead of running
+      # Terraform. deploy-web therefore needs no state access at all.
+      - name: Read platform config
+        id: cfg
+        run: |
+          echo "bucket=$(aws ssm get-parameter \
+            --name /interview-prep/ms/config/frontend-bucket \
+            --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+          echo "dist=$(aws ssm get-parameter \
+            --name /interview-prep/ms/config/cloudfront-distribution-id \
+            --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+
+      - name: Sync frontend to S3
+        working-directory: apps/web
+        run: |
+          # no-cache = "store it, but revalidate before every use". Without an
+          # explicit Cache-Control, browsers fall back to heuristic freshness
+          # (a fraction of the Last-Modified age), which expires per-file at
+          # different times. That let a browser run a cached old app.js against
+          # a freshly fetched styles.css after a deploy — the old markup's
+          # selectors no longer existed, so the page rendered unstyled.
+          # Filenames aren't content-hashed, so revalidation is what keeps the
+          # asset set consistent. ETags make the common case a cheap 304, and
+          # the CloudFront invalidation below only ever clears the EDGE cache,
+          # never the browser's.
+          #
+          # Syncing apps/web/ makes this an ALLOWLIST. The old workflow synced
+          # the repo root with ten --exclude patterns, one of them ".env" —
+          # publish-everything-except, where dropping one exclude leaks a
+          # secret. Only two excludes remain, and neither is load-bearing for
+          # secrecy.
+          aws s3 sync . "s3://${{ steps.cfg.outputs.bucket }}" \
+            --delete \
+            --cache-control "no-cache" \
+            --exclude "tests/*" --exclude "package.json"
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.cfg.outputs.dist }}" \
+            --paths "/*"

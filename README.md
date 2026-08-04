@@ -40,10 +40,17 @@ distribution's hostname is not committed — read it with
 
 ```bash
 npm install
+npm run build:deps            # required first: see below
 npm test                      # every workspace
 npm test --workspace @ip/web  # frontend only (node --test, not jest)
 cd apps/web && python3 -m http.server 8000
 ```
+
+`build:deps` compiles the three shared packages plus billing and chat, the two
+services that publish a barrel. Every `@ip/*` import resolves through the
+workspace symlink to `dist/index.d.ts`, so on a fresh checkout a consumer's
+`jest` or `nest build` cannot type-check until its producers have emitted
+declarations. Run it after `npm install` and after changing a producer.
 
 The frontend is a build-free static SPA served from S3 behind CloudFront.
 Each backend service runs standalone for local development:

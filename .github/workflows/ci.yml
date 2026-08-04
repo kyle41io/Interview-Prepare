@@ -27,19 +27,11 @@ jobs:
 
       - run: npm ci
 
-      # Producers must be built before their consumers' suites run. There is no
-      # moduleNameMapper in the shared jest preset, so an @ip/* import resolves
-      # through the workspace symlink to dist/index.d.ts — a consumer cannot
-      # compile until its producers have emitted declarations. billing and chat
-      # are here as producers, not for their own tests: chat imports
-      # @ip/billing-service (entitlement) and inbox imports @ip/chat-service
-      # (ProviderService). Those are the two sanctioned P1 couplings; when P4
-      # and P5 remove them, drop the two service lines and keep the packages.
-      - name: Build shared packages and the two services with published barrels
-        run: |
-          npm run build --workspace @ip/auth --workspace @ip/config --workspace @ip/dynamo
-          npm run build --workspace @ip/billing-service
-          npm run build --workspace @ip/chat-service
+      # Producers must be built before their consumers' suites run: the shared
+      # jest preset has no moduleNameMapper, so an @ip/* import resolves through
+      # the workspace symlink to dist/index.d.ts. See the "//" note in the root
+      # package.json for what build:deps covers and why.
+      - run: npm run build:deps
 
       # Runs every workspace's own test script: node --test for apps/web,
       # jest for packages/* and services/*.
