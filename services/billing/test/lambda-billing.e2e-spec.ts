@@ -1,6 +1,9 @@
 process.env.SUPABASE_JWT_SECRET = "test-secret";
 process.env.AWS_REGION = process.env.AWS_REGION || "us-east-1";
-process.env.DDB_TABLE = process.env.DDB_TABLE || "ip_billing_test";
+// DynamoService reads a separate env var per domain table; this service's is
+// DDB_BILLING_TABLE, not DDB_TABLE. Setting the wrong one leaves the default
+// ("ip_billing") in force, which is the table local development uses.
+process.env.DDB_BILLING_TABLE = process.env.DDB_BILLING_TABLE || "ip_billing_test";
 process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "test";
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
 

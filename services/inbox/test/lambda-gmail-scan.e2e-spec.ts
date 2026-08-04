@@ -1,6 +1,14 @@
 process.env.SUPABASE_JWT_SECRET = "test-secret";
 process.env.AWS_REGION = process.env.AWS_REGION || "us-east-1";
-process.env.DDB_TABLE = process.env.DDB_TABLE || "ip_inbox_test";
+// DynamoService reads a separate env var per domain table; this service's is
+// DDB_INBOX_TABLE, not DDB_TABLE. Setting the wrong one leaves the default
+// ("ip_inbox") in force, which is the table local development uses.
+//
+// A DIFFERENT table from lambda-inbox.e2e-spec.ts, deliberately. The assertion
+// below is "0 accounts", which is only true of a table nothing else writes to,
+// and the http suite's scan test connects an account. jest gives suites no
+// ordering guarantee, so sharing one table makes whichever runs second fail.
+process.env.DDB_INBOX_TABLE = process.env.DDB_INBOX_TABLE || "ip_inbox_scan_test";
 process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "test";
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
 process.env.AI_PROVIDER = process.env.AI_PROVIDER || "mock";

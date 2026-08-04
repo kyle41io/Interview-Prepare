@@ -16,6 +16,10 @@ function apiEvent(method, path, opts = {}) {
     headers: {
       ...(opts.token ? { authorization: opts.token } : {}),
       ...(opts.body ? { "content-type": "application/json" } : {}),
+      // For guards that read something other than authorization — inbox's
+      // CronGuard wants x-cron-secret. API Gateway lower-cases header names
+      // before invoking the handler, so callers must pass them lower-cased.
+      ...(opts.headers || {}),
     },
     requestContext: {
       http: { method, path, sourceIp: "127.0.0.1", protocol: "HTTP/1.1", userAgent: "jest" },
