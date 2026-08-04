@@ -2,8 +2,8 @@ import { Injectable, BadRequestException, HttpException, HttpStatus } from "@nes
 import { ConfigService } from "@nestjs/config";
 import { QuotaService } from "./quota.service";
 import { ProviderService, AiUnavailable } from "./provider.service";
-import { BillingService } from "../billing/billing.service";
-import { AuthUser } from "../auth/current-user.decorator";
+import { BillingService } from "@ip/billing-service";
+import { AuthUser } from "@ip/auth";
 import { SYSTEM, clampMessages } from "./scope";
 import { isDemoEmail, limitsFor } from "./limits";
 

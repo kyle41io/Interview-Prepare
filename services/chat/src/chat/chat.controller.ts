@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt.guard";
-import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard, CurrentUser, AuthUser } from "@ip/auth";
 import { ChatService } from "./chat.service";
 // Interface (erases to Object) — the global whitelist ValidationPipe would strip a
 // decorated DTO's `messages` array; clampMessages() in the service validates instead.

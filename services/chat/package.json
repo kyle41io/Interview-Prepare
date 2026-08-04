@@ -1,18 +1,17 @@
 {
-  "name": "@ip/billing-service",
+  "name": "@ip/chat-service",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "scripts": {
     "build": "nest build",
-    "bundle": "nest build && node ../../scripts/esbuild-service.mjs billing",
+    "bundle": "nest build && node ../../scripts/esbuild-service.mjs chat",
     "start:dev": "nest start --watch",
     "test": "jest",
     "test:e2e": "jest --config test/jest-e2e.json"
   },
   "dependencies": {
     "@ip/auth": "1.0.0",
+    "@ip/billing-service": "1.0.0",
     "@ip/config": "1.0.0",
     "@ip/dynamo": "1.0.0",
     "@nestjs/common": "^10.4.0",

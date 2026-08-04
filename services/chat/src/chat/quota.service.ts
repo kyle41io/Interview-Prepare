@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoService } from "../db/dynamo.service";
-import { userPk } from "../db/keys";
+import { DynamoService, userPk } from "@ip/dynamo";
 import { usageSk, sessionSk, todayUtc } from "./scope";
 @Injectable()
 export class QuotaService {

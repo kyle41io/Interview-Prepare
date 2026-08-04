@@ -5,8 +5,9 @@ process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "test";
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
 process.env.AI_PROVIDER = process.env.AI_PROVIDER || "mock";
 
+import { apiEvent } from "@ip/testing/api-event";
+
 import { handler } from "../src/lambda/chat";
-import { apiEvent } from "./lambda-progress.e2e-spec";
 
 const ctx: any = {};
 const invoke = (event: any) => (handler as any)(event, ctx, () => {});
