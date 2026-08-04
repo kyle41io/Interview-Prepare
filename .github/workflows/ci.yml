@@ -3,7 +3,10 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [microservices-p1]
+    # main is listed first and is the one that must never be dropped: this
+    # branch's name is temporary, main is not. Without it, CI stops running
+    # the moment the phase branch merges.
+    branches: [main, microservices-p1]
 
 # Per-PR group so a new push supersedes an in-flight run. Safe to cancel:
 # nothing here mutates anything.
@@ -38,8 +41,27 @@ jobs:
       - name: Test all workspaces
         run: npm test
 
+      # Separate script, so `npm test` does not reach these. They are the only
+      # coverage of the five Lambda entrypoints — the handler each deploy
+      # workflow actually ships — and of the DynamoDB-backed integration paths,
+      # which self-skip without DDB_ENDPOINT.
+      - name: e2e all workspaces
+        run: npm run test:e2e --workspaces --if-present
+
+      # Typechecks what `npm test` cannot reach. jest only compiles the files a
+      # spec imports, so progress, content and inbox — which have no spec that
+      # imports their whole module graph — were never typechecked by CI at all.
+      # `bundle` runs nest build + esbuild over every entrypoint, which is also
+      # the exact command the deploy workflows run, so a build that breaks in
+      # deploy now breaks here first.
+      - name: Bundle every service
+        run: npm run bundle
+
       # ALWAYS runs, on every path. This is the rule that makes the repo a
-      # microservices repo rather than a monorepo with extra folders.
+      # microservices repo rather than a monorepo with extra folders. It also
+      # carries no-unresolvable (a broken import anywhere, including the
+      # scripts/ that no build touches) and the canary that fails if the rules
+      # themselves have gone inert.
       - name: Check service boundaries
         run: npm run boundaries
 

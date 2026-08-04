@@ -31,15 +31,29 @@ jobs:
 
       # Read the platform stack's published config instead of running
       # Terraform. deploy-web therefore needs no state access at all.
+      #
+      # Each value is assigned on its own line, not interpolated into an echo.
+      # A failing command substitution inside an argument does not fail the
+      # step: `echo "bucket=$(aws ssm ...)"` writes `bucket=` and exits 0 even
+      # under `set -e`, because echo succeeded. The sync below would then run
+      # `aws s3 sync . s3:// --delete`. Assigning to a variable is what makes
+      # `set -e` see the failure, and the emptiness checks cover the other case
+      # — a parameter that exists but holds an empty string.
       - name: Read platform config
         id: cfg
+        shell: bash
         run: |
-          echo "bucket=$(aws ssm get-parameter \
+          set -euo pipefail
+          bucket=$(aws ssm get-parameter \
             --name /interview-prep/ms/config/frontend-bucket \
-            --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
-          echo "dist=$(aws ssm get-parameter \
+            --query Parameter.Value --output text)
+          dist=$(aws ssm get-parameter \
             --name /interview-prep/ms/config/cloudfront-distribution-id \
-            --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+            --query Parameter.Value --output text)
+          test -n "$bucket" || { echo "::error::frontend-bucket is empty"; exit 1; }
+          test -n "$dist" || { echo "::error::cloudfront-distribution-id is empty"; exit 1; }
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+          echo "dist=$dist" >> "$GITHUB_OUTPUT"
 
       - name: Sync frontend to S3
         working-directory: apps/web

@@ -5,8 +5,22 @@ on:
     branches: [main]
     paths:
       - "services/progress/**"
+      # packages/* is compiled into this service's bundle, so a change there
+      # ships here. packages/testing is the exception: it is a jest preset and
+      # a test fixture, nothing imports it outside a spec, and every service
+      # excludes specs from its build. Deploying five services because a test
+      # helper changed is noise.
       - "packages/**"
+      - "!packages/testing/**"
       - "infra/modules/**"
+      # The bundler and the root manifests are as much a part of this Lambda's
+      # artifact as its own source: esbuild-service.mjs decides what goes in
+      # the zip, and the lockfile decides which versions. A change to any of
+      # them changes what deploys, so it has to trigger a deploy.
+      - "scripts/esbuild-service.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.base.json"
       - ".github/workflows/deploy-progress.yml"
   workflow_dispatch:
 

@@ -6,6 +6,12 @@ on:
     paths:
       - "infra/platform/**"
       - ".github/workflows/deploy-platform.yml"
+      # infra/modules/** is deliberately absent, though the spec's CI/CD table
+      # lists it. The platform stack owns the API Gateway, CloudFront, the S3
+      # buckets and the SSM config; it does not instantiate the lambda-service
+      # module — the five service stacks do, and all five already trigger on it.
+      # Adding it here would redeploy the platform every time a Lambda-only
+      # detail changed. Restore it if platform ever consumes a shared module.
   workflow_dispatch:
 
 permissions:

@@ -55,6 +55,36 @@ module.exports = {
       from: { path: "^packages/" },
       to: { path: "^services/" },
     },
+    {
+      name: "no-unresolvable",
+      severity: "error",
+      comment:
+        "An import that does not resolve is a broken file. nest build excludes " +
+        "scripts/ and jest never loads them, so without this rule a script can " +
+        "sit unbuildable on main indefinitely — which is exactly what happened " +
+        "to the three backfill scripts after keys.ts moved to packages/dynamo.",
+      from: {},
+      to: { couldNotResolve: true },
+    },
+  ],
+  // The canary for the rules above. Every forbidden rule here matches on source
+  // paths, and every one of them goes silently inert if tsconfig.depcruise.json
+  // stops mapping @ip/* to src/index.ts: the imports then resolve through the
+  // workspace symlink into dist/, which `exclude` drops, so a repo with real
+  // violations reports zero and exits 0. Asserting that one known @ip/* import
+  // is present *as a source path* fails loudly in that case instead. Pick any
+  // service→package edge; progress -> @ip/auth is the least likely to move.
+  required: [
+    {
+      name: "depcruise-tsconfig-canary",
+      severity: "error",
+      comment:
+        "progress.module.ts imports @ip/auth. If this rule fails, the boundary " +
+        "rules are not being enforced — check tsconfig.depcruise.json's paths, " +
+        "not this file.",
+      module: { path: "^services/progress/src/progress/progress\\.module\\.ts$" },
+      to: { path: "^packages/auth/src/" },
+    },
   ],
   allowed: [],
   options: {
