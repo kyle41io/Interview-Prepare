@@ -6,7 +6,7 @@ const assert = require("node:assert");
 
 let validateDiagrams;
 test.before(async () => {
-  ({ validateDiagrams } = await import("../api/scripts/content-lib.mjs"));
+  ({ validateDiagrams } = await import("../services/content/scripts/content-lib.mjs"));
 });
 
 const L = { vi: "vi", en: "en" };
