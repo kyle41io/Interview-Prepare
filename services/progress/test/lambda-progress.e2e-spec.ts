@@ -6,30 +6,9 @@ process.env.DDB_TABLE = process.env.DDB_TABLE || "ip_progress_test";
 process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "test";
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
 
-import { handler } from "../src/lambda/progress";
+import { apiEvent } from "@ip/testing/api-event";
 
-export function apiEvent(
-  method: string,
-  path: string,
-  opts: { token?: string; body?: unknown } = {},
-): any {
-  return {
-    version: "2.0",
-    routeKey: `${method} ${path}`,
-    rawPath: path,
-    rawQueryString: "",
-    headers: {
-      ...(opts.token ? { authorization: opts.token } : {}),
-      ...(opts.body ? { "content-type": "application/json" } : {}),
-    },
-    requestContext: {
-      http: { method, path, sourceIp: "127.0.0.1", protocol: "HTTP/1.1", userAgent: "jest" },
-      requestId: "test", stage: "$default", routeKey: `${method} ${path}`,
-    },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-    isBase64Encoded: false,
-  };
-}
+import { handler } from "../src/lambda/progress";
 
 const ctx: any = {};
 const invoke = (event: any) => (handler as any)(event, ctx, () => {});
