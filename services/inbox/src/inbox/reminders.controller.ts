@@ -10,8 +10,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt.guard";
-import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard, CurrentUser, AuthUser } from "@ip/auth";
 import { InboxService } from "./inbox.service";
 
 // Interface (erases to Object) so the whitelist ValidationPipe passes the body through.

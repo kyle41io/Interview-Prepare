@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt.guard";
-import { CurrentUser, AuthUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard, CurrentUser, AuthUser } from "@ip/auth";
 import { GmailAccountService } from "./gmail-account.service";
 import { CronGuard } from "./cron.guard";
 import { ScanService } from "./scan.service";

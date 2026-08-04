@@ -7,7 +7,7 @@ import { GmailAccountService } from "./gmail-account.service";
 import { GmailController } from "./gmail.controller";
 import { CronGuard } from "./cron.guard";
 import { ScanService } from "./scan.service";
-import { ChatModule } from "../chat/chat.module";
+import { ChatModule } from "@ip/chat-service";
 
 @Module({
   imports: [ChatModule], // ProviderService for classify

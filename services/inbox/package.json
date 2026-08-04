@@ -1,19 +1,17 @@
 {
-  "name": "@ip/chat-service",
+  "name": "@ip/inbox-service",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "scripts": {
     "build": "nest build",
-    "bundle": "nest build && node ../../scripts/esbuild-service.mjs chat",
+    "bundle": "nest build && node ../../scripts/esbuild-service.mjs inbox:http gmail-scan:scan",
     "start:dev": "nest start --watch",
     "test": "jest",
     "test:e2e": "jest --config test/jest-e2e.json"
   },
   "dependencies": {
     "@ip/auth": "1.0.0",
-    "@ip/billing-service": "1.0.0",
+    "@ip/chat-service": "1.0.0",
     "@ip/config": "1.0.0",
     "@ip/dynamo": "1.0.0",
     "@nestjs/common": "^10.4.0",
@@ -29,7 +27,9 @@
     "@ip/testing": "1.0.0",
     "@nestjs/cli": "^10.4.0",
     "@nestjs/testing": "^10.4.0",
+    "@types/aws-lambda": "^8.10.145",
     "@types/jest": "^29.5.12",
+    "@types/node": "^18.19.0",
     "esbuild": "^0.24.0",
     "jest": "^29.7.0",
     "supertest": "^7.0.0",

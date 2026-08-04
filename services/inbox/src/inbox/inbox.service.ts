@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryCommand, UpdateCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoService } from "../db/dynamo.service";
-import { userPk } from "../db/keys";
+import { DynamoService, userPk } from "@ip/dynamo";
 import { notifSk, reminderSk, NOTIF_PREFIX, REMINDER_PREFIX, parseNotifKey } from "./inbox-keys";
 
 function rid() {

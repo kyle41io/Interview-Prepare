@@ -1,5 +1,5 @@
 import { GMAIL_ACCOUNT_SK, notifSk, reminderSk, seenSk, NOTIF_PREFIX, parseNotifKey } from "./inbox-keys";
-import { userPk } from "../db/keys";
+import { userPk } from "@ip/dynamo";
 describe("inbox-keys", () => {
   it("builds keys", () => {
     expect(userPk("u1")).toBe("USER#u1");

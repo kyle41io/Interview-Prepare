@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { GetCommand, PutCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoService } from "../db/dynamo.service";
-import { userPk } from "../db/keys";
+import { DynamoService, userPk } from "@ip/dynamo";
 import { GMAIL_ACCOUNT_SK } from "./inbox-keys";
 import { GoogleService } from "./google.service";
 @Injectable()

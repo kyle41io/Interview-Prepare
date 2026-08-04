@@ -6,7 +6,7 @@ process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || "test";
 process.env.AI_PROVIDER = process.env.AI_PROVIDER || "mock";
 process.env.GMAIL_MODE = process.env.GMAIL_MODE || "mock";
 
-import { handler } from "../src/lambda/gmail-scan";
+import { handler } from "../src/lambda/scan";
 
 const ctx: any = {};
 const dbOn = !!process.env.DDB_ENDPOINT;

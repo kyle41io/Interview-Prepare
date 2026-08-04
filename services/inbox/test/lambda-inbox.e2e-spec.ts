@@ -7,8 +7,9 @@ process.env.AI_PROVIDER = process.env.AI_PROVIDER || "mock";
 process.env.GMAIL_MODE = process.env.GMAIL_MODE || "mock";
 process.env.CRON_SECRET = process.env.CRON_SECRET || "test-cron";
 
-import { handler } from "../src/lambda/inbox";
-import { apiEvent } from "./lambda-progress.e2e-spec";
+import { apiEvent } from "@ip/testing/api-event";
+
+import { handler } from "../src/lambda/http";
 
 const ctx: any = {};
 const invoke = (event: any) => (handler as any)(event, ctx, () => {});

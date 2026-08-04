@@ -1,12 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoService } from "../db/dynamo.service";
-import { userPk } from "../db/keys";
+import { DynamoService, userPk } from "@ip/dynamo";
 import { seenSk } from "./inbox-keys";
 import { GoogleService } from "./google.service";
 import { GmailAccountService } from "./gmail-account.service";
 import { InboxService } from "./inbox.service";
-import { ProviderService } from "../chat/provider.service";
+import { ProviderService } from "@ip/chat-service";
 import { CLASSIFY_SYS, CLASSIFY_INSTRUCTION, RECRUIT_RE } from "./classify";
 
 /** Why a message produced nothing. Every non-"notified" outcome used to be an
