@@ -5,17 +5,24 @@ import { SSMClient, GetParametersCommand } from "@aws-sdk/client-ssm";
  * environment-variable key the application code reads via ConfigService.
  *
  * NOTE: the Gmail OAuth params are named `gmail-oauth-client-*` in SSM but the
- * code (api/src/inbox/google.service.ts) reads GOOGLE_CLIENT_ID /
+ * code (services/inbox/src/inbox/google.service.ts) reads GOOGLE_CLIENT_ID /
  * GOOGLE_CLIENT_SECRET — the env keys below are the ones the code expects, not
  * the SSM param names.
+ *
+ * This map is shared by every service, so each Lambda hydrates all six secrets
+ * whether it reads them or not. That is deliberate for P1 — it reproduces the
+ * monolith's single environment exactly — but it means the IAM grant is
+ * per-service-role-reads-everything. Splitting the map per service is a
+ * least-privilege change, and IAM changes are out of scope for a phase whose
+ * gate is zero behaviour change.
  */
 export const SSM_TO_ENV: Record<string, string> = {
-  "supabase-jwt-secret": "SUPABASE_JWT_SECRET", // api/src/auth/jwt.guard.ts
-  "openai-api-key": "OPENAI_API_KEY", // api/src/chat/provider.service.ts (active provider)
-  "anthropic-api-key": "ANTHROPIC_API_KEY", // api/src/chat/provider.service.ts (kept ready as fallback)
-  "gmail-oauth-client-id": "GOOGLE_CLIENT_ID", // api/src/inbox/google.service.ts
-  "gmail-oauth-client-secret": "GOOGLE_CLIENT_SECRET", // api/src/inbox/google.service.ts
-  "cron-secret": "CRON_SECRET", // api/src/inbox/cron.guard.ts
+  "supabase-jwt-secret": "SUPABASE_JWT_SECRET", // packages/auth/src/jwt.guard.ts
+  "openai-api-key": "OPENAI_API_KEY", // services/chat/src/chat/provider.service.ts (active provider)
+  "anthropic-api-key": "ANTHROPIC_API_KEY", // services/chat/src/chat/provider.service.ts (kept ready as fallback)
+  "gmail-oauth-client-id": "GOOGLE_CLIENT_ID", // services/inbox/src/inbox/google.service.ts
+  "gmail-oauth-client-secret": "GOOGLE_CLIENT_SECRET", // services/inbox/src/inbox/google.service.ts
+  "cron-secret": "CRON_SECRET", // services/inbox/src/inbox/cron.guard.ts
 };
 
 interface HydrateDeps {
