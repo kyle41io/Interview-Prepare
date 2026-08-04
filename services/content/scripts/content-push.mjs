@@ -3,7 +3,10 @@ import { join } from "node:path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadTopics, validateTopic, validateDiagrams, findDuplicateIds } from "./content-lib.mjs";
 
-const DIR = process.argv[2] || "../content";
+// Relative to the workspace this script runs in, which npm sets as the cwd.
+// services/content is one level deeper than the old api/, hence ../../ rather
+// than ../ — the target is still the repo-root content/ directory.
+const DIR = process.argv[2] || "../../content";
 const BUCKET = process.env.CONTENT_BUCKET;
 if (!BUCKET) {
   console.error("CONTENT_BUCKET is not set");
