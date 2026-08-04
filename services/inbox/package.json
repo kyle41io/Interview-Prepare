@@ -12,6 +12,8 @@
     "create-inbox-table": "ts-node scripts/create-inbox-table.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.699.0",
+    "@aws-sdk/lib-dynamodb": "^3.699.0",
     "@ip/auth": "1.0.0",
     "@ip/chat-service": "1.0.0",
     "@ip/config": "1.0.0",
@@ -36,7 +38,6 @@
     "esbuild": "^0.24.0",
     "jest": "^29.7.0",
     "pg": "^8.13.0",
-    "supertest": "^7.0.0",
     "ts-jest": "^29.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"

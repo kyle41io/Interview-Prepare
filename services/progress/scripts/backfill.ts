@@ -12,7 +12,7 @@
 import { Pool } from "pg";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
-import { userPk, topicSk, cardSk, quizSk, bookSk, STREAK_SK, SETTINGS_SK } from "../src/db/keys";
+import { userPk, topicSk, cardSk, quizSk, bookSk, STREAK_SK, SETTINGS_SK } from "@ip/dynamo";
 
 const DRY_RUN = process.argv.includes("--dry");
 

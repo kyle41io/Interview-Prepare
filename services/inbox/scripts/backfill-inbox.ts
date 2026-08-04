@@ -15,7 +15,7 @@
 import { Client } from "pg";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
-import { userPk } from "../src/db/keys";
+import { userPk } from "@ip/dynamo";
 import { notifSk, reminderSk } from "../src/inbox/inbox-keys";
 
 const DRY = process.argv.includes("--dry");

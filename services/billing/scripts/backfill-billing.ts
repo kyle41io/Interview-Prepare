@@ -12,7 +12,7 @@
 import { Client } from "pg";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
-import { userPk } from "../src/db/keys";
+import { userPk } from "@ip/dynamo";
 import { ENTITLEMENT_SK, paymentSk, payStatusPk } from "../src/billing/billing-keys";
 
 const DRY = process.argv.includes("--dry");
