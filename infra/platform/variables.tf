@@ -45,3 +45,14 @@ variable "extra_allowed_origins" {
   type        = list(string)
   default     = []
 }
+
+variable "github_repo" {
+  description = <<-EOT
+    owner/repo allowed to assume the OIDC deploy role. Carries a default so the
+    deploy workflow needs no -var flag: a wrong value here does not fail loudly,
+    it produces a role nothing can assume, which is a far more confusing failure
+    than a wrong default that is visible in source.
+  EOT
+  type        = string
+  default     = "kyle41io/Interview-Prepare"
+}
