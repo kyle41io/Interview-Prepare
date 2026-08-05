@@ -25,6 +25,23 @@ variable "ssm_prefix" {
   default     = "/interview-prep/ms"
 }
 
+variable "state_bucket" {
+  description = <<-EOT
+    Terraform state bucket, for the deploy role's S3 grant. MUST match the
+    bucket in every backend.tf: a backend block cannot reference variables, so
+    the name is duplicated here by necessity. A mismatch fails at the next
+    terraform init in CI, not at apply time here.
+  EOT
+  type        = string
+  default     = "interview-prep-tfstate-403001213633"
+}
+
+variable "state_key_prefix" {
+  description = "Key prefix of this environment's state objects; matches the `key` in every backend.tf."
+  type        = string
+  default     = "interview-prep/ms"
+}
+
 variable "supabase_url" {
   type    = string
   default = "https://tbihofgqjrwfgjtfjyrg.supabase.co"

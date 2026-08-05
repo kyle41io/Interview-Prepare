@@ -9,8 +9,9 @@
 # resource orphaned outside Terraform, and no window where two states both
 # claim the same role.
 #
-# Cutover order matters: this role must exist, and vars.AWS_DEPLOY_ROLE_ARN
-# must point at it, BEFORE the legacy stack is destroyed.
+# That teardown has since run, so every statement below is scoped to this
+# environment's own names (interview-prep-ms-*, ip_ms_*, /interview-prep/ms/*)
+# rather than the wider interview-prep-* it needed during the parallel window.
 #
 # One consequence worth stating plainly: because this stack is applied by CI
 # using this very role, the role can now edit its own permissions. That was
@@ -23,15 +24,18 @@ data "aws_caller_identity" "current" {}
 locals {
   github_oidc_provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 
-  # Deliberately the UNPREFIXED project name, not var.name_prefix. IAM scoping
-  # here has to span both environments: "interview-prep-*" matches this stack's
-  # own interview-prep-ms-* resources AND the legacy interview-prep-* ones the
-  # teardown has to delete. Narrowing this to interview-prep-ms-* would leave
-  # the deploy role unable to destroy the environment it is replacing.
+  # Every statement below scopes to this prefix. It was deliberately the
+  # unprefixed "interview-prep" while the legacy environment still existed,
+  # because the same role had to be able to destroy interview-prep-* resources
+  # as well as manage its own interview-prep-ms-* ones. That teardown is done,
+  # so the wider scope now only grants reach into an environment that no longer
+  # exists — and into any future interview-prep-* resource that is not part of
+  # this stack.
   #
-  # Once the legacy teardown is done, this can be tightened to name_prefix and
-  # the SSM scope to var.ssm_prefix.
-  project = "interview-prep"
+  # One thing this prefix does NOT cover is the Terraform state bucket
+  # (interview-prep-tfstate-*), which the wider scope used to include by
+  # accident. See the TerraformState statement.
+  prefix = var.name_prefix
 }
 
 # The provider ARN is derived rather than looked up with the
@@ -72,7 +76,7 @@ resource "aws_iam_role" "github_oidc" {
 }
 
 # Every statement is scoped to this project's resources (name-prefixed with
-# local.project / "ip_" table names) wherever AWS supports resource-level
+# local.prefix / "ip_ms_" table names) wherever AWS supports resource-level
 # permissions. A small number of actions have no resource-level ARN support at
 # all (CloudFront) or specifically require "*" for create-time calls before the
 # resource exists (API Gateway) — those are documented per statement and are the
@@ -88,7 +92,7 @@ data "aws_iam_policy_document" "github_deploy" {
       "lambda:PublishVersion",
       "lambda:AddPermission", "lambda:RemovePermission", "lambda:InvokeFunction",
     ]
-    resources = ["arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${local.project}-*"]
+    resources = ["arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${local.prefix}-*"]
   }
 
   # Read/describe surface, per service, scoped to this project's resources.
@@ -107,15 +111,11 @@ data "aws_iam_policy_document" "github_deploy" {
       "iam:Get*", "iam:List*",
     ]
     resources = [
-      "arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${local.project}-*",
-      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*",
-      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*/index/*",
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.project}-*",
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${local.project}-*",
-      # The legacy aws_iam_user.content_seeder. Without this the provider's Read
-      # path fails on iam:GetUser and the teardown plan dies at refresh, before
-      # it can reach a single deletion.
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${local.project}-*",
+      "arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${local.prefix}-*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_ms_*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_ms_*/index/*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prefix}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${local.prefix}-*",
     ]
   }
 
@@ -158,8 +158,8 @@ data "aws_iam_policy_document" "github_deploy" {
       "dynamodb:UpdateTimeToLive", "dynamodb:DescribeContinuousBackups",
     ]
     resources = [
-      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*",
-      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_*/index/*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_ms_*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/ip_ms_*/index/*",
     ]
   }
 
@@ -167,7 +167,37 @@ data "aws_iam_policy_document" "github_deploy" {
     sid       = "S3ProjectBuckets"
     effect    = "Allow"
     actions   = ["s3:*"]
-    resources = ["arn:aws:s3:::${local.project}-*", "arn:aws:s3:::${local.project}-*/*"]
+    resources = ["arn:aws:s3:::${local.prefix}-*", "arn:aws:s3:::${local.prefix}-*/*"]
+  }
+
+  # The state bucket is NOT covered by local.prefix: it is called
+  # interview-prep-tfstate-<account>, which the old "interview-prep-*" scope
+  # matched incidentally and "interview-prep-ms-*" does not match at all.
+  # Without this statement every terraform init in CI fails on the first state
+  # read — the narrowing that added it is exactly what would have broken it.
+  #
+  # Keys are scoped to var.state_key_prefix, so CI can touch this stack's own
+  # state objects and their .tflock siblings (use_lockfile = true) and nothing
+  # else in the bucket. The legacy interview-prep/terraform.tfstate object is
+  # deliberately left outside that scope: the environment it described is gone,
+  # and CI has no reason to be able to rewrite the record of it.
+  statement {
+    sid    = "TerraformState"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject", "s3:PutObject", "s3:DeleteObject",
+    ]
+    resources = ["arn:aws:s3:::${var.state_bucket}/${var.state_key_prefix}/*"]
+  }
+
+  # Bucket-level, so it cannot be scoped to the key prefix above. ListBucket
+  # returns key names only, never object contents, and the backend needs it to
+  # resolve a state key that may not exist yet.
+  statement {
+    sid       = "TerraformStateList"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::${var.state_bucket}"]
   }
 
   statement {
@@ -199,9 +229,11 @@ data "aws_iam_policy_document" "github_deploy" {
     sid     = "Ssm"
     effect  = "Allow"
     actions = ["ssm:*"]
-    # "/interview-prep/*" spans both /interview-prep/ms/* (this stack) and the
-    # legacy /interview-prep/<secret> parameters the teardown deletes.
-    resources = ["arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter/${local.project}/*"]
+    # var.ssm_prefix, now that the legacy /interview-prep/<secret> parameters
+    # the teardown deleted no longer need to be in reach. The ARN form takes no
+    # leading slash after "parameter", which ssm_prefix supplies — hence the
+    # concatenation with no separator.
+    resources = ["arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_prefix}/*"]
   }
 
   statement {
@@ -220,7 +252,7 @@ data "aws_iam_policy_document" "github_deploy" {
     sid       = "Scheduler"
     effect    = "Allow"
     actions   = ["scheduler:*"]
-    resources = ["arn:aws:scheduler:*:${data.aws_caller_identity.current.account_id}:schedule/*/${local.project}-*"]
+    resources = ["arn:aws:scheduler:*:${data.aws_caller_identity.current.account_id}:schedule/*/${local.prefix}-*"]
   }
 
   statement {
@@ -232,13 +264,13 @@ data "aws_iam_policy_document" "github_deploy" {
     # every group-level call the provider makes for aws_cloudwatch_log_group
     # (CreateLogGroup, PutRetentionPolicy, TagResource, ListTagsForResource...).
     resources = [
-      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.project}-*",
-      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.project}-*:*",
+      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.prefix}-*",
+      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.prefix}-*:*",
     ]
   }
 
   statement {
-    sid    = "IamRolePolicyAndUserLifecycle"
+    sid    = "IamRoleAndPolicyLifecycle"
     effect = "Allow"
     actions = [
       "iam:CreateRole", "iam:GetRole", "iam:UpdateRole", "iam:DeleteRole", "iam:TagRole", "iam:UntagRole",
@@ -246,25 +278,16 @@ data "aws_iam_policy_document" "github_deploy" {
       "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:DeletePolicy", "iam:TagPolicy", "iam:UntagPolicy",
       "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
       "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies",
-      # The legacy aws_iam_user.content_seeder and its inline policy.
-      "iam:CreateUser", "iam:DeleteUser", "iam:TagUser", "iam:UntagUser",
-      "iam:PutUserPolicy", "iam:DeleteUserPolicy",
-      # DeleteUser fails with DeleteConflict while the user still has an access
-      # key, and the seeder's key was minted by hand — so deleting the key is a
-      # precondition for the teardown, not an optional tidy-up. CreateAccessKey
-      # is deliberately still absent: these two actions remove credentials, they
-      # cannot mint them, which preserves the original rule that CI must never
-      # be able to issue itself a long-lived key.
-      #
-      # The new environment contains no IAM users at all. Once the legacy
-      # teardown is complete, this pair and the four user actions above become
-      # vestigial and should be dropped.
-      "iam:ListAccessKeys", "iam:DeleteAccessKey",
     ]
+    # No user/* ARN and no user or access-key actions. Both existed only for the
+    # legacy aws_iam_user.content_seeder, whose key the teardown deleted along
+    # with the user; this environment authenticates CI through OIDC and contains
+    # no IAM users at all. CreateAccessKey was never granted, so dropping
+    # ListAccessKeys/DeleteAccessKey leaves CI with no access-key permissions of
+    # any kind.
     resources = [
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.project}-*",
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${local.project}-*",
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${local.project}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prefix}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${local.prefix}-*",
     ]
   }
 
@@ -272,7 +295,7 @@ data "aws_iam_policy_document" "github_deploy" {
     sid       = "IamPassRoleToServices"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
-    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.project}-*"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prefix}-*"]
     # Lambda needs its execution role passed at function create/update time;
     # EventBridge Scheduler needs a target role passed at schedule create time
     # (aws_scheduler_schedule). Scoped to project-prefixed roles only.

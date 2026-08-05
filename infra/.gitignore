@@ -4,5 +4,5 @@
 terraform.tfvars
 .terraform.lock.hcl
 
-# Zipped Lambda bundles produced by archive_file (infra/lambda.tf).
+# Zipped Lambda bundles produced by archive_file in the per-service stacks.
 .build/
