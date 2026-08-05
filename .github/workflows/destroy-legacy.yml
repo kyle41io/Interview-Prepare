@@ -115,6 +115,28 @@ jobs:
       # CloudFront deletion is the slow part — the provider disables the
       # distribution and waits for the change to propagate before deleting, which
       # normally runs 15-25 minutes.
+      # The first attempt (run 30993757982) acquired the state lock and THEN
+      # blocked on the variable prompt below, so when the timeout killed the step
+      # the lock object outlived the process holding it. The retry then failed in
+      # seconds with "Error acquiring the state lock … PreconditionFailed".
+      #
+      # Deleting the object is `terraform force-unlock` without having to thread
+      # a lock ID (only visible in the failed run's log) into this workflow.
+      # Sound here only because this workflow is single-use, gated, and the sole
+      # writer of the legacy state. In a normal deploy workflow a live lock means
+      # a concurrent apply, and clearing it would corrupt state.
+      - name: Clear a stale state lock
+        run: |
+          set -euo pipefail
+          bucket=interview-prep-tfstate-403001213633
+          key=interview-prep/terraform.tfstate.tflock
+          if aws s3api head-object --bucket "$bucket" --key "$key" >/dev/null 2>&1; then
+            aws s3api delete-object --bucket "$bucket" --key "$key"
+            echo "deleted stale lock $key"
+          else
+            echo "no stale lock at $key"
+          fi
+
       #
       # -input=false and the explicit -var are what the first attempt was
       # missing. infra/variables.tf declares github_repo with no default, so
