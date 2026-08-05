@@ -258,12 +258,27 @@ data "aws_iam_policy_document" "github_deploy" {
   statement {
     sid    = "ApiGatewayCreateTime"
     effect = "Allow"
-    # API Gateway v2 (HTTP API) IAM does not use granular named actions -
-    # access is controlled by HTTP verb on the apigateway service instead.
-    # These five verbs cover create/read/update/delete/tag for apis, stages,
-    # routes, integrations, and deployments (tagging goes through POST/DELETE
-    # on the /tags resource, so no separate tag action is needed).
-    actions = ["apigateway:GET", "apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE"]
+    # API Gateway v2 (HTTP API) IAM is mostly HTTP-verb based rather than
+    # granular named actions: these five verbs cover create/read/update/delete
+    # for apis, stages, routes, integrations and deployments.
+    #
+    # Tagging is the exception, and the comment here used to claim otherwise
+    # ("tagging goes through POST/DELETE on the /tags resource, so no separate
+    # tag action is needed"). That is wrong for CreateStage: with default_tags
+    # set, aws provider 5.100.0 passes tags to CreateStage, and AWS authorizes
+    # that call against the NAMED action apigateway:TagResource. The platform
+    # stack's first apply failed on exactly this — every other resource
+    # created, then:
+    #
+    #   creating API Gateway v2 Stage ($default): AccessDeniedException:
+    #   not authorized to perform: apigateway:TagResource
+    #
+    # UntagResource is included alongside it so a later tag removal does not
+    # fail the same way.
+    actions = [
+      "apigateway:GET", "apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE",
+      "apigateway:TagResource", "apigateway:UntagResource",
+    ]
     # HTTP API IDs are opaque and only known post-create, and the apigateway
     # ARN form doesn't cleanly resource-scope create-time calls - "*" is
     # unavoidable here, but the action list above is now a curated verb set.
@@ -408,6 +423,19 @@ data "aws_iam_policy_document" "github_deploy" {
   }
 }
 
+# NOTE: no workflow applies this stack any more — the microservices refactor
+# deleted aws-deploy.yml, and deploys now run from infra/platform and
+# services/*/infra. So a change to the policy document above is a RECORD, not a
+# deployment: it does not reach AWS until either an admin applies this root
+# stack, or the role moves into infra/platform (Task 21) and is imported there.
+#
+# That is not an accident of this refactor, it is structural: the deploy role
+# cannot widen its own permissions from CI. A missing permission aborts the run
+# that would have granted it, so every new grant needs an out-of-band admin
+# action first. The apigateway:TagResource grant above was applied that way,
+# as a separate additive inline policy named
+# interview-prep-github-deploy-apigw-tagging. When the role moves to
+# infra/platform, fold that policy back in and delete it.
 resource "aws_iam_role_policy" "github_deploy" {
   name   = "${var.project}-github-deploy"
   role   = aws_iam_role.github_oidc.id
