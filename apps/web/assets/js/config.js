@@ -6,5 +6,5 @@ window.IP_CONFIG = {
   SUPABASE_URL: "https://tbihofgqjrwfgjtfjyrg.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_VRbWfTmVWD8WmQ51tRaPHw_GpqMpXvF",
   ADMIN_UIDS: ["2c2cc2cf-9ced-4642-bdda-dcf7182b3f3a"],  // public UI-gating; real enforcement is the Edge Function secret
-  API_URL: "https://mlu40yvp2e.execute-api.us-east-1.amazonaws.com",  // AWS API Gateway (serverless migration); no trailing slash — paths are /v1/*
+  API_URL: "https://p6iter6o2b.execute-api.us-east-1.amazonaws.com",  // AWS API Gateway (microservices P1); no trailing slash — paths are /v1/*
 };
