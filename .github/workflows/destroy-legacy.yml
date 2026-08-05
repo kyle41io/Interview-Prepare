@@ -115,12 +115,20 @@ jobs:
       # CloudFront deletion is the slow part — the provider disables the
       # distribution and waits for the change to propagate before deleting, which
       # normally runs 15-25 minutes.
+      #
+      # -input=false and the explicit -var are what the first attempt was
+      # missing. infra/variables.tf declares github_repo with no default, so
+      # `terraform destroy` prompted for it on a runner with no TTY and sat
+      # there until the 60-minute timeout killed the step — an hour spent
+      # destroying nothing. -input=false turns any future missing variable into
+      # an immediate error instead of a silent hang.
       - name: Terraform destroy
         working-directory: infra
         timeout-minutes: 60
         run: |
-          terraform init
-          terraform destroy -auto-approve
+          terraform init -input=false
+          terraform destroy -auto-approve -input=false \
+            -var "github_repo=${{ github.repository }}"
 
       - name: Confirm the new environment is still healthy
         run: |
