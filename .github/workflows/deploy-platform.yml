@@ -1,0 +1,48 @@
+name: deploy-platform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/platform/**"
+      - ".github/workflows/deploy-platform.yml"
+      # infra/modules/** is deliberately absent, though the spec's CI/CD table
+      # lists it. The platform stack owns the API Gateway, CloudFront, the S3
+      # buckets and the SSM config; it does not instantiate the lambda-service
+      # module — the five service stacks do, and all five already trigger on it.
+      # Adding it here would redeploy the platform every time a Lambda-only
+      # detail changed. Restore it if platform ever consumes a shared module.
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC
+  contents: read
+
+concurrency:
+  group: deploy-platform
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production # protection rule -> manual approval gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.4"
+
+      # No -var flags: github_repo is gone (the deploy role is not managed
+      # here) and allowed_origin is derived from the stack's own distribution.
+      - name: Terraform init & apply
+        working-directory: infra/platform
+        run: |
+          terraform init
+          terraform apply -auto-approve

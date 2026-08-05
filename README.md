@@ -4,7 +4,9 @@ A **bilingual (Tiếng Việt / English)** Software-Engineer interview prep app 
 
 > Ứng dụng ôn phỏng vấn **song ngữ Việt–Anh**: tổng hợp kiến thức, kèm **thẻ ghi nhớ (spaced repetition)** và **trắc nghiệm**, chạy hoàn toàn tĩnh, không cần cài đặt.
 
-**🔴 Live:** https://kyle41io.github.io/Interview-Prepare/ *(GitHub Pages — see setup below)*
+**🔴 Live:** served from S3 behind CloudFront. GitHub Pages is retired. The
+distribution's hostname is not committed — read it with
+`terraform -chdir=infra output -raw cloudfront_url`.
 
 ---
 
@@ -34,53 +36,81 @@ A **bilingual (Tiếng Việt / English)** Software-Engineer interview prep app 
 | 💼 My Project | **OWork** (Node.js + Odoo + Postgres, multi-tenant, Factur-X/Chorus, CI/CD) |
 | 🗣️ Behavioral | STAR method, common questions, what to ask |
 
-## 🚀 Run locally / Chạy local
-
-It's a static site — just open `index.html`. For the flashcard/quiz JS to load via `file://` in all browsers, a tiny local server is safest:
+## 🚀 Local development / Chạy local
 
 ```bash
-# Python
-python3 -m http.server 8000
-# then open http://localhost:8000
-
-# or Node
-npx serve .
+npm install
+npm run build:deps            # required first: see below
+npm test                      # every workspace
+npm test --workspace @ip/web  # frontend only (node --test, not jest)
+cd apps/web && python3 -m http.server 8000
 ```
 
-## 🌍 Deploy on GitHub Pages
+`build:deps` compiles the three shared packages plus billing and chat, the two
+services that publish a barrel. Every `@ip/*` import resolves through the
+workspace symlink to `dist/index.d.ts`, so on a fresh checkout a consumer's
+`jest` or `nest build` cannot type-check until its producers have emitted
+declarations. Run it after `npm install` and after changing a producer.
 
-1. Repo → **Settings → Pages**.
-2. **Source:** *Deploy from a branch* → Branch: **`main`** → Folder: **`/ (root)`** → **Save**.
-3. Wait ~1 min → the site is live at `https://kyle41io.github.io/Interview-Prepare/`.
+The frontend is a build-free static SPA served from S3 behind CloudFront.
+Each backend service runs standalone for local development:
 
-A `.nojekyll` file is included so the `assets/` folder is served correctly.
+| Service | Port | Command |
+|---|---|---|
+| progress | 3001 | `npm run start:dev --workspace @ip/progress-service` |
+| billing | 3002 | `npm run start:dev --workspace @ip/billing-service` |
+| chat | 3003 | `npm run start:dev --workspace @ip/chat-service` |
+| content | 3004 | `npm run start:dev --workspace @ip/content-service` |
+| inbox | 3005 | `npm run start:dev --workspace @ip/inbox-service` |
+
+`docker-compose.dev.yml` starts a DynamoDB Local on port 8001 for the four
+services that own a table; point `DDB_ENDPOINT` at it. Copy `.env.example` to
+`.env` first — one `.env` at the repo root serves every service.
+
+`npm run boundaries` is the architectural test: it fails if any service
+imports another outside the two dated exceptions recorded in
+`.dependency-cruiser.js`.
 
 - **AWS deployment:** see [docs/superpowers/DEPLOY-AWS.md](docs/superpowers/DEPLOY-AWS.md).
 
 ## 🗂️ Project structure / Cấu trúc
 
+An npm-workspaces monorepo: one deployable unit per directory under
+`apps/`, `services/` and `packages/`.
+
 ```
 Interview-Prepare/
-├── index.html              # shell: top bar, sidebar, defines PREP bootstrap, loads data + app
-├── .nojekyll               # tell GitHub Pages to serve assets/ as-is
-├── assets/
-│   ├── css/styles.css      # design system (dark theme)
-│   ├── js/app.js           # core: i18n, router, search, progress, flashcards (SM-2), quiz
-│   └── data/               # one self-registering file per topic (the knowledge)
-│       ├── dsa.js          # ← canonical schema example
-│       ├── microservices.js, system-design.js, design-patterns.js
-│       ├── rest-grpc.js, databases.js
-│       ├── react.js, redux.js, vue.js
-│       ├── django.js, dotnet.js
-│       ├── docker-k8s.js, cicd.js, aws.js
-│       ├── owork.js        # your project's interview talking points
-│       └── behavioral.js
+├── apps/web/               # the static SPA — @ip/web
+│   ├── index.html          # shell: top bar, sidebar, defines PREP bootstrap, loads data + app
+│   ├── assets/
+│   │   ├── css/styles.css  # design system (dark theme)
+│   │   ├── js/app.js       # core: i18n, router, search, progress, flashcards (SM-2), quiz
+│   │   ├── js/config.js    # public config: Supabase URL + anon key, API_URL
+│   │   └── data/           # one self-registering file per topic (the knowledge)
+│   │       ├── dsa.js      # ← canonical schema example
+│   │       ├── microservices.js, system-design.js, design-patterns.js
+│   │       └── …           # 30 more, plus tracks.js
+│   └── tests/              # node --test, no jest
+├── services/              # five independently deployable Lambda services
+│   ├── progress/           # ip_progress table
+│   ├── billing/            # ip_billing table; entitlement + pro content
+│   ├── chat/               # ip_chat table; AI chat + quota
+│   ├── content/            # no table — serves learning bundles from private S3
+│   └── inbox/              # ip_inbox table; two entrypoints, http + gmail-scan cron
+├── packages/              # shared infrastructure, never domain logic
+│   ├── auth/               # @ip/auth — JWT guard, @CurrentUser
+│   ├── config/             # @ip/config — ConfigModule, SSM hydration, lambda bootstrap
+│   ├── dynamo/             # @ip/dynamo — DocumentClient wrapper + key helpers
+│   └── testing/            # @ip/testing — shared jest preset, API Gateway event fixture
+├── infra/                 # Terraform
+├── scripts/esbuild-service.mjs  # one bundler, every service
+├── .dependency-cruiser.js # the no-cross-service rule
 └── README.md
 ```
 
 ## ➕ Add or edit content / Thêm hoặc sửa nội dung
 
-Every topic is one file in `assets/data/` that calls `PREP.register({...})`. Copy the shape of [`assets/data/dsa.js`](assets/data/dsa.js). Each text field is bilingual: `{ vi: "…", en: "…" }`.
+Every topic is one file in `apps/web/assets/data/` that calls `PREP.register({...})`. Copy the shape of [`apps/web/assets/data/dsa.js`](apps/web/assets/data/dsa.js). Each text field is bilingual: `{ vi: "…", en: "…" }`.
 
 ```js
 PREP.register({
@@ -102,7 +132,7 @@ PREP.register({
 });
 ```
 
-Then add a `<script src="assets/data/my-topic.js"></script>` line in `index.html` (before `app.js`). Categories live at the top of `app.js`.
+Then add a `<script src="assets/data/my-topic.js"></script>` line in `apps/web/index.html` (before `app.js`). Categories live at the top of `app.js`.
 
 ---
 

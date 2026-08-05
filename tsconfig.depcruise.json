@@ -1,0 +1,25 @@
+{
+  "//": [
+    "Used only by .dependency-cruiser.js. Two reasons it is not any service's",
+    "own tsconfig: dependency-cruiser resolves 'extends' relative to the cwd,",
+    "not to the config file, so an extending config fails to load; and without",
+    "these path mappings every @ip/* import resolves through the workspace",
+    "symlink to services/<name>/dist/index.d.ts, which the cruiser's own",
+    "exclude pattern then drops — making the cross-service rule silently inert.",
+    "Mapping to src/index.ts puts the real source path in the graph, which is",
+    "what the boundary rule matches on."
+  ],
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2021",
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ip/auth": ["packages/auth/src/index.ts"],
+      "@ip/config": ["packages/config/src/index.ts"],
+      "@ip/dynamo": ["packages/dynamo/src/index.ts"],
+      "@ip/billing-service": ["services/billing/src/index.ts"],
+      "@ip/chat-service": ["services/chat/src/index.ts"]
+    }
+  }
+}

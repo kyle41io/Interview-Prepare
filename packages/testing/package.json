@@ -1,0 +1,6 @@
+{
+  "name": "@ip/testing",
+  "version": "1.0.0",
+  "private": true,
+  "main": "jest-preset.js"
+}

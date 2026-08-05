@@ -12,7 +12,12 @@ locals {
     "gmail-scan" = { timeout = 120 } # scan loop over accounts
   }
 
-  bundle_dir = "${path.module}/../api/dist-lambda"
+  # Was "${path.module}/../api/dist-lambda", which the microservices refactor
+  # deleted along with the monolith. archive_file is evaluated at PLAN time, so
+  # a missing directory broke every operation on this stack — including the
+  # destroy that retires it. It now zips a committed placeholder instead, and
+  # the function below ignores code changes so an apply cannot ship it.
+  bundle_dir = "${path.module}/legacy-placeholder"
 
   # Physical table name(s) each function must expose. DynamoService
   # (api/src/db/dynamo.service.ts) reads a DISTINCT env key per table:
@@ -65,12 +70,14 @@ locals {
   }
 }
 
-# Zip each function's bundle directory at plan time. Requires the bundles to
-# exist (run `cd api && npm run bundle` first).
+# Zip the placeholder at plan time. This stack no longer builds deployable
+# code — the five per-service stacks (services/*/infra) do. All six functions
+# zip the same directory; the zips exist only so the data source resolves and
+# are never uploaded, because of the lifecycle block below.
 data "archive_file" "fn" {
   for_each    = local.functions
   type        = "zip"
-  source_dir  = "${local.bundle_dir}/${each.key}"
+  source_dir  = local.bundle_dir
   output_path = "${path.module}/.build/${each.key}.zip"
 }
 
@@ -96,6 +103,16 @@ resource "aws_lambda_function" "fn" {
 
   environment {
     variables = merge(local.common_env, local.fn_table_env[each.key])
+  }
+
+  # The code these functions run is whatever is already deployed; this stack
+  # can no longer build a real bundle. Ignoring both attributes means an apply
+  # here cannot overwrite live code with the placeholder — the failure mode
+  # that made repointing bundle_dir at services/*/dist-lambda the wrong fix.
+  # Deploys go through the per-service stacks; this root exists only until its
+  # destroy runs.
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
   }
 
   depends_on = [aws_cloudwatch_log_group.fn]

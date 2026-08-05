@@ -1,0 +1,107 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    # main is listed first and is the one that must never be dropped: this
+    # branch's name is temporary, main is not. Without it, CI stops running
+    # the moment the phase branch merges.
+    branches: [main, microservices-p1]
+
+# Per-PR group so a new push supersedes an in-flight run. Safe to cancel:
+# nothing here mutates anything.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      # Producers must be built before their consumers' suites run: the shared
+      # jest preset has no moduleNameMapper, so an @ip/* import resolves through
+      # the workspace symlink to dist/index.d.ts. See the "//" note in the root
+      # package.json for what build:deps covers and why.
+      - run: npm run build:deps
+
+      # Runs every workspace's own test script: node --test for apps/web,
+      # jest for packages/* and services/*.
+      - name: Test all workspaces
+        run: npm test
+
+      # Separate script, so `npm test` does not reach these. They are the only
+      # coverage of the five Lambda entrypoints — the handler each deploy
+      # workflow actually ships — and of the DynamoDB-backed integration paths,
+      # which self-skip without DDB_ENDPOINT.
+      - name: e2e all workspaces
+        run: npm run test:e2e --workspaces --if-present
+
+      # Typechecks what `npm test` cannot reach. jest only compiles the files a
+      # spec imports, so progress, content and inbox — which have no spec that
+      # imports their whole module graph — were never typechecked by CI at all.
+      # `bundle` runs nest build + esbuild over every entrypoint, which is also
+      # the exact command the deploy workflows run, so a build that breaks in
+      # deploy now breaks here first.
+      - name: Bundle every service
+        run: npm run bundle
+
+      # ALWAYS runs, on every path. This is the rule that makes the repo a
+      # microservices repo rather than a monorepo with extra folders. It also
+      # carries no-unresolvable (a broken import anywhere, including the
+      # scripts/ that no build touches) and the canary that fails if the rules
+      # themselves have gone inert.
+      - name: Check service boundaries
+        run: npm run boundaries
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.4"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive infra services
+
+      # validate needs `init`, and init against the real S3 backend would need
+      # credentials this job deliberately does not have. -backend=false
+      # validates syntax and provider schemas without touching state.
+      #
+      # The candidate list spans the split: infra/ is the monolith stack,
+      # infra/platform and services/*/infra arrive with the state extraction.
+      # Iterating over names that do not exist yet would fail the job for a
+      # reason unrelated to the commit under test, so each candidate is
+      # validated only if it holds .tf files, and skips are logged — a stack
+      # that quietly stops being validated shows up in the log rather than
+      # passing in silence.
+      - name: terraform validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          validated=0
+          for dir in infra infra/modules/lambda-service infra/platform services/*/infra; do
+            if compgen -G "$dir/*.tf" > /dev/null; then
+              echo "== $dir"
+              terraform -chdir="$dir" init -backend=false
+              terraform -chdir="$dir" validate
+              validated=$((validated + 1))
+            else
+              echo "-- skip $dir (no .tf files)"
+            fi
+          done
+          echo "validated $validated stack(s)"
+          test "$validated" -gt 0

@@ -1,0 +1,77 @@
+name: deploy-progress
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/progress/**"
+      # packages/* is compiled into this service's bundle, so a change there
+      # ships here. packages/testing is the exception: it is a jest preset and
+      # a test fixture, nothing imports it outside a spec, and every service
+      # excludes specs from its build. Deploying five services because a test
+      # helper changed is noise.
+      - "packages/**"
+      - "!packages/testing/**"
+      - "infra/modules/**"
+      # The bundler and the root manifests are as much a part of this Lambda's
+      # artifact as its own source: esbuild-service.mjs decides what goes in
+      # the zip, and the lockfile decides which versions. A change to any of
+      # them changes what deploys, so it has to trigger a deploy.
+      - "scripts/esbuild-service.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.base.json"
+      - ".github/workflows/deploy-progress.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+# Per-service group: chat and billing can now deploy in parallel, which the
+# old single "aws-deploy" group prevented.
+concurrency:
+  group: deploy-progress
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      # The whole workspace tree is installed because esbuild inlines
+      # packages/* at bundle time. A packages/** change therefore fans out to
+      # every service — honest coupling, and the reason to keep those four
+      # libraries small and boring.
+      #
+      # build:deps runs first because `nest build` type-checks against the
+      # @ip/* declarations in each producer's dist/, which a fresh checkout has
+      # not built yet.
+      - name: Install & bundle
+        run: |
+          npm ci
+          npm run build:deps
+          npm run bundle --workspace @ip/progress-service
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.4"
+
+      - name: Terraform init & apply
+        working-directory: services/progress/infra
+        run: |
+          terraform init
+          terraform apply -auto-approve
