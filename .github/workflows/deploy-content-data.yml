@@ -1,0 +1,115 @@
+name: deploy-content-data
+
+# Rebuilds and republishes bundle.json — the object the content service serves —
+# from the sources/*.js copy already in the content bucket.
+#
+# Why the bucket and not the repo: the authoring banks are git-ignored on purpose
+# (/content/ in .gitignore) so the private learning content never lands in a
+# public repo. CI therefore cannot see them, which rules out the obvious shape of
+# this workflow. What CI *can* see is sources/, which content-push.mjs uploads
+# beside the bundle as the recovery copy — so the bucket, not the repo, is the
+# source of truth this reads.
+#
+# The two things it is for:
+#   1. Publishing an edit without local AWS credentials. Upload the changed
+#      sources/<topic>.js through the S3 console or CloudShell, then run this.
+#   2. Rebuilding after a change to the validators or the bundle format, with no
+#      access to the authoring machine at all.
+#
+# Full local pushes (new files, bulk edits) still go through
+# `npm -w @ip/content run content:push`, which uploads sources AND bundle.
+#
+# Not automatic: a push cannot know whether the sources in the bucket are ready
+# to publish, and republishing a half-uploaded set would serve a broken bundle to
+# every user.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-content-data
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # Assigned to a variable, not interpolated into an echo: a failing command
+      # substitution inside an argument does not fail the step, so
+      # `echo "b=$(aws ssm ...)"` would write an empty value and exit 0 even under
+      # `set -e`. The emptiness check covers the other case — a parameter that
+      # exists but holds an empty string.
+      - name: Read the content bucket name
+        id: cfg
+        run: |
+          set -euo pipefail
+          bucket=$(aws ssm get-parameter \
+            --name /interview-prep/ms/config/content-bucket \
+            --query Parameter.Value --output text)
+          test -n "$bucket" || { echo "::error::content-bucket is empty"; exit 1; }
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+
+      - name: Download the authoring sources
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/content-sources
+          aws s3 sync "s3://${{ steps.cfg.outputs.bucket }}/sources/" /tmp/content-sources/ \
+            --exclude '*' --include '*.js' --only-show-errors
+          count=$(find /tmp/content-sources -name '*.js' | wc -l)
+          echo "downloaded $count source files"
+          # content-push.mjs refuses an empty set too, but failing here names the
+          # real cause: an empty or misnamed sources/ prefix, not a bad bundle.
+          test "$count" -gt 0 || { echo "::error::no sources/*.js in the bucket"; exit 1; }
+
+      # --bundle-only skips re-uploading the sources: they came from these exact
+      # keys moments ago, and writing them back would add a no-op version to every
+      # object on every run. This bucket's versioning is the authoring sources'
+      # only history, so keeping it meaningful matters.
+      #
+      # Validation (schema, diagram specs, duplicate ids) runs regardless — it
+      # lives in content-push.mjs ahead of any upload, so an invalid set fails
+      # before bundle.json is touched.
+      - name: Rebuild and publish bundle.json
+        env:
+          CONTENT_BUCKET: ${{ steps.cfg.outputs.bucket }}
+        run: npm -w @ip/content run content:push -- --bundle-only /tmp/content-sources
+
+      # Reads back what was actually stored rather than trusting the upload to
+      # have written what the script built.
+      - name: Verify the published bundle
+        run: |
+          set -euo pipefail
+          bucket=${{ steps.cfg.outputs.bucket }}
+          etag=$(aws s3api head-object --bucket "$bucket" --key bundle.json \
+            --query ETag --output text)
+          aws s3 cp "s3://$bucket/bundle.json" /tmp/published.json --only-show-errors
+          topics=$(python3 -c "import json; print(len(json.load(open('/tmp/published.json'))['topics']))")
+          expected=$(find /tmp/content-sources -name '*.js' | wc -l)
+          echo "bundle.json: $topics topics, etag $etag"
+          # One topic per source file — a mismatch means a bank failed to register
+          # its topic, which loadTopics cannot distinguish from a file that simply
+          # registers nothing.
+          test "$topics" = "$expected" \
+            || { echo "::error::$topics topics from $expected source files"; exit 1; }
+          # The service serves a 304 off this ETag, so a client holding the
+          # previous value refetches on its next poll.
