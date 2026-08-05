@@ -31,6 +31,17 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "content" {
   }
 }
 
+# Published so deploy-content-data can find the bucket without Terraform state
+# access, the same way deploy-web finds the frontend bucket. bucket_prefix
+# generates the suffix at create time, so the name is not derivable from config
+# — anything needing it either reads it here or resorts to listing buckets by
+# prefix and guessing.
+resource "aws_ssm_parameter" "content_bucket" {
+  name  = "${var.ssm_prefix}/config/content-bucket"
+  type  = "String"
+  value = aws_s3_bucket.content.bucket
+}
+
 # The browser fetches the presigned URL cross-origin, so without this the bundle
 # fetch fails in the browser while still succeeding from curl. The distribution
 # domain now comes from the platform stack via SSM.
