@@ -11,19 +11,23 @@
     PREP.topics[topic.id] = topic;
   };
 
-  /* ---------- Categories (sidebar grouping + order) ---------- */
+  /* ---------- Categories (sidebar grouping + order) ----------
+     No `icon` field: every category icon comes from the Font Awesome ICON map
+     below, keyed by category id. Emoji were rendered by the OS font, so the same
+     glyph changed shape and weight per platform and never lined up with the
+     rest of the interface. */
   const CATS = [
-    { id: "foundations", icon: "🧠", vi: "Nền tảng", en: "Foundations" },
-    { id: "cs", icon: "🖥️", vi: "Khoa học máy tính", en: "Computer Science" },
-    { id: "architecture", icon: "🏗️", vi: "Kiến trúc", en: "Architecture" },
-    { id: "api", icon: "🔌", vi: "Giao tiếp API", en: "APIs" },
-    { id: "data", icon: "💾", vi: "Dữ liệu", en: "Data" },
-    { id: "frontend", icon: "🎨", vi: "Frontend", en: "Frontend" },
-    { id: "backend", icon: "⚙️", vi: "Backend", en: "Backend" },
-    { id: "ai", icon: "🤖", vi: "AI & Data", en: "AI & Data" },
-    { id: "devops", icon: "☁️", vi: "DevOps & Cloud", en: "DevOps & Cloud" },
-    { id: "project", icon: "💼", vi: "Dự án của tôi", en: "My Project" },
-    { id: "behavioral", icon: "🗣️", vi: "Phỏng vấn hành vi", en: "Behavioral" },
+    { id: "foundations", vi: "Nền tảng", en: "Foundations" },
+    { id: "cs", vi: "Khoa học máy tính", en: "Computer Science" },
+    { id: "architecture", vi: "Kiến trúc", en: "Architecture" },
+    { id: "api", vi: "Giao tiếp API", en: "APIs" },
+    { id: "data", vi: "Dữ liệu", en: "Data" },
+    { id: "frontend", vi: "Frontend", en: "Frontend" },
+    { id: "backend", vi: "Backend", en: "Backend" },
+    { id: "ai", vi: "AI & Data", en: "AI & Data" },
+    { id: "devops", vi: "DevOps & Cloud", en: "DevOps & Cloud" },
+    { id: "project", vi: "Dự án của tôi", en: "My Project" },
+    { id: "behavioral", vi: "Phỏng vấn hành vi", en: "Behavioral" },
   ];
 
   /* ---------- Icon map (Font Awesome classes) ---------- */
@@ -55,6 +59,14 @@
     behavioral: "fa-solid fa-comments",
     // roles
     swe: "fa-solid fa-code", "ai-engineer": "fa-solid fa-robot",
+    // callout variants
+    soundbite: "fa-solid fa-quote-right", tip: "fa-regular fa-lightbulb",
+    warning: "fa-solid fa-triangle-exclamation", danger: "fa-solid fa-land-mine-on",
+    key: "fa-solid fa-key",
+    // result / empty states
+    warn: "fa-solid fa-triangle-exclamation", allDone: "fa-solid fa-circle-check",
+    gradeHigh: "fa-solid fa-trophy", gradeMid: "fa-regular fa-thumbs-up",
+    gradeLow: "fa-solid fa-book-open-reader",
   };
   function fa(cls) { return `<i class="${cls}"></i>`; }
   function proBadge(tp) {
@@ -73,6 +85,28 @@
     return `<span class="${cls}" title="PRO">${fa("fa-solid fa-lock")}</span>`;
   }
   function catIcon(tp) { return ICON[tp.category] || "fa-solid fa-book"; }
+
+  /* One topic tile, shared by the home grid, the saved list and search results —
+     three screens that used to carry three near-identical copies of this markup.
+
+     Two things matter to the design. The tile is a flat colour block whose hue
+     comes from --tint, resolved per category (an unknown category falls back to
+     the accent rather than rendering an invalid colour and going transparent).
+     And the icon sits on the same line as the title inside .tc-top instead of on
+     a row of its own: in a wall of these, the eye reads one line, not two. */
+  function topicCard(tp, opts) {
+    const o = opts || {};
+    const done = !!State.progress[tp.id];
+    const style = `--tint:var(--cat-${tp.category}, var(--accent))` + (o.style ? ";" + o.style : "");
+    const foot = o.foot != null ? o.foot
+      : `<div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>`;
+    return `<div class="tcard${done ? " done" : ""}${proClass(tp)}" data-go="${tp.id}" style="${style}">
+      <div class="tc-done">${fa(ICON.check)}</div>${proLock(tp, "tc-lock")}
+      <div class="tc-top">${fa(catIcon(tp))}<h3>${t(tp.title)}</h3></div>
+      <p>${t(tp.blurb)}</p>
+      ${foot}
+    </div>`;
+  }
 
   /* ---------- State ---------- */
   const LS = {
@@ -117,10 +151,14 @@
     deleteAccount: { vi: "Xoá tài khoản", en: "Delete account" },
     confirmDelete: { vi: "Xoá tài khoản và toàn bộ dữ liệu? Không thể hoàn tác.", en: "Delete account and all data? This cannot be undone." },
     settings: { vi: "Cài đặt tài khoản", en: "Account settings" },
-    markLearned: { vi: "✓ Đánh dấu đã học", en: "✓ Mark as learned" },
-    markedLearned: { vi: "✓ Đã học (bấm để bỏ)", en: "✓ Learned (click to undo)" },
-    next: { vi: "Tiếp theo →", en: "Next →" },
-    prev: { vi: "← Trước", en: "← Previous" },
+    // No leading glyph in the copy — the button prepends a Font Awesome check,
+    // so these stay plain text and can be reused anywhere.
+    markLearned: { vi: "Đánh dấu đã học", en: "Mark as learned" },
+    markedLearned: { vi: "Đã học (bấm để bỏ)", en: "Learned (click to undo)" },
+    // Arrows are markup, not copy: the topic footer draws Font Awesome ones on
+    // either side, and the quiz's Next button wants the label on its own.
+    next: { vi: "Tiếp theo", en: "Next" },
+    prev: { vi: "Trước", en: "Previous" },
     flip: { vi: "Bấm để lật / phím cách", en: "Click to flip / Space" },
     again: { vi: "Lại", en: "Again" }, hard: { vi: "Khó", en: "Hard" },
     good: { vi: "Được", en: "Good" }, easy: { vi: "Dễ", en: "Easy" },
@@ -227,13 +265,13 @@
           (b.caption ? `<div class="code-cap">${t(b.caption)}</div>` : "");
       case "callout": {
         const v = b.variant || "tip";
-        const icons = { soundbite: "🗣️", tip: "💡", warning: "⚠️", danger: "🛑", key: "🔑" };
+        const icons = { soundbite: ICON.soundbite, tip: ICON.tip, warning: ICON.warning, danger: ICON.danger, key: ICON.key };
         const tags = {
           soundbite: { vi: "Câu nói ăn điểm", en: "Soundbite" },
           tip: { vi: "Mẹo", en: "Tip" }, warning: { vi: "Lưu ý", en: "Watch out" },
           danger: { vi: "Bẫy", en: "Trap" }, key: { vi: "Điểm mấu chốt", en: "Key idea" },
         };
-        return `<div class="callout ${v}"><div class="ci">${icons[v] || "💡"}</div>
+        return `<div class="callout ${v}"><div class="ci">${fa(icons[v] || ICON.tip)}</div>
           <div class="ctxt"><span class="ctag">${t(tags[v])}</span>${t(b)}</div></div>`;
       }
       case "qa":
@@ -270,7 +308,7 @@
       const blocks = (s.blocks || []).map(renderBlock).join("");
       return `<div class="section" data-sec="${i}">
         <div class="section-head" data-toggle="${i}">
-          <h2>${t(s.title)}</h2><span class="chev">▼</span>
+          <h2>${t(s.title)}</h2><span class="chev">${fa("fa-solid fa-chevron-down")}</span>
         </div>
         <div class="section-body">${blocks}</div>
       </div>`;
@@ -291,11 +329,13 @@
     const prevId = navIdx > 0 ? navItems[navIdx - 1] : null;
     const nextId = navIdx >= 0 && navIdx < navItems.length - 1 ? navItems[navIdx + 1] : null;
     const topicNav = (prevId || nextId) ? `<div class="topic-nav">
-        ${prevId ? `<div class="tn prev" data-go="${prevId}">${t(UI.prev)}<br>${t(PREP.topics[prevId].title)}</div>` : `<div></div>`}
-        ${nextId ? `<div class="tn next" data-go="${nextId}">${t(UI.next)}<br>${t(PREP.topics[nextId].title)}</div>` : `<div></div>`}
+        ${prevId ? `<div class="tn prev" data-go="${prevId}">${fa("fa-solid fa-arrow-left")} ${t(UI.prev)}<br>${t(PREP.topics[prevId].title)}</div>` : `<div></div>`}
+        ${nextId ? `<div class="tn next" data-go="${nextId}">${t(UI.next)} ${fa("fa-solid fa-arrow-right")}<br>${t(PREP.topics[nextId].title)}</div>` : `<div></div>`}
       </div>` : "";
 
-    return `<div class="fade-in topic-layout"><div class="topic-main">
+    // The whole topic page inherits its category colour, so the eyebrow, the
+    // title icon and the contents rule match the tile the reader clicked.
+    return `<div class="fade-in topic-layout" style="--tint:var(--cat-${topic.category}, var(--accent))"><div class="topic-main">
       <div class="page-head">
         <div class="eyebrow">${t(catOf(topic))}</div>
         <h1>${fa(catIcon(topic))} ${t(topic.title)}</h1>${proBadge(topic)}
@@ -305,7 +345,7 @@
       ${sections}
       <div id="proSections" data-topic="${id}"></div>
       <div class="learn-bar">
-        <button class="btn ${done ? "green" : ""}" id="learnBtn">${done ? t(UI.markedLearned) : t(UI.markLearned)}</button>
+        <button class="btn ${done ? "green" : ""}" id="learnBtn">${fa(done ? ICON.check : "fa-regular fa-square-check")} ${done ? t(UI.markedLearned) : t(UI.markLearned)}</button>
         <button class="btn subtle" id="goCards">${fa(ICON.cards)} ${t(UI.cards)}</button>
         <button class="btn subtle" id="goQuiz">${fa(ICON.quiz)} ${t(UI.quiz)}</button>
         ${(function() {
@@ -358,16 +398,7 @@
         <div class="empty-hint">${L === "vi" ? "Chưa có chủ đề nào được lưu. Mở một chủ đề và bấm \"Lưu\" để thêm vào đây." : "No saved topics yet. Open a topic and click \"Save\" to add it here."}</div>
       </div>`;
     }
-    const cards = ids.map(id => {
-      const tp = PREP.topics[id];
-      return `<div class="tcard ${State.progress[id] ? "done" : ""}${proClass(tp)}" data-go="${id}">
-        <div class="tc-done">${fa(ICON.check)}</div>${proLock(tp, "tc-lock")}
-        <div class="tc-icon">${fa(catIcon(tp))}</div>
-        <h3>${t(tp.title)}</h3>
-        <p>${t(tp.blurb)}</p>
-        <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
-      </div>`;
-    }).join("");
+    const cards = ids.map(id => topicCard(PREP.topics[id])).join("");
     return `<div class="fade-in">
       <div class="page-head">
         <h1>${fa(ICON.bookmark)} ${L === "vi" ? "Đã lưu" : "Saved"}</h1>
@@ -900,15 +931,11 @@
     const groupsHtml = CATS.map(cat => {
       const ids = pathIds.filter(id => PREP.topics[id] && PREP.topics[id].category === cat.id);
       if (!ids.length) return "";
-      const cardsHtml = ids.map(id => { const tp = PREP.topics[id]; return `
-      <div class="tcard ${State.progress[id] ? "done" : ""}${proClass(tp)}" data-go="${id}">
-        <div class="tc-done">${fa(ICON.check)}</div>${proLock(tp, "tc-lock")}
-        <div class="tc-icon">${fa(catIcon(tp))}</div>
-        <h3>${t(tp.title)}</h3>
-        <p>${t(tp.blurb)}</p>
-        <div class="tc-meta"><span>${fa(ICON.cardsCount)} ${(tp.flashcards || []).length}</span><span>${fa(ICON.quizCount)} ${(tp.quiz || []).length}</span></div>
-      </div>`; }).join("");
-      return `<div class="home-cat"><div class="home-cat-head">${fa(ICON[cat.id] || "fa-solid fa-book")} <span>${t(cat)}</span><span class="hc-count">${ids.length}</span></div>
+      const cardsHtml = ids.map(id => topicCard(PREP.topics[id])).join("");
+      // The category heading is tinted with the same hue as the tiles under it,
+      // so a long scroll reads as bands of colour rather than one flat grid.
+      return `<div class="home-cat" style="--tint:var(--cat-${cat.id}, var(--accent))">
+        <div class="home-cat-head">${fa(ICON[cat.id] || "fa-solid fa-book")} <span>${t(cat)}</span><span class="hc-count">${ids.length}</span></div>
         <div class="home-grid">${cardsHtml}</div></div>`;
     }).join("");
 
@@ -921,7 +948,7 @@
       // whose content never arrived. That state lasts from `terraform apply`
       // until the first content push, and recurs on any API/S3/CORS failure.
       continueHtml = `<div class="continue-card"><div class="cc-left">
-        <div class="cc-title">⚠️ ${t(UI.contentUnavailable)}</div>
+        <div class="cc-title">${fa(ICON.warn)} ${t(UI.contentUnavailable)}</div>
       </div></div>`;
     } else if (State.track) {
       const track = currentTrack();
@@ -931,7 +958,7 @@
       continueHtml = `<div class="continue-card" ${nextId ? `data-go="${nextId}"` : ""}>
         <div class="cc-left">
           <div class="cc-eyebrow">${roleLabel()} · ${prog.done}/${prog.total} (${prog.pct}%)</div>
-          <div class="cc-title">${nextTp ? (L === "vi" ? "Tiếp tục: " : "Continue: ") + t(nextTp.title) : (L === "vi" ? "Đã hoàn thành lộ trình! 🎉" : "Track complete! 🎉")}</div>
+          <div class="cc-title">${nextTp ? (L === "vi" ? "Tiếp tục: " : "Continue: ") + t(nextTp.title) : fa(ICON.allDone) + (L === "vi" ? " Đã hoàn thành lộ trình!" : " Track complete!")}</div>
           <div class="cc-bar"><i style="width:${prog.pct}%"></i></div>
         </div>
         ${nextId ? `<div class="cc-go">${fa("fa-solid fa-arrow-right")}</div>` : ""}
@@ -940,7 +967,7 @@
     return `<div class="fade-in">
       ${continueHtml}
       <div class="hero hero-slim">
-        <h1>${L === "vi" ? "Sẵn sàng cho buổi phỏng vấn 🚀" : "Get interview-ready 🚀"}</h1>
+        <h1>${L === "vi" ? "Sẵn sàng cho buổi phỏng vấn" : "Get interview-ready"}</h1>
         <p>${L === "vi" ? "Học theo lộ trình, lật thẻ ghi nhớ, tự kiểm tra — song ngữ." : "Follow your track, flip flashcards, quiz yourself — bilingual."}</p>
       </div>
 
@@ -951,6 +978,19 @@
         <div class="stat"><div class="num p">${totalCards}</div><div class="lbl">${L === "vi" ? "Thẻ ghi nhớ" : "Flashcards"}</div></div>
         <div class="stat"><div class="num o">${dueCount}</div><div class="lbl">${L === "vi" ? "Thẻ cần ôn" : "Cards due"}</div></div>
         <div class="stat"><div class="num o">${fa(ICON.streak)} ${IP.streak.get().count}</div><div class="lbl">${L === "vi" ? "Ngày liên tiếp" : "Day streak"}</div></div>
+      </div>
+
+      <div class="catalog-head">
+        <h2 class="display">${L === "vi" ? "Chương trình học của bạn" : "Your curriculum"}</h2>
+        <div class="rule"></div>
+        <p>${(function () {
+          // roleLabel() is "" before a track is picked, so the track clause is
+          // dropped rather than leaving a hole in the sentence.
+          const rl = roleLabel();
+          return L === "vi"
+            ? `${total} chủ đề${rl ? " trong lộ trình " + rl : ""}, nhóm theo lĩnh vực. Mở một ô để đọc, lật thẻ hoặc làm trắc nghiệm.`
+            : `${total} topics${rl ? " on the " + rl + " track" : ""}, grouped by field. Open a tile to read it, flip its cards or take its quiz.`;
+        })()}</p>
       </div>
 
       ${groupsHtml}
@@ -1028,10 +1068,10 @@
       // deck they never received — and its "Study all again" button does nothing.
       if (!studyPool().length) {
         return `<div class="fc-wrap fade-in">
-          <div class="fc-empty"><div class="big">⚠️</div><p>${t(UI.contentUnavailable)}</p></div></div>`;
+          <div class="fc-empty"><div class="big">${fa(ICON.warn)}</div><p>${t(UI.contentUnavailable)}</p></div></div>`;
       }
       return `<div class="fc-wrap fade-in">${head}
-        <div class="fc-empty"><div class="big">🎉</div><p>${t(UI.noCards)}</p>
+        <div class="fc-empty"><div class="big">${fa(ICON.allDone)}</div><p>${t(UI.noCards)}</p>
         <button class="btn ghost" id="fcResetTopic" style="margin-top:18px">${t(UI.studyAgain)}</button></div></div>`;
     }
     const item = Cards.queue[Cards.pos];
@@ -1042,7 +1082,7 @@
       <div class="flashcard ${Cards.flipped ? "flipped" : ""}" id="flashcard">
         <div class="fc-inner">
           <div class="fc-face fc-front">
-            <div class="fc-topic">${tp.icon} ${t(tp.title)}</div>
+            <div class="fc-topic">${fa(catIcon(tp))} ${t(tp.title)}</div>
             <div class="fc-q">${t(c.front)}</div>
             <div class="fc-hint">${t(UI.flip)}</div>
           </div>
@@ -1110,12 +1150,14 @@
         <h2>${fa(ICON.quiz)} ${t(UI.quiz)}</h2>
         <p style="color:var(--muted);margin-bottom:18px">${L === "vi" ? "Chọn chủ đề rồi tự kiểm tra. Có giải thích cho mỗi câu." : "Pick a topic and test yourself. Every question has an explanation."}</p>
         <select class="fc-select" id="quizTopic" style="margin-bottom:18px">${opts}</select><br>
-        <button class="btn lg" id="quizStart">${t(UI.startQuiz)} →</button>
+        <button class="btn lg" id="quizStart">${t(UI.startQuiz)} ${fa("fa-solid fa-arrow-right")}</button>
       </div></div>`;
     }
     if (Quiz.finished) {
       const pct = Math.round((Quiz.correct / Quiz.questions.length) * 100);
-      const grade = pct >= 80 ? (L === "vi" ? "Xuất sắc! 🏆" : "Excellent! 🏆") : pct >= 60 ? (L === "vi" ? "Khá tốt 👍" : "Solid 👍") : (L === "vi" ? "Cần ôn thêm 📚" : "Keep studying 📚");
+      const grade = pct >= 80 ? fa(ICON.gradeHigh) + (L === "vi" ? " Xuất sắc!" : " Excellent!")
+        : pct >= 60 ? fa(ICON.gradeMid) + (L === "vi" ? " Khá tốt" : " Solid")
+        : fa(ICON.gradeLow) + (L === "vi" ? " Cần ôn thêm" : " Keep studying");
       const color = pct >= 80 ? "var(--green)" : pct >= 60 ? "var(--yellow)" : "var(--orange)";
       return `<div class="quiz-wrap fade-in"><div class="quiz-q quiz-result">
         <div class="score" style="color:${color}">${pct}%</div>
@@ -1186,7 +1228,9 @@
       if (!tp) return;
       const done = !!State.progress[id];
       const current = State.mode === "learn" && State.topic === id;
-      html += `<div class="nav-item ${current ? "active" : ""} ${done ? "done" : ""}${proClass(tp)}" data-topic="${id}">
+      // Same per-category tint as the tiles, so a topic keeps its colour
+      // identity between the dashboard grid and the sidebar list.
+      html += `<div class="nav-item ${current ? "active" : ""} ${done ? "done" : ""}${proClass(tp)}" data-topic="${id}" style="--tint:var(--cat-${tp.category}, var(--accent))">
         <span class="ni-num">${idx + 1}</span>
         <span class="ni-icon">${fa(catIcon(tp))}</span>
         <span class="ni-label">${t(tp.title)}</span>${proLock(tp, "ni-lock")}<span class="ni-check">${fa(ICON.check)}</span></div>`;
@@ -1362,11 +1406,12 @@
     if (!hits.length) { main.innerHTML = `<div class="empty-hint">${State.lang === "vi" ? "Không tìm thấy" : "No results"}: "${esc(qstr)}"</div>`; return; }
     main.innerHTML = `<div class="fade-in"><div class="page-head"><h1>${fa(ICON.search)} ${esc(qstr)}</h1>
       <div class="blurb">${hits.length} ${State.lang === "vi" ? "chủ đề khớp" : "matching topics"}</div></div>
-      ${hits.map(h => `<div class="tcard" data-go="${h.tp.id}" style="margin-bottom:12px">
-        <div class="tc-icon">${fa(catIcon(h.tp))}</div><h3>${t(h.tp.title)}</h3>
-        <p>${t(h.tp.blurb)}</p>
-        ${h.secs.length ? `<div style="margin-top:8px;font-size:12px;color:var(--muted2)">${h.secs.map(s => "• " + t(s.title)).join("<br>")}</div>` : ""}
-      </div>`).join("")}</div>`;
+      ${hits.map(h => topicCard(h.tp, {
+        style: "margin-bottom:12px",
+        // Matching section titles replace the card/quiz counts: on a results row
+        // what you want to know is where inside the topic the words were found.
+        foot: h.secs.length ? `<div class="tc-hits">${h.secs.map(s => t(s.title)).join("<br>")}</div>` : "",
+      })).join("")}</div>`;
   }
 
   /* ============================================================
@@ -1636,13 +1681,17 @@
       const dgWalk = e.target.closest("[data-dg-walk]");
       if (dgWalk) { IP.diagram.walk(dgWalk.closest(".dg"), Number(dgWalk.dataset.dgWalk)); return; }
 
-      // learn buttons
-      if (e.target.id === "learnBtn") {
+      // learn buttons. Matched against the closest button, not e.target: every
+      // one of these now carries a Font Awesome <i>, and a click that lands on
+      // the glyph reports the <i> as the target.
+      const barBtn = e.target.closest("button");
+      const barId = barBtn ? barBtn.id : "";
+      if (barId === "learnBtn") {
         State.progress[State.topic] = !State.progress[State.topic];
         if (State.progress[State.topic]) IP.streak.bump();
         LS.set("progress", State.progress); render(); return;
       }
-      if (e.target.id === "bookmarkBtn") { IP.bookmarks.toggleStored(State.topic); render(); return; }
+      if (barId === "bookmarkBtn") { IP.bookmarks.toggleStored(State.topic); render(); return; }
       if (e.target.closest("[data-cheat-toggle]")) {
         const id = e.target.closest("[data-cheat-toggle]").dataset.cheatToggle;
         const open = uiGet("cheatOpen", {}); open[id] = !open[id]; uiSet("cheatOpen", open); render(); return;
@@ -1652,8 +1701,8 @@
         uiSet("cheatOpen", all); render(); return;
       }
       if (e.target.closest("[data-go-cheat]")) { State.mode = "cheat"; State.topic = null; render(); toTop(); saveView(); return; }
-      if (e.target.id === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
-      if (e.target.id === "goQuiz") { setMode("quiz"); startQuiz(State.topic); render(); return; }
+      if (barId === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
+      if (barId === "goQuiz") { setMode("quiz"); startQuiz(State.topic); render(); return; }
 
       // settings page danger-zone actions
       if (e.target.closest("#clearDataBtn")) {

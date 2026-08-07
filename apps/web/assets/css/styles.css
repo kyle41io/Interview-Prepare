@@ -21,8 +21,11 @@
      is drawn on clears 4.5, while staying dimmer than --muted so the two-tier
      hierarchy still reads. */
   --muted2:#969aa1;
-  --accent:#58a6ff;
-  --accent-d:#1f6feb;
+  /* Jade, not the blue-violet this app used to run on. One accent, used
+     sparingly: links, the active marker, list markers, the soundbite callout.
+     Colour that means something is carried by --cat-* instead. */
+  --accent:#4ec2a8;
+  --accent-d:#2f9e85;
   --green:#3fb950;
   --orange:#f0883e;
   --purple:#bc8cff;
@@ -38,25 +41,68 @@
      a stroke stays unmistakably gold at the same visual weight. */
   --gold:#e8b93a;
   --gold-soft:#f4d885;
+  /* ---- Type ----
+     Newsreader carries every display line (page titles, section headings, the
+     big numbers); Be Vietnam Pro carries UI and body. Both were picked for
+     full Vietnamese coverage — see the note on the <link> in index.html. */
+  --font-display:'Newsreader',Georgia,'Times New Roman',serif;
+  --font-ui:'Be Vietnam Pro','Segoe UI',system-ui,-apple-system,sans-serif;
+  --font-mono:'SF Mono',ui-monospace,Consolas,monospace;
+  /* ---- Category palette ----
+     One flat colour per category. Lessons are coloured by the category they
+     belong to, so the dashboard grid reads as colour-coded groups rather than
+     decoration. Every value clears 4.5:1 against white — the tiles carry white
+     text, so this is a legibility floor, not a taste choice. Hues are spread
+     evenly and held at a similar lightness so eleven of them still look like
+     one designed set. Shared by both themes: a tile is its own surface. */
+  --cat-foundations:#ad4730;
+  --cat-cs:#55606e;
+  --cat-architecture:#4a5aa8;
+  --cat-api:#17727a;
+  --cat-data:#2a6392;
+  --cat-frontend:#a93a5c;
+  --cat-backend:#526e28;
+  --cat-ai:#7a4a96;
+  --cat-devops:#2c7451;
+  --cat-project:#875e14;
+  --cat-behavioral:#96407e;
+  --tint:var(--accent);
+  /* --tint is a tile *background* — every value is dark enough for white text,
+     which is exactly what makes it too dim to use as a foreground on the dark
+     theme's near-black. --tint-ink is the same hue lifted for that job
+     (eyebrows, category icons, rules); light mode uses the colour unchanged.
+     This root value is only the fallback for screens with no category context;
+     the real per-category derivation is next to .tcard, and has to be declared
+     on the same elements that set --tint — a var() inside a custom property is
+     substituted where the property is *declared*, not where it is used, so a
+     definition parked here would resolve against <html>'s --tint for everyone. */
+  --tint-ink:var(--accent);
   /* --gold-ink is the gold that carries small glyphs (locks, badges). It is a
      separate token because the fill gold that looks right on a large border is
      too weak for a 10px icon — dark mode brightens it, light mode deepens it. */
   --gold-ink:#f0c96a;
   --crown-bg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6.4 L7 10.9 L12 3 L17 10.9 L22 6.4 L20 20.2 L4 20.2 Z' fill='%23e8b93a' fill-opacity='.08' stroke='%23e8b93a' stroke-opacity='.42' stroke-width='.38' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --radius:14px;
-  --shadow:0 10px 40px #0007;
+  /* Corners are near-square now. The old 14px pill-radius on every surface was
+     the single loudest generic-template tell; 3px reads as "printed", and the
+     colour tiles below go to 0. --shadow is a hard graphic offset rather than a
+     soft blur, for the same reason. */
+  --radius:3px;
+  --shadow:6px 6px 0 #0000002e;
   --sidebar-w:288px;
   --topbar-h:60px;
 }
 /* default :root above = DARK palette. data-theme makes it explicit. */
+/* Light is the primary theme now, and it is warm paper rather than the cool
+   blue-grey it was: #f4f5f8 under a saturated colour tile reads as a screen,
+   an off-white with yellow in it reads as printed stock. */
 html[data-theme="light"]{
-  --bg:#f4f5f8; --bg2:#eceef3; --panel:#ffffff; --panel2:#f3f5f9; --panel3:#e9edf3;
+  --bg:#faf8f4; --bg2:#f1ece2; --panel:#ffffff; --panel2:#f6f2ea; --panel3:#ebe5da;
   /* --muted2 was #7c8694 — 3.38:1 on --panel2, well under AA. Darkened to clear
      4.5 on every surface it lands on (see the dark-mode note above). */
-  --line:#e1e5ec; --line2:#d3d9e3; --txt:#1f2430; --muted:#5b6472; --muted2:#656e7b;
-  --accent:#4f46e5; --accent-d:#4338ca; --green:#0f9d58; --orange:#d97706;
-  --purple:#7c3aed; --pink:#db2777; --yellow:#b45309; --red:#dc2626; --cyan:#0891b2;
-  --shadow:0 10px 30px #1f243018;
+  --line:#e4ded1; --line2:#d3ccbb; --txt:#191b1e; --muted:#565b62; --muted2:#666b72;
+  --accent:#0f6f60; --accent-d:#0a5347; --green:#2c7451; --orange:#b45309;
+  --purple:#7a4a96; --pink:#a93a5c; --yellow:#875e14; --red:#b3261e; --cyan:#17727a;
+  --shadow:6px 6px 0 #19191712;
   /* Light-mode gold was #c98a04 — a dark mustard that read olive-brown against
      white, closer to "expired" than "premium". A vivid marigold carries the
      same Pro signal with the freshness the dark theme already had; --gold-ink
@@ -71,27 +117,35 @@ html[data-theme="light"]{
 [hidden]{display:none !important}
 html{scroll-behavior:smooth}
 body{
-  font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+  font-family:var(--font-ui);
   background:var(--bg);
   color:var(--txt);
   line-height:1.65;
   -webkit-font-smoothing:antialiased;
 }
-html[data-theme="dark"] body{
-  background:
-    radial-gradient(1100px 700px at 88% -12%, #2b2d3a55, transparent),
-    radial-gradient(900px 700px at -10% 8%, #3a302b44, transparent),
-    var(--bg);
+/* Every display line — page titles, section headings, stat numbers, the
+   wordmark. Optical sizing keeps the serif's contrast sane as it scales. */
+h1,h2,.display{font-family:var(--font-display);font-optical-sizing:auto}
+/* Dark mode used to sit under two big radial washes, one violet and one amber.
+   They were the "AI gradient" tell and they fought the colour tiles for
+   attention. Replaced by a flat surface plus a fixed hairline grid, which reads
+   as paper texture at rest and costs one gradient. */
+html[data-theme="dark"] body{background:var(--bg)}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(to right,color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px),
+                   linear-gradient(to bottom,color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px);
+  background-size:96px 96px;
 }
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
-::selection{background:#58a6ff44}
-code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
+::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+code{font-family:var(--font-mono);font-size:.92em}
 
 /* ---------- scrollbars ---------- */
 ::-webkit-scrollbar{width:11px;height:11px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:var(--radius);border:2px solid var(--bg)}
 ::-webkit-scrollbar-thumb:hover{background:var(--line2)}
 
 /* ============================================================
@@ -103,45 +157,46 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
   background:color-mix(in srgb, var(--panel) 90%, transparent);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--line);
 }
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;white-space:nowrap}
-/* The logo mark is assets/favicon.svg — it carries its own gradient tile. */
-.brand .logo{
-  width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
-  box-shadow:0 4px 14px #58a6ff55;
-}
+.brand{display:flex;align-items:center;gap:9px;white-space:nowrap}
+/* The logo mark is assets/favicon.svg — a flat ink tile, no gradient and no
+   glow under it. */
+.brand .logo{width:28px;height:28px;display:grid;place-items:center}
 .brand .logo img{width:100%;height:100%;display:block}
+/* Was a blue→violet→pink gradient clipped to the text, which is the most
+   recognisable generic-AI flourish there is. Now a serif wordmark: the letters
+   do the work. */
 .brand .grad{
-  background:linear-gradient(90deg,#58a6ff,#bc8cff,#ff7b9c);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  font-family:var(--font-display);font-weight:600;font-size:20px;letter-spacing:-.01em;
+  color:var(--txt);
 }
-.modes{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.modes{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:4px}
 .modes button{
   background:transparent;border:none;color:var(--muted);font-weight:600;font-size:13px;
-  padding:7px 14px;border-radius:7px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:var(--radius);cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
 }
 .modes button:hover{color:var(--txt)}
 .modes button.active{background:var(--accent);color:var(--bg)}
 .spacer{flex:1}
 .search-box{position:relative;width:230px;max-width:34vw}
 .search-box input{
-  width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   padding:8px 12px 8px 34px;color:var(--txt);font-size:13px;outline:none;transition:.15s;
 }
-.search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #58a6ff22}
+.search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .search-box .si{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.6;font-size:13px}
 .search-box kbd{
   position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted2);
   border:1px solid var(--line2);border-radius:4px;padding:1px 5px;background:var(--bg)
 }
-.lang-toggle{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.lang-toggle{display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
 .lang-toggle button{
   background:var(--panel);border:none;color:var(--muted);font-weight:700;font-size:12px;
   padding:8px 11px;cursor:pointer;transition:.15s;
 }
-.lang-toggle button.active{background:linear-gradient(135deg,#58a6ff,#1f6feb);color:#fff}
+.lang-toggle button.active{background:var(--txt);color:var(--bg)}
 .icon-btn{
   background:var(--panel);border:1px solid var(--line);color:var(--muted);width:38px;height:38px;
-  border-radius:9px;cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.15s;
+  border-radius:var(--radius);cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.15s;
 }
 .icon-btn:hover{color:var(--txt);border-color:var(--line2)}
 .menu-btn{display:grid}
@@ -161,7 +216,7 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
   padding:14px 12px 6px;font-weight:700;display:flex;align-items:center;gap:7px;
 }
 .nav-item{
-  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:0;cursor:pointer;
   color:var(--muted);font-size:14px;font-weight:500;transition:.12s;border:1px solid transparent;position:relative;
 }
 .nav-item:hover{background:var(--panel);color:var(--txt)}
@@ -171,8 +226,10 @@ code{font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:.92em}
 .nav-item .ni-label{transition:transform .14s ease,font-weight .14s ease;transform-origin:left center}
 .nav-item:hover .ni-label{transform:scale(1.09);font-weight:700}
 .nav-item.active{background:var(--panel2);color:var(--txt);border-color:var(--line2)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--accent)}
-.nav-item .ni-icon{font-size:16px;width:22px;text-align:center}
+/* Full-height marker in the topic's own category colour, matching the tile it
+   was opened from — square, flush to the edge, no rounding. */
+.nav-item.active::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--tint-ink)}
+.nav-item .ni-icon{font-size:15px;width:22px;text-align:center;color:var(--tint-ink)}
 .nav-item .ni-check{margin-left:auto;font-size:12px;color:var(--green);opacity:0}
 .nav-item.done .ni-check{opacity:1}
 .nav-item.done .ni-label{color:var(--muted)}
@@ -205,20 +262,29 @@ html[data-theme="light"] .nav-item.is-pro:hover,html[data-theme="light"] .nav-it
 /* ============================================================
    GENERIC CONTENT
    ============================================================ */
-.page-head{margin-bottom:22px}
-.page-head .eyebrow{color:var(--accent);font-weight:700;letter-spacing:1.5px;font-size:12px;text-transform:uppercase}
-.page-head h1{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.5px;margin:4px 0 8px;display:flex;align-items:center;gap:12px}
-.page-head .blurb{color:var(--muted);font-size:16px;max-width:760px}
+/* A lesson page opens like a chapter: category eyebrow, serif title with the
+   category's colour on the icon, blurb, then a rule that closes the block. */
+.page-head{margin-bottom:26px;padding-bottom:18px;border-bottom:2px solid var(--txt)}
+.page-head .eyebrow{
+  color:var(--tint-ink);font-weight:700;letter-spacing:.14em;font-size:11px;text-transform:uppercase;
+  font-family:var(--font-ui);
+}
+.page-head h1{
+  font-size:clamp(30px,4.4vw,44px);font-weight:600;letter-spacing:-.015em;line-height:1.12;
+  margin:8px 0 10px;display:flex;align-items:baseline;gap:14px;
+}
+.page-head h1 i{font-size:.62em;color:var(--tint-ink);flex-shrink:0}
+.page-head .blurb{color:var(--muted);font-size:15.5px;max-width:70ch}
 
 .section{
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   margin-bottom:16px;overflow:hidden;
 }
 .section-head{
-  display:flex;align-items:center;gap:10px;padding:16px 20px;cursor:pointer;user-select:none;transition:.15s;
+  display:flex;align-items:center;gap:10px;padding:15px 20px;cursor:pointer;user-select:none;transition:.15s;
 }
 .section-head:hover{background:var(--panel2)}
-.section-head h2{font-size:17px;font-weight:700;flex:1}
+.section-head h2{font-size:20px;font-weight:600;letter-spacing:-.01em;flex:1;line-height:1.3}
 .section-head .chev{transition:transform .25s;color:var(--muted);font-size:13px}
 .section.collapsed .chev{transform:rotate(-90deg)}
 .section.collapsed .section-body{display:none}
@@ -240,29 +306,38 @@ table.tbl tr:nth-child(even) td{background:#ffffff05}
 table.tbl tr:hover td{background:var(--panel2)}
 
 pre.code{
-  background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;
   overflow-x:auto;margin:14px 0;font-size:13px;line-height:1.55;
 }
 pre.code code{color:var(--txt);white-space:pre}
 .code-cap{font-size:12px;color:var(--muted2);margin-top:-4px;margin-bottom:10px}
 
-.callout{border-radius:8px;padding:12px 14px;margin:14px 0;border:1px solid;display:flex;gap:12px;font-size:13.5px}
-.callout .ci{font-size:18px;flex-shrink:0;line-height:1.4}
-.callout .ctxt{flex:1}
-.callout .ctag{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:3px}
-.callout.soundbite{background:#58a6ff12;border-color:#58a6ff44}
-.callout.soundbite .ctag{color:var(--accent)}
-.callout.tip{background:#3fb95012;border-color:#3fb95044}
-.callout.tip .ctag{color:var(--green)}
-.callout.warning{background:#f0883e12;border-color:#f0883e44}
-.callout.warning .ctag{color:var(--orange)}
-.callout.danger{background:#f8514912;border-color:#f8514944}
-.callout.danger .ctag{color:var(--red)}
-.callout.key{background:#bc8cff12;border-color:#bc8cff44}
-.callout.key .ctag{color:var(--purple)}
+/* Callouts are marginalia: a 3px rule on the left, a tinted wash, no box. The
+   full 1px border on all four sides made every tip look like a modal. Each
+   variant sets --co and everything else follows. */
+.callout{
+  --co:var(--accent);
+  border-radius:0 var(--radius) var(--radius) 0;padding:12px 16px;margin:16px 0;
+  border-left:3px solid var(--co);display:flex;gap:13px;font-size:13.5px;
+  background:color-mix(in srgb,var(--co) 9%,transparent);
+}
+.callout .ci{font-size:14px;flex-shrink:0;line-height:1.7;color:var(--co)}
+.callout .ctxt{flex:1;min-width:0}
+.callout .ctag{
+  font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.13em;
+  display:block;margin-bottom:3px;color:var(--co);
+}
+.callout.soundbite{--co:var(--accent)}
+.callout.tip{--co:var(--green)}
+.callout.warning{--co:var(--orange)}
+.callout.danger{--co:var(--red)}
+.callout.key{--co:var(--purple)}
+/* A soundbite is the thing you repeat out loud in the room, so it is set in the
+   display serif, italic, one size up — visibly a quotation, not a note. */
+.callout.soundbite .ctxt{font-family:var(--font-display);font-style:italic;font-size:16px;line-height:1.5}
 
 .kv{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-.chip{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:12px;font-family:ui-monospace,monospace;color:var(--txt)}
+.chip{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:3px 9px;font-size:12px;font-family:ui-monospace,monospace;color:var(--txt)}
 
 .qa{border-left:3px solid var(--accent-d);padding:6px 0 6px 16px;margin:12px 0}
 .qa .q{font-weight:700;color:var(--txt);margin-bottom:4px}
@@ -288,7 +363,7 @@ pre.code code{color:var(--txt);white-space:pre}
    below than the prose blocks around it, so the eye reads it as one object. */
 .dg{
   margin:26px 0;padding:14px 16px 12px;
-  background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);
 }
 /* flex-start, not center: these titles are full sentences and wrap to two or
    three lines on a phone, where a centred tick floats in the middle of the
@@ -350,12 +425,12 @@ pre.code code{color:var(--txt);white-space:pre}
 
 .dg-node,.dg-actor{
   height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  padding:5px 8px;border-radius:10px;text-align:center;overflow:hidden;
+  padding:5px 8px;border-radius:var(--radius);text-align:center;overflow:hidden;
   border:1.5px solid color-mix(in srgb,var(--dg) 65%,transparent);
   background:color-mix(in srgb,var(--dg) 12%,var(--panel));
   color:var(--txt);font-size:12.5px;line-height:1.25;
 }
-.dg-actor{border-radius:999px;font-weight:700;flex-direction:row;gap:6px}
+.dg-actor{border-radius:var(--radius);font-weight:700;flex-direction:row;gap:6px}
 .dg-n-icon{font-size:14px;line-height:1}
 /* Clamped, not overflowing: a Vietnamese label runs longer than its English
    twin and the box geometry is fixed before either is measured. */
@@ -407,7 +482,7 @@ pre.code code{color:var(--txt);white-space:pre}
   border-top:1px dashed var(--line2);
 }
 .dg-sbtn{
-  flex-shrink:0;width:27px;height:27px;border-radius:8px;cursor:pointer;
+  flex-shrink:0;width:27px;height:27px;border-radius:var(--radius);cursor:pointer;
   background:var(--panel);border:1px solid var(--line2);color:var(--muted);
   font-size:10px;display:grid;place-items:center;transition:.14s;
 }
@@ -438,7 +513,7 @@ pre.code code{color:var(--txt);white-space:pre}
 .dg-detail{
   display:none;font-size:13.5px;line-height:1.6;color:var(--txt);
   background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
-  border-radius:8px;padding:10px 13px;
+  border-radius:var(--radius);padding:10px 13px;
 }
 .dg-detail.on{display:block;animation:dg-note .18s ease both}
 @keyframes dg-note{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
@@ -451,12 +526,12 @@ pre.code code{color:var(--txt);white-space:pre}
 /* ---- layers ---- */
 .dg-layers{display:flex;flex-direction:column;gap:6px}
 .dg-layer{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;font-size:13.5px;
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);font-size:13.5px;
   border:1px solid color-mix(in srgb,var(--dg) 50%,transparent);
   background:color-mix(in srgb,var(--dg) 10%,var(--panel));
 }
 .dg-l-n{
-  flex-shrink:0;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+  flex-shrink:0;width:22px;height:22px;border-radius:var(--radius);display:grid;place-items:center;
   font-size:11px;font-weight:800;background:color-mix(in srgb,var(--dg) 28%,transparent);
 }
 .dg-l-label{font-weight:700}
@@ -466,10 +541,10 @@ pre.code code{color:var(--txt);white-space:pre}
 .dg-bars{display:flex;flex-direction:column;gap:7px}
 .dg-bar-row{
   display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,3fr) auto;
-  align-items:center;gap:10px;padding:3px 5px;border-radius:7px;font-size:13px;
+  align-items:center;gap:10px;padding:3px 5px;border-radius:var(--radius);font-size:13px;
 }
-.dg-b-track{height:14px;border-radius:7px;overflow:hidden;background:color-mix(in srgb,var(--line) 65%,transparent)}
-.dg-b-fill{display:block;height:100%;border-radius:7px;background:color-mix(in srgb,var(--dg) 78%,transparent)}
+.dg-b-track{height:14px;border-radius:var(--radius);overflow:hidden;background:color-mix(in srgb,var(--line) 65%,transparent)}
+.dg-b-fill{display:block;height:100%;border-radius:var(--radius);background:color-mix(in srgb,var(--dg) 78%,transparent)}
 .dg-b-value{
   min-width:58px;text-align:right;
   font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);
@@ -496,7 +571,7 @@ pre.code code{color:var(--txt);white-space:pre}
 /* mark as learned bar */
 .learn-bar{display:flex;align-items:center;gap:12px;margin:24px 0 10px;flex-wrap:wrap}
 .btn{
-  background:var(--accent);color:var(--bg);border:none;border-radius:10px;padding:10px 18px;
+  background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius);padding:10px 18px;
   font-weight:700;font-size:14px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px;
 }
 .btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
@@ -510,96 +585,156 @@ pre.code code{color:var(--txt);white-space:pre}
 /* ============================================================
    HOME / DASHBOARD
    ============================================================ */
+/* The masthead: a solid ink slab with the title set in the display serif. Was a
+   panel gradient with a blue radial blob in the corner. */
 .hero{
-  background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:18px;
+  background:var(--txt);color:var(--bg);border-radius:var(--radius);
   padding:30px 32px;margin-bottom:22px;position:relative;overflow:hidden;
 }
-.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;
-  background:radial-gradient(circle,#58a6ff22,transparent 70%)}
-.hero h1{font-size:clamp(24px,4vw,34px);font-weight:800;margin-bottom:8px;position:relative}
-.hero p{color:var(--muted);max-width:680px;position:relative}
+.hero h1{font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-.015em;line-height:1.15;margin-bottom:8px}
+.hero p{color:color-mix(in srgb,var(--bg) 72%,transparent);max-width:70ch;font-size:14px}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
 @media(max-width:760px){.stat-grid{grid-template-columns:1fr 1fr}}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-.stat .num{font-size:30px;font-weight:800;line-height:1}
-.stat .lbl{color:var(--muted);font-size:13px;margin-top:6px}
+/* Flat, hairline-ruled, no fill: the numbers are the graphic. Set in the serif
+   at a size that lets them act as figures rather than badges. */
+.stat{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;background:var(--panel)}
+.stat .num{font-family:var(--font-display);font-size:30px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.stat .lbl{color:var(--muted2);font-size:11px;margin-top:6px;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
 .stat .num.a{color:var(--accent)}.stat .num.g{color:var(--green)}.stat .num.p{color:var(--purple)}.stat .num.o{color:var(--orange)}
-.progress-track{height:9px;background:var(--panel3);border-radius:6px;overflow:hidden;margin-top:10px}
-.progress-fill{height:100%;background:linear-gradient(90deg,#3fb950,#58a6ff);border-radius:6px;transition:width .6s ease}
+.progress-track{height:4px;background:var(--panel3);overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:var(--accent);transition:width .6s ease}
 
-.hero-slim{padding:18px 22px;margin-bottom:18px}
-.hero-slim h1{font-size:22px;margin-bottom:4px}
-.hero-slim p{font-size:13.5px;color:var(--muted);margin:0}
-.stat-grid.compact{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+.hero-slim{padding:22px 26px;margin-bottom:18px}
+.hero-slim h1{font-size:clamp(22px,3vw,30px);margin-bottom:5px}
+.hero-slim p{font-size:13.5px;margin:0}
+.stat-grid.compact{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:30px}
 .stat-grid.compact .stat{flex:1;min-width:120px;padding:12px 14px}
-.stat-grid.compact .num{font-size:20px}
-.home-cat{margin-bottom:26px}
-.home-cat-head{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
-.home-cat-head i{color:var(--accent)}
-.hc-count{font-size:11px;background:var(--panel2);border-radius:99px;padding:1px 8px;color:var(--muted2)}
+.stat-grid.compact .num{font-size:23px}
 
-.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:18px}
+/* Centred catalogue header, echoing a course-listing page: serif title, a short
+   rule, one line of context. Marks where the dashboard ends and the lessons
+   begin — previously the grid just started. */
+.catalog-head{text-align:center;margin:38px 0 26px}
+.catalog-head h2{font-size:clamp(24px,3.4vw,32px);font-weight:600;letter-spacing:-.015em}
+.catalog-head .rule{width:56px;height:3px;background:var(--txt);margin:14px auto 12px}
+.catalog-head p{color:var(--muted);font-size:14px;max-width:56ch;margin:0 auto}
+
+.home-cat{margin-bottom:30px}
+/* Category headers are colour-coded to the tiles below them, so a scroll down
+   the page reads as labelled colour groups. */
+.home-cat-head{
+  display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--txt);margin:0 0 14px;padding-bottom:9px;
+  border-bottom:1px solid var(--line);position:relative;
+}
+.home-cat-head::after{content:"";position:absolute;left:0;bottom:-1px;width:42px;height:3px;background:var(--tint-ink)}
+.home-cat-head i{color:var(--tint-ink);font-size:13px}
+.hc-count{
+  font-family:var(--font-display);font-size:13px;font-weight:600;letter-spacing:0;
+  color:var(--muted2);margin-left:auto;
+}
+
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px;margin-top:14px}
+
+/* Per-category foreground tint. These are exactly the four elements JS gives an
+   inline --tint to (lesson tile, category group, sidebar row, topic page), and
+   the derivation has to live on them for the reason noted at :root. Descendants
+   inherit the already-resolved colour, which is how .page-head and .toc-label
+   pick it up. */
+.tcard,.home-cat,.nav-item,.topic-layout{--tint-ink:color-mix(in srgb,var(--tint) 55%,#fff)}
+html[data-theme="light"] :is(.tcard,.home-cat,.nav-item,.topic-layout){--tint-ink:var(--tint)}
+
+/* ---------- Lesson tile ----------
+   A flat block of the category's colour with white type on it — no card
+   chrome, no radius, no soft shadow. Icon and title share the top line
+   (.tc-top), which is what makes a wall of these scannable: the eye reads one
+   band of titles, not an alternating icon/title rhythm. Hover is a hard 5px
+   offset shadow and a nudge toward it, so the motion reads as printed stock
+   being lifted rather than a glow being switched on. */
 .tcard{
-  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;transition:.18s;position:relative;
+  background:var(--tint);color:#fff;border:none;border-radius:0;padding:16px 17px 14px;
+  cursor:pointer;position:relative;display:flex;flex-direction:column;min-height:158px;
+  transition:transform .16s ease,box-shadow .16s ease;
 }
-.tcard:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:var(--shadow)}
-.tcard .tc-icon{font-size:26px;margin-bottom:8px}
-.tcard h3{font-size:15px;margin-bottom:4px}
-.tcard p{font-size:12.5px;color:var(--muted);line-height:1.5}
-.tcard .tc-done{position:absolute;top:14px;right:14px;color:var(--green);font-size:14px;opacity:0}
+.tcard:hover{transform:translate(-3px,-3px);box-shadow:5px 5px 0 color-mix(in srgb,var(--txt) 82%,transparent)}
+.tcard:active{transform:translate(0,0);box-shadow:none}
+.tc-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:9px;padding-right:20px}
+.tc-top i{font-size:15px;line-height:1.5;flex-shrink:0;opacity:.9}
+.tcard h3{
+  font-family:var(--font-display);font-size:17px;font-weight:600;line-height:1.22;
+  letter-spacing:-.005em;margin:0;
+}
+.tcard p{
+  font-size:12px;line-height:1.5;color:color-mix(in srgb,#fff 88%,transparent);
+  margin:0;flex:1;
+  /* Blurbs run to five or six lines in Vietnamese; clamping keeps every tile in
+     a row the same height without hard-truncating in the data. */
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+}
+.tcard .tc-meta{
+  margin-top:12px;padding-top:9px;font-size:10.5px;letter-spacing:.06em;font-weight:600;
+  color:color-mix(in srgb,#fff 78%,transparent);display:flex;gap:14px;
+  border-top:1px solid #ffffff2e;
+}
+/* Search results reuse the tile, with matching section titles where the counts
+   normally go. Each line is prefixed with a rule instead of a bullet character. */
+.tc-hits{
+  margin-top:12px;padding-top:9px;font-size:11.5px;line-height:1.7;
+  color:color-mix(in srgb,#fff 82%,transparent);
+  border-top:1px solid color-mix(in srgb,#fff 26%,transparent);
+}
+.tcard .tc-done{position:absolute;top:14px;right:15px;font-size:12px;opacity:0}
 .tcard.done .tc-done{opacity:1}
-.tcard .tc-meta{margin-top:10px;font-size:11px;color:var(--muted2);display:flex;gap:12px}
-/* Pro lessons: gold frame + gold inner glow + oversized crown watermark.
-   Replaces the inline "PRO" pill, which sat in the text flow and knocked the
-   card title / nav label out of alignment. */
-.tcard.is-pro{
-  border-color:var(--gold);
-  /* Crown sits whole in the card's empty bottom-right corner: cropping it
-     against an edge turns the outline into a stray zigzag across the copy, and
-     the top-right corner is taken by the lock / done marker. */
-  background-image:var(--crown-bg);background-repeat:no-repeat;
-  background-position:right 10px bottom 8px;background-size:86px 86px;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 24%,transparent),
-             inset 0 16px 36px -12px color-mix(in srgb,var(--gold) 45%,transparent),
-             inset 0 -16px 36px -16px color-mix(in srgb,var(--gold) 24%,transparent);
+/* A finished lesson inverts: paper ground, a tinted spine and a tinted title,
+   the colour drained out of the block. Colour is the "still to do" signal, so
+   what stays coloured is what is left to read.
+
+   The obvious version of this — mixing the tint toward the page colour — was
+   measured and dropped: in light mode it landed on a pale wash (rgb(196,131,113)
+   for Foundations) that took the white body copy to 3.1:1, under AA. Inverting
+   keeps every level of type on a surface it was designed for. */
+.tcard.done{
+  background:var(--panel);color:var(--muted);
+  box-shadow:inset 0 0 0 1px var(--line2),inset 4px 0 0 var(--tint-ink);
 }
+.tcard.done .tc-top i,.tcard.done h3,.tcard.done .tc-done{color:var(--tint-ink)}
+.tcard.done p{color:var(--muted)}
+.tcard.done .tc-meta,.tcard.done .tc-hits{color:var(--muted2);border-top-color:var(--line)}
+.tcard.done:hover{
+  box-shadow:inset 0 0 0 1px var(--line2),inset 4px 0 0 var(--tint-ink),
+             5px 5px 0 color-mix(in srgb,var(--txt) 22%,transparent);
+}
+/* Pro lessons on the coloured grid: a 2px gold rule inset from the edge, like a
+   printer's frame. The previous treatment (gold border + inner glow + crown
+   watermark) was built for a white card — on a saturated tile the low-alpha
+   gold washes turn to mud and the crown outline disappears, so the frame plus
+   the corner lock carries the signal on its own. */
+.tcard.is-pro{box-shadow:inset 0 0 0 2px var(--gold-soft)}
+/* A finished Pro lesson keeps the gold frame and picks up the inverted ground,
+   so the two states compose instead of one silently winning on source order. */
+.tcard.is-pro.done{box-shadow:inset 0 0 0 2px var(--gold),inset 4px 0 0 var(--tint-ink)}
 .tcard.is-pro:hover{
-  border-color:var(--gold-soft);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 34%,transparent),
-             inset 0 16px 36px -12px color-mix(in srgb,var(--gold) 58%,transparent),
-             0 10px 30px -8px color-mix(in srgb,var(--gold) 32%,transparent);
-}
-/* Same correction as the sidebar: the inset washes need more gold to register
-   against a white card, and the hover lift wants a real gold cast under it. */
-html[data-theme="light"] .tcard.is-pro{
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent),
-             inset 0 16px 40px -14px color-mix(in srgb,var(--gold) 32%,transparent),
-             inset 0 -16px 40px -18px color-mix(in srgb,var(--gold) 20%,transparent);
-}
-html[data-theme="light"] .tcard.is-pro:hover{
-  border-color:var(--gold-soft);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 55%,transparent),
-             inset 0 16px 40px -14px color-mix(in srgb,var(--gold) 45%,transparent),
-             0 10px 26px -10px color-mix(in srgb,var(--gold) 55%,transparent);
+  box-shadow:inset 0 0 0 2px var(--gold-soft),
+             5px 5px 0 color-mix(in srgb,var(--gold) 62%,transparent);
 }
 
 /* Locked marker for non-Pro viewers — icon only, outside the text flow. */
-.tcard .tc-lock{position:absolute;top:14px;right:14px;font-size:12px;color:var(--gold-ink)}
+.tcard .tc-lock{position:absolute;top:14px;right:15px;font-size:11px;color:var(--gold-soft)}
 .tcard.done .tc-lock{display:none}
 
 .section-title{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted2);font-weight:700;margin:28px 0 4px}
 
 /* cheat sheet (soundbites) */
-.cheat{background:#58a6ff0c;border:1px solid #58a6ff33;border-radius:12px;padding:14px 18px;margin:10px 0}
-.cheat .cheat-topic{font-size:12px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px}
-.cheat .cheat-text{color:var(--muted);font-style:italic;margin-top:3px}
+.cheat{background:color-mix(in srgb,var(--accent) 8%,transparent);border-left:3px solid var(--accent);padding:14px 18px;margin:10px 0}
+.cheat .cheat-topic{font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.12em}
+.cheat .cheat-text{color:var(--txt);font-family:var(--font-display);font-style:italic;font-size:16px;margin-top:3px}
 
 /* ============================================================
    FLASHCARDS
    ============================================================ */
 .fc-wrap{max-width:680px;margin:0 auto;text-align:center}
 .fc-controls{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:18px}
-.fc-select{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px 12px;font-size:14px;cursor:pointer}
+.fc-select{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:var(--radius);padding:9px 12px;font-size:14px;cursor:pointer}
 .fc-progress{color:var(--muted);font-size:13px}
 
 /* ---- Custom dropdown (enhances <select.fc-select>) ---- */
@@ -609,24 +744,24 @@ html[data-theme="light"] .tcard.is-pro:hover{
 .cdd-trigger{
   display:inline-flex;align-items:center;gap:12px;min-width:250px;max-width:min(90vw,440px);
   background:var(--panel);border:1px solid var(--line);color:var(--txt);
-  border-radius:11px;padding:11px 15px;font-size:14px;font-weight:600;cursor:pointer;
+  border-radius:var(--radius);padding:11px 15px;font-size:14px;font-weight:600;cursor:pointer;
   transition:border-color .15s,box-shadow .15s;
 }
 .cdd-trigger:hover{border-color:var(--line2)}
-.cdd.open .cdd-trigger{border-color:var(--accent);box-shadow:0 0 0 3px #58a6ff2b}
+.cdd.open .cdd-trigger{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent)}
 .cdd-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cdd-caret{font-size:11px;color:var(--muted);transition:transform .2s}
 .cdd.open .cdd-caret{transform:rotate(180deg)}
 .cdd-panel{
   position:absolute;z-index:50;top:calc(100% + 6px);left:0;min-width:100%;
   max-height:min(340px,60vh);overflow-y:auto;
-  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);padding:6px;animation:cddIn .14s ease both;
 }
 @keyframes cddIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .cdd-opt{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:9px 12px;border-radius:8px;font-size:13.5px;color:var(--txt);
+  padding:9px 12px;border-radius:var(--radius);font-size:13.5px;color:var(--txt);
   cursor:pointer;white-space:nowrap;transition:background .12s;
 }
 .cdd-opt:hover{background:var(--panel2)}
@@ -640,22 +775,25 @@ html[data-theme="light"] .tcard.is-pro:hover{
 .fc-inner{position:relative;width:100%;height:100%;transition:transform .55s;transform-style:preserve-3d}
 .flashcard.flipped .fc-inner{transform:rotateY(180deg)}
 .fc-face{
-  position:absolute;inset:0;backface-visibility:hidden;border-radius:18px;padding:30px;
+  position:absolute;inset:0;backface-visibility:hidden;border-radius:var(--radius);padding:30px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
   border:1px solid #3a3b3d;color:#f2f3f5;
 }
-.fc-front{background:linear-gradient(135deg,#242526,#2d2e30)}
-.fc-back{background:linear-gradient(135deg,#15233a,#1a2f4a);transform:rotateY(180deg);overflow-y:auto}
-.fc-face .fc-topic{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#58a6ff;font-weight:700}
+/* Both faces are flat blocks in the app's own two colours — ink for the prompt,
+   deep jade for the answer — instead of the two diagonal gradients they used to
+   be. Fixed values, not tokens: the card keeps the same weight in both themes. */
+.fc-front{background:#232528}
+.fc-back{background:#123a34;transform:rotateY(180deg);overflow-y:auto}
+.fc-face .fc-topic{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#4ec2a8;font-weight:700}
 .fc-face .fc-q{font-size:21px;font-weight:700;line-height:1.4}
 .fc-face .fc-a{font-size:15.5px;color:#d8e2ee;text-align:left;line-height:1.6}
 .fc-face .fc-a strong{color:#fff}
 .fc-hint{color:#8b97a7;font-size:12px;margin-top:6px}
 .fc-rate{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
-.fc-rate button{border:none;border-radius:9px;padding:12px 8px;font-weight:700;font-size:13px;cursor:pointer;color:#1a1a2e;transition:.15s}
+.fc-rate button{border:none;border-radius:var(--radius);padding:12px 8px;font-weight:700;font-size:13px;cursor:pointer;color:#1a1a2e;transition:.15s}
 .fc-rate button small{display:block;font-weight:500;font-size:10px;opacity:.8;margin-top:2px}
 .fc-rate button:hover{transform:translateY(-2px)}
-.r-again{background:#f85149}.r-hard{background:#f0883e}.r-good{background:#3fb950}.r-easy{background:#58a6ff}
+.r-again{background:#f85149}.r-hard{background:#f0883e}.r-good{background:#3fb950}.r-easy{background:#4ec2a8}
 .fc-empty{text-align:center;padding:60px 20px;color:var(--muted)}
 .fc-empty .big{font-size:46px;margin-bottom:10px}
 
@@ -663,22 +801,22 @@ html[data-theme="light"] .tcard.is-pro:hover{
    QUIZ
    ============================================================ */
 .quiz-wrap{max-width:720px;margin:0 auto}
-.quiz-q{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+.quiz-q{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
 .quiz-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-bottom:8px}
 .quiz-q h2{font-size:20px;margin-bottom:18px;line-height:1.4}
 .quiz-opt{
   display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line);
-  border-radius:11px;padding:14px 16px;margin:9px 0;color:var(--txt);font-size:15px;cursor:pointer;transition:.13s;
+  border-radius:var(--radius);padding:14px 16px;margin:9px 0;color:var(--txt);font-size:15px;cursor:pointer;transition:.13s;
 }
 .quiz-opt:hover{border-color:var(--accent);background:var(--panel3)}
-.quiz-opt .optk{display:inline-block;width:24px;height:24px;border-radius:6px;background:var(--bg);border:1px solid var(--line2);
+.quiz-opt .optk{display:inline-block;width:24px;height:24px;border-radius:var(--radius);background:var(--bg);border:1px solid var(--line2);
   text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:10px}
 .quiz-opt.correct{background:#3fb95022;border-color:var(--green)}
 .quiz-opt.correct .optk{background:var(--green);color:var(--bg);border-color:var(--green)}
 .quiz-opt.wrong{background:#f8514922;border-color:var(--red)}
 .quiz-opt.wrong .optk{background:var(--red);color:#fff;border-color:var(--red)}
 .quiz-opt:disabled{cursor:default}
-.quiz-explain{margin-top:16px;background:#58a6ff0e;border:1px solid #58a6ff33;border-radius:10px;padding:14px;font-size:14px;color:var(--txt);display:none}
+.quiz-explain{margin-top:16px;background:color-mix(in srgb,var(--accent) 7%,transparent);border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);border-radius:var(--radius);padding:14px;font-size:14px;color:var(--txt);display:none}
 .quiz-explain.show{display:block}
 .quiz-explain b{color:var(--accent)}
 .quiz-foot{display:flex;justify-content:space-between;margin-top:18px;gap:10px}
@@ -691,7 +829,7 @@ html[data-theme="light"] .tcard.is-pro:hover{
    ============================================================ */
 .empty-hint{color:var(--muted);text-align:center;padding:50px}
 .kbd-help{position:fixed;bottom:16px;right:18px;font-size:11px;color:var(--muted2);background:var(--panel);
-  border:1px solid var(--line);padding:6px 12px;border-radius:8px;z-index:30}
+  border:1px solid var(--line);padding:6px 12px;border-radius:var(--radius);z-index:30}
 .kbd-help kbd{border:1px solid var(--line2);border-radius:4px;padding:0 5px;background:var(--bg);color:var(--muted)}
 /* opacity-only: a `transform` here would create a containing block that traps
    position:fixed descendants (e.g. .topic-toc), pinning them to .content
@@ -702,8 +840,8 @@ html[data-theme="light"] .tcard.is-pro:hover{
 .overlay.show{display:block}
 
 .pro-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
-  color:#7a4d00;background:linear-gradient(90deg,#fde68a,#fbbf24);
-  padding:1px 7px;border-radius:99px;margin-left:6px;letter-spacing:.03em}
+  color:#7a4d00;background:var(--gold-soft);
+  padding:1px 7px;border-radius:var(--radius);margin-left:6px;letter-spacing:.03em}
 html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 
 @media(max-width:900px){
@@ -740,12 +878,12 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 .ob-chev{font-size:11px;color:var(--muted2);flex-shrink:0;margin-left:4px}
 
 /* Coming-soon badge */
-.ob-badge--soon{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;
+.ob-badge--soon{font-size:11px;font-weight:700;padding:3px 9px;border-radius:var(--radius);
   background:var(--panel3);color:var(--muted);border:1px solid var(--line2);flex-shrink:0}
 
 /* Level chips */
 .ob-chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 16px}
-.ob-chip{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
+.ob-chip{background:var(--panel2);border:1px solid var(--line2);border-radius:var(--radius);
   padding:6px 16px;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;
   transition:.12s;flex-shrink:0}
 .ob-chip:hover{border-color:var(--accent);background:var(--panel3)}
@@ -767,7 +905,7 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 
 /* Track card in sidebar */
 .track-card{
-  background:var(--panel);border:1px solid var(--line2);border-radius:11px;
+  background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);
   padding:12px 12px 10px;margin-bottom:10px;
 }
 .tk-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
@@ -775,7 +913,7 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 .tk-name{flex:1;font-size:13px;font-weight:700;color:var(--txt);line-height:1.3;word-break:break-word}
 .tk-change{
   flex-shrink:0;background:var(--panel2);border:1px solid var(--line2);color:var(--muted);
-  border-radius:7px;padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;
+  border-radius:var(--radius);padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;
   display:flex;align-items:center;gap:5px;transition:.12s;
 }
 .tk-change:hover{color:var(--txt);border-color:var(--accent)}
@@ -818,13 +956,13 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 .profile-wrap{position:relative}
 .profile-menu{
   position:absolute;right:0;top:calc(100% + 8px);
-  background:var(--panel);border:1px solid var(--line2);border-radius:11px;
+  background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);
   box-shadow:var(--shadow);min-width:180px;z-index:200;
   padding:6px;display:flex;flex-direction:column;gap:2px;
 }
 .profile-menu button{
   background:none;border:none;color:var(--txt);font-size:14px;font-weight:500;
-  padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;
+  padding:9px 12px;border-radius:var(--radius);cursor:pointer;text-align:left;
   display:flex;align-items:center;gap:10px;transition:.12s;width:100%;
 }
 .profile-menu button:hover{background:var(--panel2)}
@@ -847,14 +985,14 @@ html.sb-collapsed .content{margin-left:auto;margin-right:auto}
    crop inside the square. overflow stays visible so the Pro crown can hang off
    the top-right corner. */
 #profileBtn{position:relative;overflow:visible}
-#profileBtn img.pfp{width:100%;height:100%;border-radius:7px;object-fit:cover;display:block}
+#profileBtn img.pfp{width:100%;height:100%;border-radius:var(--radius);object-fit:cover;display:block}
 /* Pro account: thicker gold frame + a crown tilted off the top-right corner. */
 #profileBtn.pro{
   border:2px solid var(--gold);
   box-shadow:0 0 0 1px color-mix(in srgb,var(--gold) 45%,transparent),
              0 3px 12px -3px color-mix(in srgb,var(--gold) 60%,transparent);
 }
-#profileBtn.pro img.pfp{border-radius:6px}
+#profileBtn.pro img.pfp{border-radius:var(--radius)}
 #profileBtn .pro-crown{
   /* Offsets stay small: the button sits 9px below the top of a 56px topbar, so a
      bigger outward nudge clips the crown against the viewport edge. */
@@ -865,11 +1003,11 @@ html.sb-collapsed .content{margin-left:auto;margin-right:auto}
 
 /* Account settings page */
 .settings-page{max-width:680px;margin-inline:auto}
-.settings-acct{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:22px}
-.settings-avatar{width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0}
+.settings-acct{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:22px}
+.settings-avatar{width:48px;height:48px;border-radius:var(--radius);object-fit:cover;flex-shrink:0}
 .sa-name{font-weight:700;font-size:16px}
 .sa-email{color:var(--muted);font-size:13px;margin-top:2px}
-.danger-zone{border:1px solid var(--red);border-radius:12px;padding:6px 16px 14px}
+.danger-zone{border:1px solid var(--red);border-radius:var(--radius);padding:6px 16px 14px}
 .dz-label{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--red);padding:12px 0 4px}
 .danger-item{display:flex;align-items:center;gap:16px;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}
 .di-title{font-weight:600}
@@ -885,13 +1023,13 @@ html[data-theme="light"] .profile-menu{
 /* Continue-learning card */
 .continue-card{display:flex;align-items:center;gap:16px;cursor:pointer;
   background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid var(--accent);
-  border-radius:14px;padding:16px 18px;margin-bottom:20px;transition:.15s}
+  border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;transition:.15s}
 .continue-card:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
 .cc-left{flex:1}
 .cc-eyebrow{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
 .cc-title{font-size:17px;font-weight:800;margin:4px 0 10px}
-.cc-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden}
-.cc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--accent))}
+.cc-bar{height:6px;background:var(--line);border-radius:var(--radius);overflow:hidden}
+.cc-bar i{display:block;height:100%;background:var(--accent)}
 .cc-go{font-size:22px;color:var(--accent)}
 
 /* Account row inside profile menu */
@@ -901,7 +1039,7 @@ html[data-theme="light"] .profile-menu{
 }
 .acct-row[hidden]{display:none}
 .acct-avatar{
-  width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0;
+  width:30px;height:30px;border-radius:var(--radius);object-fit:cover;flex-shrink:0;
 }
 .acct-name{
   font-size:13px;font-weight:600;color:var(--txt);
@@ -911,17 +1049,17 @@ html[data-theme="light"] .profile-menu{
 /* Cheat sheet page */
 .cheat-page{max-width:820px;margin-inline:auto}
 .cheat-bar{display:flex;align-items:center;gap:10px;margin:0 0 16px}
-.cheat-group{border:1px solid var(--line);border-radius:11px;margin-bottom:10px;background:var(--panel);overflow:hidden}
+.cheat-group{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;background:var(--panel);overflow:hidden}
 .cg-head{display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;text-align:left}
 .cg-head:hover{background:var(--panel2)}
 .cg-ic{color:var(--accent)} .cg-title{flex:1}
-.cg-count{font-size:11px;font-weight:800;background:var(--panel2);border-radius:99px;padding:2px 9px;color:var(--muted)}
+.cg-count{font-size:11px;font-weight:800;background:var(--panel2);border-radius:var(--radius);padding:2px 9px;color:var(--muted)}
 .cg-chev{color:var(--muted2);transition:transform .18s}
 .cheat-group.open .cg-chev{transform:rotate(180deg)}
 .cg-body{display:none;padding:4px 16px 14px}
 .cheat-group.open .cg-body{display:block}
 /* Home CTA card */
-.cheat-cta{display:flex;align-items:center;gap:14px;margin-top:22px;padding:16px 18px;border:1px dashed var(--line2);border-radius:12px;cursor:pointer;transition:.15s}
+.cheat-cta{display:flex;align-items:center;gap:14px;margin-top:22px;padding:16px 18px;border:1px dashed var(--line2);border-radius:var(--radius);cursor:pointer;transition:.15s}
 .cheat-cta:hover{border-color:var(--accent);background:var(--panel)}
 .cheat-cta .cc-ic{font-size:22px;color:var(--accent)}
 .cheat-cta .cc-txt{flex:1;display:flex;flex-direction:column}
@@ -956,12 +1094,12 @@ html[data-theme="light"] .profile-menu{
 @media(max-width:1239px){ .topic-toc{display:none} }
 /* Code copy */
 .code-wrap{position:relative}
-.code-copy{position:absolute;top:8px;right:8px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--muted);width:30px;height:30px;cursor:pointer;opacity:0;transition:.15s}
+.code-copy{position:absolute;top:8px;right:8px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);color:var(--muted);width:30px;height:30px;cursor:pointer;opacity:0;transition:.15s}
 .code-wrap:hover .code-copy{opacity:1}
 .code-copy:hover{color:var(--txt);border-color:var(--line2)}
 /* Topic prev/next */
 .topic-nav{display:flex;justify-content:space-between;gap:12px;margin-top:18px}
-.topic-nav .tn{flex:1;max-width:48%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;color:var(--muted);font-size:13px;transition:.15s}
+.topic-nav .tn{flex:1;max-width:48%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;color:var(--muted);font-size:13px;transition:.15s}
 .topic-nav .tn:hover{border-color:var(--accent);color:var(--txt)}
 .topic-nav .tn.next{text-align:right}
 
@@ -986,10 +1124,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .upgrade-page .page-head{text-align:center}
 .upgrade-page .page-head h1{justify-content:center}
 .upgrade-page .btn{margin:0 auto}
-.qr-card{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}
-.qr-card img{width:min(300px,80vw);border-radius:10px}
+.qr-card{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:18px}
+.qr-card img{width:min(300px,80vw);border-radius:var(--radius)}
 .pay-row{display:flex;justify-content:space-between;gap:10px;width:100%;font-size:13.5px;padding:7px 0;border-bottom:1px dashed var(--line)}
-.status-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;text-transform:capitalize}
+.status-pill{display:inline-block;padding:2px 9px;border-radius:var(--radius);font-size:11.5px;font-weight:700;text-transform:capitalize}
 .status-pill.pending{background:color-mix(in srgb,var(--yellow) 20%,transparent);color:var(--yellow)}
 .status-pill.submitted{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
 .status-pill.approved{background:color-mix(in srgb,var(--green) 20%,transparent);color:var(--green)}
@@ -1052,13 +1190,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .chat-scroll{flex:1;overflow-y:auto;padding:8px 4px;display:flex;flex-direction:column;gap:12px}
 .chat-msg{display:flex}
 .chat-msg.user{justify-content:flex-end}
-.chat-bubble{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.6}
+.chat-bubble{max-width:78%;padding:10px 14px;border-radius:var(--radius);font-size:14px;line-height:1.6}
 .chat-msg.user .chat-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
 .chat-msg.assistant .chat-bubble{background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
-.chat-bubble .chat-code{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0;overflow-x:auto;font-size:12.5px}
+.chat-bubble .chat-code{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;margin:6px 0;overflow-x:auto;font-size:12.5px}
 .chat-empty{color:var(--muted);text-align:center;margin:auto;max-width:420px;font-size:14px}
 .chat-input-bar{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
-.chat-input-bar textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--txt);font-size:14px;font-family:inherit;max-height:140px}
+.chat-input-bar textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;color:var(--txt);font-size:14px;font-family:inherit;max-height:140px}
 .chat-bubble.typing{display:flex;gap:4px}
 .chat-bubble.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
 .chat-bubble.typing span:nth-child(2){animation-delay:.2s}
@@ -1068,20 +1206,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* ============================================================
    Toast
    ============================================================ */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel3);border:1px solid var(--line2);color:var(--txt);padding:10px 16px;border-radius:10px;z-index:100;box-shadow:var(--shadow);font-size:13.5px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel3);border:1px solid var(--line2);color:var(--txt);padding:10px 16px;border-radius:var(--radius);z-index:100;box-shadow:var(--shadow);font-size:13.5px}
 
 /* ============================================================
    Notification bell + dropdown
    ============================================================ */
 #bellBtn{position:relative}
-.bell-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:99px;display:grid;place-items:center;padding:0 4px}
-.notif-menu{position:absolute;top:52px;right:120px;width:340px;max-height:70vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:6px}
+.bell-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:var(--radius);display:grid;place-items:center;padding:0 4px}
+.notif-menu{position:absolute;top:52px;right:120px;width:340px;max-height:70vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);box-shadow:var(--shadow);z-index:60;padding:6px}
 .notif-menu[hidden]{display:none}
 .notif-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-weight:700;font-size:13px}
 .notif-actions{display:flex;gap:12px}
 .link-btn{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:0}
 .link-btn:hover{text-decoration:underline}
-.notif-item{display:flex;gap:10px;padding:10px;border-radius:8px;cursor:pointer}
+.notif-item{display:flex;gap:10px;padding:10px;border-radius:var(--radius);cursor:pointer}
 .notif-item:hover{background:var(--panel2)}
 .notif-item.unread{background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .ni-ic{font-size:16px;line-height:1}
@@ -1094,8 +1232,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .reminders-page{max-width:1210px;margin-inline:auto}
 .rem-day{margin-bottom:18px}
 .rem-day-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);padding:6px 2px}
-.rem-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;flex-wrap:wrap}
-.rem-kind{font-size:18px;line-height:1;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:var(--panel2);flex-shrink:0}
+.rem-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;flex-wrap:wrap}
+.rem-kind{font-size:18px;line-height:1;width:32px;height:32px;display:grid;place-items:center;border-radius:var(--radius);background:var(--panel2);flex-shrink:0}
 .rem-kind.interview{background:color-mix(in srgb,var(--accent) 20%,transparent)}
 .rem-kind.test{background:color-mix(in srgb,var(--yellow) 20%,transparent)}
 .rem-body{flex:1;min-width:160px}
@@ -1106,7 +1244,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* ============================================================
    Gmail settings block
    ============================================================ */
-.settings-block{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0}
+.settings-block{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin:18px 0}
 .sb-head h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .gmail-connected-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
 .gmail-meta{font-size:12.5px;color:var(--muted)}
@@ -1120,21 +1258,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
    (see body.logged-out .content below). */
 .auth-page{max-width:1000px;margin:0 auto;padding:24px 16px;display:grid;gap:28px;
   grid-template-columns:1fr 380px;align-items:center;min-height:calc(100vh - var(--topbar-h))}
-.auth-brand-logo{width:56px;height:56px;margin-bottom:16px;border-radius:14px;display:grid;place-items:center;box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
+.auth-brand-logo{width:56px;height:56px;margin-bottom:16px;border-radius:var(--radius);display:grid;place-items:center;box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
 .auth-brand-logo img{width:100%;height:100%;display:block}
 .auth-brand h1{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.5px;line-height:1.2;margin-bottom:20px}
 .auth-feats{display:grid;gap:14px}
 .auth-feat{display:flex;gap:12px;align-items:flex-start}
-.auth-feat .lf-ic{flex-shrink:0;width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-size:16px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.auth-feat .lf-ic{flex-shrink:0;width:38px;height:38px;border-radius:var(--radius);display:grid;place-items:center;font-size:16px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .auth-feat b{display:block;font-size:14px}
 .auth-feat span{display:block;font-size:13px;opacity:.75}
-.auth-card{border:1px solid var(--line);border-radius:16px;padding:22px;background:var(--panel)}
+.auth-card{border:1px solid var(--line);border-radius:var(--radius);padding:22px;background:var(--panel)}
 .auth-card h2{font-size:20px;font-weight:800;margin-bottom:16px}
 .auth-field{display:block;margin-bottom:12px}
 .auth-field>span{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
-.auth-field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:inherit;font:inherit}
+.auth-field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);color:inherit;font:inherit}
 .auth-err{display:block;margin-top:5px;font-size:12px;font-style:normal;color:var(--danger,#e5484d)}
-.auth-alert{margin:12px 0;padding:9px 11px;border-radius:9px;font-size:13px;background:color-mix(in srgb,var(--danger,#e5484d) 12%,transparent);color:var(--danger,#e5484d)}
+.auth-alert{margin:12px 0;padding:9px 11px;border-radius:var(--radius);font-size:13px;background:color-mix(in srgb,var(--danger,#e5484d) 12%,transparent);color:var(--danger,#e5484d)}
 /* Same element carries the sign-up "confirm your email" notice, which is good
    news, not a failure — the .ok modifier flips it off the danger palette. */
 .auth-alert.ok{background:color-mix(in srgb,var(--green,#2e9e5b) 12%,transparent);color:var(--green,#2e9e5b)}
@@ -1166,13 +1304,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 /* column-reverse: the panel opens above the button, so the button itself
    never moves when the panel toggles. */
 .auth-demo{position:fixed;right:20px;bottom:20px;z-index:50;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:10px}
-.auth-demo-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:inherit;font:inherit;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.18)}
+.auth-demo-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:inherit;font:inherit;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.18)}
 /* Wide enough that the longest label ("Tài khoản thường") stays on one line
    beside its button — narrower and the VI copy wraps. */
-.auth-demo-panel{width:min(320px,calc(100vw - 40px));max-height:min(60vh,520px);overflow-y:auto;display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 10px 34px rgba(0,0,0,.22)}
+.auth-demo-panel{width:min(320px,calc(100vw - 40px));max-height:min(60vh,520px);overflow-y:auto;display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:0 10px 34px rgba(0,0,0,.22)}
 .auth-demo-panel[hidden]{display:none}
 /* One row per account: what it is, and the button that signs into it. */
-.auth-demo-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.auth-demo-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
 .auth-demo-card b{font-size:13px;font-weight:600}
 .auth-demo-card .btn{flex:0 0 auto;white-space:nowrap}
 @media(max-width:820px){.auth-page{grid-template-columns:1fr;padding-bottom:88px}}
@@ -1193,18 +1331,18 @@ html.sb-collapsed body.no-sidebar .content{margin-left:0;margin-right:0;max-widt
 /* ---------- Reminders month calendar ---------- */
 .cal-wrap { display: flex; gap: 16px; align-items: flex-start; }
 .cal-main { flex: 1 1 auto; min-width: 0; }
-.cal-panel { flex: 0 0 300px; border: 1px solid rgba(128,128,128,.25); border-radius: 10px; padding: 12px; }
+.cal-panel { flex: 0 0 300px; border: 1px solid rgba(128,128,128,.25); border-radius: var(--radius); padding: 12px; }
 .cal-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .cal-month-label { font-weight: 600; font-size: 1.05rem; margin: 0 auto 0 4px; text-transform: capitalize; }
 .cal-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
 .cal-th { text-align: center; font-size: .75rem; opacity: .6; text-transform: uppercase; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.cal-cell { min-height: 92px; border: 1px solid rgba(128,128,128,.2); border-radius: 8px; padding: 4px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.cal-cell { min-height: 92px; border: 1px solid rgba(128,128,128,.2); border-radius: var(--radius); padding: 4px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
 .cal-cell--out { background: transparent; border-color: transparent; cursor: default; }
 .cal-cell--today { border-color: #2563eb; }
 .cal-cell--sel { box-shadow: 0 0 0 2px #2563eb inset; }
 .cal-daynum { font-size: .8rem; opacity: .7; }
-.cal-pill { display: block; font-size: .72rem; padding: 1px 6px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+.cal-pill { display: block; font-size: .72rem; padding: 1px 6px; border-radius: var(--radius); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
 .cal-pill--interview { background: #2563eb; }
 .cal-pill--test { background: var(--purple); }
 .cal-pill--deadline { background: var(--red); }
@@ -1219,9 +1357,9 @@ html.sb-collapsed body.no-sidebar .content{margin-left:0;margin-right:0;max-widt
    drop the actions onto their own row and render them compact + equal-width. */
 .cal-panel .rem-body { flex: 1 1 140px; }
 .cal-panel .rem-actions { flex: 1 1 100%; }
-.cal-panel .rem-actions .btn { flex: 1 1 auto; justify-content: center; padding: 5px 10px; font-size: 12px; border-radius: 7px; }
+.cal-panel .rem-actions .btn { flex: 1 1 auto; justify-content: center; padding: 5px 10px; font-size: 12px; border-radius: var(--radius); }
 .cal-add-form { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(128,128,128,.25); padding-top: 10px; }
-.cal-add-form input, .cal-add-form select { padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,.4); background: transparent; color: inherit; }
+.cal-add-form input, .cal-add-form select { padding: 6px 8px; border-radius: var(--radius); border: 1px solid rgba(128,128,128,.4); background: transparent; color: inherit; }
 .cal-add-error { color: var(--red); font-size: .8rem; }
 @media (max-width: 720px) {
   .cal-wrap { flex-direction: column; }

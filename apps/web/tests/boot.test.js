@@ -525,12 +525,17 @@ function cardsHarness(topics, poolIds, queue) {
     studyAgain: { en: "Study all again" },
     contentUnavailable: { en: "Content could not be loaded. Reload the page, or sign in again." },
   };
+  // fa()/ICON are injected because the empty states now render Font Awesome
+  // icons instead of emoji; the stubs keep the assertions about the *copy*
+  // independent of which glyph was picked.
   return new Function(
-    "State", "t", "UI", "PREP", "Cards", "studyPool", "countDue",
+    "State", "t", "UI", "PREP", "Cards", "studyPool", "countDue", "fa", "ICON", "catIcon",
     extract("renderCards") + "\nreturn renderCards();",
   )(
     { lang: "en" }, (m) => m.en, UI, { topics }, { queue: queue, pos: 0, topic: "all" },
     () => poolIds, () => 0,
+    (cls) => `<i class="${cls}"></i>`, { warn: "fa-warn", allDone: "fa-done" },
+    () => "fa-cat",
   );
 }
 
