@@ -316,8 +316,11 @@
 
     const tocItems = (topic.sections || []).map((s, i) =>
       `<a class="toc-item" data-toc="${i}">${i + 1}. ${t(s.title).replace(/^\s*\d+\.\s*/, "")}</a>`).join("");
+    // The label is the lesson's own name, not a generic "ON THIS PAGE": on a long
+    // topic the sidebar is often the only thing on screen, so it should say which
+    // lesson these sections belong to.
     const toc = (topic.sections || []).length >= 4
-      ? `<nav class="topic-toc" id="topicToc"><div class="toc-label">${State.lang === "vi" ? "TRONG BÀI NÀY" : "ON THIS PAGE"}</div>${tocItems}</nav>` : "";
+      ? `<nav class="topic-toc" id="topicToc"><div class="toc-label">${t(topic.title)}</div>${tocItems}</nav>` : "";
 
     const counts = `<div class="tc-meta" style="margin-bottom:16px;color:var(--muted2);font-size:12px">
       ${fa(ICON.cardsCount)} ${(topic.flashcards || []).length} ${State.lang === "vi" ? "thẻ" : "cards"} ·

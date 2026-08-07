@@ -1078,10 +1078,17 @@ html[data-theme="light"] .profile-menu{
   border-left:1px solid var(--line);
   background:color-mix(in srgb, var(--bg) 80%, transparent);
 }
-.toc-label{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted2);margin-bottom:12px}
+/* Now the lesson's own title, so it is set in the display serif at reading size
+   and not as an all-caps micro-label — a topic name in 10px uppercase with
+   Vietnamese diacritics is close to unreadable. */
+.toc-label{
+  font-family:var(--font-display);font-size:15px;font-weight:600;line-height:1.25;
+  letter-spacing:-.005em;color:var(--txt);margin-bottom:12px;
+  padding-bottom:10px;border-bottom:2px solid var(--tint-ink);
+}
 .toc-item{display:block;font-size:12.5px;color:var(--muted);padding:5px 0;cursor:pointer;line-height:1.45;border-left:2px solid transparent;padding-left:11px}
 .toc-item:hover{color:var(--txt)}
-.toc-item.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.toc-item.active{color:var(--tint-ink);border-left-color:var(--tint-ink);font-weight:600}
 /* Topic pages with a TOC: let content FILL the space between the left sidebar
    and the fixed right rail (drop the 1100 cap, reserve the rail via margin-right).
    The sb-collapsed variant is more specific so it beats the centering rule. */
