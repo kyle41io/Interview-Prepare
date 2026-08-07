@@ -154,20 +154,23 @@ test("neither screen offers password reset", () => {
   });
 });
 
-test("the demo panel lists both accounts with their exact credentials", () => {
+test("the demo panel offers one labelled sign-in button per account", () => {
   const html = ap.renderSignIn(CTX);
   assert.match(html, /data-auth-demo-toggle/);
   ap.DEMO_ACCOUNTS.forEach((a) => {
-    assert.ok(html.includes(a.email), `missing ${a.email}`);
-    assert.ok(html.includes(a.password), `missing password for ${a.email}`);
+    assert.ok(html.includes(a.label.en), `missing label for ${a.id}`);
     assert.match(html, new RegExp(`data-auth-demo-use="${a.id}"`));
   });
 });
 
-test("demo cards are labelled Email, never Username", () => {
-  // Email is what the form accepts; labelling it 'username' hands reviewers a
-  // value the form rejects.
+/* Nobody types them — the button signs in directly — so printing them only
+   made the panel tall. They stay in DEMO_ACCOUNTS for the button to use. */
+test("the demo panel prints no credentials", () => {
   const html = ap.renderSignIn(CTX);
+  ap.DEMO_ACCOUNTS.forEach((a) => {
+    assert.ok(!html.includes(a.email), `${a.email} should not be rendered`);
+    assert.ok(!html.includes(a.password), `password for ${a.id} should not be rendered`);
+  });
   const panel = html.slice(html.indexOf("auth-demo-panel"));
   assert.ok(!/username/i.test(panel), "demo panel must not say 'username'");
 });

@@ -379,8 +379,7 @@
 
   function renderCheatsheet() {
     const L = State.lang;
-    const trackOnly = State.track ? uiGet("cheatTrackOnly", true) : false;
-    const groups = collectCheats(trackOnly);
+    const groups = collectCheats();
     const totalN = groups.reduce((n, g) => n + g.items.length, 0);
     const open = uiGet("cheatOpen", {});
     const rows = groups.map(g => `
@@ -395,7 +394,6 @@
       <div class="page-head"><h1>${fa(ICON.cheat)} ${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</h1>
         <div class="blurb">${totalN} ${L === "vi" ? "câu \"ăn điểm\" — đọc lướt trước khi vào phỏng vấn." : "soundbites — skim before you walk in."}</div></div>
       <div class="cheat-bar">
-        ${State.track ? `<label class="cheat-filter"><input type="checkbox" id="cheatTrackOnly" ${trackOnly ? "checked" : ""}> ${L === "vi" ? "Chỉ lộ trình của tôi" : "My track only"}</label>` : ""}
         <span class="spacer"></span>
         <button class="btn subtle" id="cheatExpandAll">${L === "vi" ? "Mở tất cả" : "Expand all"}</button>
         <button class="btn subtle" id="cheatCollapseAll">${L === "vi" ? "Gập tất cả" : "Collapse all"}</button>
@@ -858,8 +856,13 @@
   /* ============================================================
      CHEAT SHEET — collect soundbite callouts across topics
      ============================================================ */
-  function collectCheats(trackOnly) {
-    const ids = (trackOnly && State.track) ? IP.tracks.resolveItems(currentTrack(), PREP.order) : PREP.order;
+  /* Always scoped to the chosen track — there is no "show everything" toggle.
+     Off-track topics are content the user has not unlocked, so they must not
+     leak into the cheat sheet, its count, or the home-page teaser. Without a
+     track (onboarding not finished) there is nothing to scope by, so the full
+     order is the only sensible answer. */
+  function collectCheats() {
+    const ids = State.track ? IP.tracks.resolveItems(currentTrack(), PREP.order) : PREP.order;
     const groups = [];
     ids.forEach(id => {
       const tp = PREP.topics[id]; if (!tp) return;
@@ -955,7 +958,7 @@
       <div class="cheat-cta" data-go-cheat="1">
         <span class="cc-ic">${fa(ICON.cheat)}</span>
         <span class="cc-txt"><b>${L === "vi" ? "Cheat sheet ngày phỏng vấn" : "Interview-day cheat sheet"}</b>
-        <span class="cc-sub">${collectCheats(false).reduce((n,g)=>n+g.items.length,0)} ${L === "vi" ? "câu ăn điểm" : "soundbites"}</span></span>
+        <span class="cc-sub">${collectCheats().reduce((n,g)=>n+g.items.length,0)} ${L === "vi" ? "câu ăn điểm" : "soundbites"}</span></span>
         <span class="cc-arrow">${fa("fa-solid fa-arrow-right")}</span>
       </div>
     </div>`;
@@ -1645,10 +1648,9 @@
         const open = uiGet("cheatOpen", {}); open[id] = !open[id]; uiSet("cheatOpen", open); render(); return;
       }
       if (e.target.closest("#cheatExpandAll") || e.target.closest("#cheatCollapseAll")) {
-        const all = {}; if (e.target.closest("#cheatExpandAll")) collectCheats(false).forEach(g => all[g.id] = true);
+        const all = {}; if (e.target.closest("#cheatExpandAll")) collectCheats().forEach(g => all[g.id] = true);
         uiSet("cheatOpen", all); render(); return;
       }
-      if (e.target.id === "cheatTrackOnly") { uiSet("cheatTrackOnly", e.target.checked); render(); return; }
       if (e.target.closest("[data-go-cheat]")) { State.mode = "cheat"; State.topic = null; render(); toTop(); saveView(); return; }
       if (e.target.id === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
       if (e.target.id === "goQuiz") { setMode("quiz"); startQuiz(State.topic); render(); return; }

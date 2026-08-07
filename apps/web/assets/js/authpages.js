@@ -196,10 +196,8 @@
       en: "Account created. Open the confirmation link we sent to {email}, then sign in.",
     },
     goSignIn: { vi: "Đăng nhập", en: "Sign In" },
-    demoBtn: { vi: "Tài khoản dùng thử", en: "Demo accounts" },
-    demoUse: { vi: "Đăng nhập bằng tài khoản này", en: "Sign in as this account" },
-    demoEmail: { vi: "Email", en: "Email" },
-    demoPassword: { vi: "Mật khẩu", en: "Password" },
+    demoBtn: { vi: "Demo", en: "Demo" },
+    demoUse: { vi: "Đăng nhập", en: "Sign in" },
   };
 
   function brandPanel(ctx) {
@@ -224,11 +222,12 @@
     </label>`;
   }
 
+  /* Credentials are deliberately NOT rendered. Nobody has to type them — the
+     button signs in with them directly — so printing them only made the panel
+     tall and busy. They still live in DEMO_ACCOUNTS for that button to use. */
   function demoPanel(ctx) {
     const cards = DEMO_ACCOUNTS.map((a) => `<div class="auth-demo-card">
       <b>${esc(ctx.t(a.label))}</b>
-      <div class="auth-demo-row"><span>${esc(ctx.t(COPY.demoEmail))}</span><code>${esc(a.email)}</code></div>
-      <div class="auth-demo-row"><span>${esc(ctx.t(COPY.demoPassword))}</span><code>${esc(a.password)}</code></div>
       <button type="button" class="btn sm" data-auth-demo-use="${a.id}">${esc(ctx.t(COPY.demoUse))}</button>
     </div>`).join("");
     return `<div class="auth-demo">
@@ -259,7 +258,7 @@
       </div>
       ${demoPanel(ctx)}
       <!-- Shown by CSS while .auth-page carries data-busy. It covers the demo
-           panel as well as the card, because "Sign in as this account" sits
+           panel as well as the card, because the demo sign-in buttons sit
            outside the card and would otherwise give no feedback at all during
            the seconds a sign-in takes. -->
       <div class="auth-loading" data-auth-loading role="status" aria-live="polite">
