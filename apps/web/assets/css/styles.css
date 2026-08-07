@@ -220,11 +220,11 @@ code{font-family:var(--font-mono);font-size:.92em}
   color:var(--muted);font-size:14px;font-weight:500;transition:.12s;border:1px solid transparent;position:relative;
 }
 .nav-item:hover{background:var(--panel);color:var(--txt)}
-/* Hovering a lesson swells its label. transform (not font-size) keeps this off
-   the layout pass, so the row height and the right-hand lock/check never move;
-   the left origin makes the text grow into the empty space, not over the icon. */
-.nav-item .ni-label{transition:transform .14s ease,font-weight .14s ease;transform-origin:left center}
-.nav-item:hover .ni-label{transform:scale(1.09);font-weight:700}
+/* Hovering a lesson only weights its label. Scaling it up as well looked broken:
+   a wrapped two-line title grew past the row it belongs to and crowded the
+   lock/check on the right, and the weight change alone reads clearly enough. */
+.nav-item .ni-label{transition:font-weight .14s ease}
+.nav-item:hover .ni-label{font-weight:700}
 .nav-item.active{background:var(--panel2);color:var(--txt);border-color:var(--line2)}
 /* Full-height marker in the topic's own category colour, matching the tile it
    was opened from — square, flush to the edge, no rounding. */
