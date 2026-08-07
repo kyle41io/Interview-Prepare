@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Interview Prep">
   <title>Interview Prep</title>
-  <!-- Flat ink tile, near-square corners. The old version was a blue→violet
-       gradient with a gradient-stroked check; both gradients are gone. Ink +
-       one jade accent, matching the app's --txt / --accent pair. -->
+  <!-- Flat ink tile, near-square corners. The old version was a blue-to-violet
+       gradient with a gradient-stroked check; both gradients are gone. Ink plus
+       one jade accent, matching the app's own ink and accent tokens.
+       Note: no double hyphens anywhere in these comments. An SVG served as
+       image/svg+xml is parsed as strict XML, where a comment containing "- -"
+       is a fatal error, and a fatal error renders as a broken image. -->
   <rect width="32" height="32" rx="2" fill="#191b1e"/>
   <!-- Speech bubble (the interview) — tail drawn first, hidden under the body -->
   <path d="M10.4 19 L10.1 27.6 L15.4 21 Z" fill="#faf8f4"/>
