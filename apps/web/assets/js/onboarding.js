@@ -95,7 +95,7 @@
         +     subLabel
         +   '</div>'
         +   soonBadge
-        +   (hasLevels && !soon ? '<span class="ob-chev">' + (expanded ? "▲" : "▼") + '</span>' : "")
+        +   (hasLevels && !soon ? '<span class="ob-chev">' + fa(expanded ? "fa-solid fa-chevron-up" : "fa-solid fa-chevron-down") + '</span>' : "")
         +   startHtml
         + '</div>'
         + chipsHtml

@@ -402,7 +402,9 @@
   function walkHtml(spec, ctx) {
     const steps = spec.steps || [];
     if (!steps.length) return "";
-    const overview = { vi: "Tổng quan — bấm ▶ để đi từng bước", en: "Overview — press ▶ to walk through" };
+    // The play glyph is named rather than drawn inline: this string is escaped
+    // before it lands in the DOM, so an <i> here would print as literal markup.
+    const overview = { vi: "Tổng quan — bấm nút chạy để đi từng bước", en: "Overview — press play to walk through" };
     const texts = [`<span class="dg-step on" data-dg-i="0">${esc(pick(overview, ctx.lang))}</span>`]
       .concat(steps.map((s, i) => `<span class="dg-step" data-dg-i="${i + 1}">${pick(s.text, ctx.lang)}</span>`))
       .join("");
@@ -411,9 +413,9 @@
         steps.map((s, i) => `<i data-dg-dot="${i + 1}"></i>`).join("") + `</span>`
       : `<span class="dg-sn">—</span>`;
     return `<div class="dg-walk">` +
-      `<button class="dg-sbtn" data-dg-walk="-1" aria-label="previous">◀</button>` +
+      `<button class="dg-sbtn" data-dg-walk="-1" aria-label="previous"><i class="fa-solid fa-caret-left"></i></button>` +
       gauge +
-      `<button class="dg-sbtn" data-dg-walk="1" aria-label="next">▶</button>` +
+      `<button class="dg-sbtn" data-dg-walk="1" aria-label="next"><i class="fa-solid fa-caret-right"></i></button>` +
       `<span class="dg-stext" role="status">${texts}</span></div>`;
   }
 

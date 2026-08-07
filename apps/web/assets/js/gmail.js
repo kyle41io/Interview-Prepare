@@ -50,9 +50,16 @@
     return lines.join("\r\n");
   }
 
-  /* Pure: emoji for a notification/reminder type */
+  /* Pure: Font Awesome markup for a notification/reminder type. Returns an
+     element rather than a class string because both call sites (the bell menu
+     and the reminder list) drop it straight into a template. */
   function notifIcon(type) {
-    return ({ test: "📝", interview: "💼", offer: "🎉", rejection: "🙏", deadline: "⏰", other: "✉️" })[type] || "✉️";
+    var cls = ({
+      test: "fa-solid fa-pen-ruler", interview: "fa-solid fa-user-tie",
+      offer: "fa-solid fa-file-signature", rejection: "fa-solid fa-circle-minus",
+      deadline: "fa-regular fa-clock", other: "fa-regular fa-envelope",
+    })[type] || "fa-regular fa-envelope";
+    return '<i class="' + cls + '"></i>';
   }
 
   var _notifications = [];
