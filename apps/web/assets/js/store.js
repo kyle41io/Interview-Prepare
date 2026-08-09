@@ -46,7 +46,10 @@
   function _notify(key) {
     _listeners.forEach((f) => { try { f(key); } catch {} });
   }
-  function set(key, value) { _write(key, value); _notify(key); }
+  /* opts.silent skips the listeners — for device-local keys the backend
+     snapshot does not carry, where notifying would schedule a sync push that
+     has nothing to send (same escape hatch replaceAll already offers). */
+  function set(key, value, opts) { _write(key, value); if (!(opts && opts.silent)) _notify(key); }
 
   function onChange(cb) {
     _listeners.push(cb);

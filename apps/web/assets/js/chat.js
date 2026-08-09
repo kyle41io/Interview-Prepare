@@ -9,6 +9,12 @@
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   "use strict";
 
+  /* How much conversation the assistant sees, and how much survives a reload.
+     Six exchanges is the product decision; everything below derives from it. */
+  var MAX_TURNS = 6;
+  var MAX_CHARS = 4000;
+  var STORE_KEY = "chatHistory";
+
   /* Pure, non-mutating: keep last maxTurns entries, clamp each content to maxChars */
   function truncateHistory(messages, maxTurns, maxChars) {
     maxTurns = maxTurns || 10;
@@ -18,6 +24,29 @@
         role: m.role,
         content: String(m.content == null ? "" : m.content).slice(0, maxChars),
       };
+    });
+  }
+
+  /* Pure: keep the last `maxTurns` exchanges, where an exchange is a user
+     message and the reply to it.
+
+     Counting messages alone is not enough. The window is trimmed right after
+     the new user turn is appended, which lands mid-exchange, so a plain
+     slice can leave an assistant reply at the head — and a conversation that
+     opens on an assistant message is rejected by the model API, which
+     requires the first message to be a user turn. The orphan head is dropped
+     instead, costing at most one stale reply. */
+  function capTurns(messages, maxTurns) {
+    var out = (messages || []).slice(-(maxTurns || MAX_TURNS) * 2);
+    while (out.length && out[0].role !== "user") out.shift();
+    return out;
+  }
+
+  /* Pure: only well-formed turns survive a round trip through storage, so a
+     hand-edited or half-written localStorage value cannot reach the API. */
+  function sanitize(messages) {
+    return (Array.isArray(messages) ? messages : []).filter(function (m) {
+      return m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string";
     });
   }
 
@@ -49,19 +78,37 @@
     }).join("");
   }
 
-  var _hist = [];
+  var _hist = null;   // null = not yet read back from storage
   var _cbs = [];
 
   function _emit() {
     _cbs.forEach(function (f) { f(); });
   }
 
+  function _store() {
+    return root.IP && root.IP.store;
+  }
+
+  /* The conversation is device-local: it is written silently so the sync layer
+     does not schedule a snapshot push on every message. The snapshot does not
+     carry chat history, so that push would send nothing and cost a request.
+     Sign-out already wipes it — store.clearAll() sweeps the whole ip_ prefix. */
+  function _persist() {
+    var s = _store();
+    if (s && s.set) s.set(STORE_KEY, _hist, { silent: true });
+  }
+
   function getHistory() {
+    if (_hist === null) {
+      var s = _store();
+      _hist = capTurns(sanitize(s && s.get ? s.get(STORE_KEY, []) : []), MAX_TURNS);
+    }
     return _hist;
   }
 
   function reset() {
     _hist = [];
+    _persist();
     _emit();
   }
 
@@ -73,15 +120,18 @@
      optimistically so the UI can render it immediately, and popped again if the
      request fails. */
   async function send(text) {
-    _hist.push({ role: "user", content: text });
+    _hist = capTurns(getHistory().concat([{ role: "user", content: text }]), MAX_TURNS);
+    _persist();
     _emit();
     try {
-      var data = await root.IP.api.post("/v1/chat", { messages: truncateHistory(_hist, 10, 4000) });
+      var data = await root.IP.api.post("/v1/chat", { messages: truncateHistory(_hist, MAX_TURNS * 2, MAX_CHARS) });
       _hist.push({ role: "assistant", content: data.text });
+      _persist();
       _emit();
       return { text: data.text, remaining: data.remaining };
     } catch (e) {
       _hist.pop();
+      _persist();
       _emit();
       // API 429 → the signal app.js expects. Two tiers share the status: the
       // daily cap and, on demo accounts, the 5-turn session cap.
@@ -94,7 +144,9 @@
   }
 
   return {
+    MAX_TURNS: MAX_TURNS,
     truncateHistory: truncateHistory,
+    capTurns: capTurns,
     quotaLimit: quotaLimit,
     mdLite: mdLite,
     send: send,
