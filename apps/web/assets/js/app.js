@@ -2290,6 +2290,11 @@
         // GET); both callers are idempotent.
         if (State.mode === "upgrade") loadUpgradeData();
         else if (State.mode === "admin") loadAdminData();
+        // The conversation belongs to the account, not the browser: sign-out
+        // wipes the local copy, so this is what brings it back — and what makes
+        // it show up on a second device. Repaint only if the chat is on screen;
+        // otherwise the fetched history is simply there when they open it.
+        IP.chat.load().then(() => { if (State.mode === "chat") render(); });
         // onChange fires on every auth event (INITIAL_SESSION, SIGNED_IN,
         // hourly TOKEN_REFRESHED); prompt only once per session. There is no
         // realtime push behind the API — DynamoDB has no changefeed, so the

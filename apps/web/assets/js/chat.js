@@ -89,10 +89,14 @@
     return root.IP && root.IP.store;
   }
 
-  /* The conversation is device-local: it is written silently so the sync layer
-     does not schedule a snapshot push on every message. The snapshot does not
-     carry chat history, so that push would send nothing and cost a request.
-     Sign-out already wipes it — store.clearAll() sweeps the whole ip_ prefix. */
+  /* localStorage is the cache, the account is the record. The local copy is
+     what paints instantly on reload and what carries the conversation while
+     offline; load() replaces it from the server at sign-in. It is written
+     silently so the sync layer does not schedule a snapshot push on every
+     message — the snapshot does not carry chat history, so that push would
+     send nothing. Sign-out wipes it: store.clearAll() sweeps the ip_ prefix,
+     which is what keeps one account's conversation off the next person's
+     screen on a shared browser. */
   function _persist() {
     var s = _store();
     if (s && s.set) s.set(STORE_KEY, _hist, { silent: true });
@@ -110,6 +114,23 @@
     _hist = [];
     _persist();
     _emit();
+  }
+
+  /* Pull the account's saved conversation. Called at sign-in, so this is what
+     makes a history follow the user to another browser instead of dying with
+     the tab. A failure — offline, API not configured, no session yet — leaves
+     whatever is already on screen alone: a stale local copy is a far better
+     outcome than blanking a conversation the server merely could not confirm. */
+  async function load() {
+    var api = root.IP && root.IP.api;
+    if (!api || !api.get) return getHistory();
+    try {
+      var data = await api.get("/v1/chat/history");
+      _hist = capTurns(sanitize(data && data.messages), MAX_TURNS);
+      _persist();
+      _emit();
+    } catch (e) { /* keep the cached conversation */ }
+    return getHistory();
   }
 
   function onChange(cb) {
@@ -153,5 +174,6 @@
     reset: reset,
     onChange: onChange,
     getHistory: getHistory,
+    load: load,
   };
 });
