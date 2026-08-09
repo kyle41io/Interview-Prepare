@@ -535,8 +535,14 @@
   async function sendChat() {
     const ta = document.getElementById("chatInput"); if (!ta) return;
     const text = ta.value.trim(); if (!text || Chat.sending) return;
-    Chat.sending = true; render(); scrollChat();
-    const res = await IP.chat.send(text);
+    // Start the request BEFORE painting. IP.chat.send appends the user turn
+    // synchronously, before its first await, so by the time render() runs the
+    // question is already in the history and appears with the typing dots
+    // instead of only showing up once the answer lands.
+    Chat.sending = true;
+    const pending = IP.chat.send(text);
+    render(); scrollChat();
+    const res = await pending;
     Chat.sending = false; render(); scrollChat();
     if (res.error === "not-signed-in") return;
     // Session cap first: Pro doesn't lift it, so the upgrade CTA below would be wrong.
