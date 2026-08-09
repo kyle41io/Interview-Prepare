@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Interview Prep">
   <title>Interview Prep</title>
-  <!-- Flat ink tile, near-square corners. The old version was a blue-to-violet
-       gradient with a gradient-stroked check; both gradients are gone. Ink plus
-       one jade accent, matching the app's own ink and accent tokens.
+  <!-- The original tile, with the two colours swapped: the ground is the app's
+       jade instead of ink (ink went flat against a dark page) and the check is
+       gold instead of jade.
        Note: no double hyphens anywhere in these comments. An SVG served as
-       image/svg+xml is parsed as strict XML, where a comment containing "- -"
+       image/svg+xml is parsed as strict XML, where a comment containing them
        is a fatal error, and a fatal error renders as a broken image. -->
-  <rect width="32" height="32" rx="2" fill="#191b1e"/>
+  <rect width="32" height="32" rx="2" fill="#0f6f60"/>
   <!-- Speech bubble (the interview) — tail drawn first, hidden under the body -->
   <path d="M10.4 19 L10.1 27.6 L15.4 21 Z" fill="#faf8f4"/>
   <rect x="4.5" y="5" width="23" height="17" rx="2" fill="#faf8f4"/>
   <!-- Check mark (the prep / mastery) -->
-  <path d="M11.6 13.6 l3.7 3.7 l7-7.6" fill="none" stroke="#0f6f60"
+  <path d="M11.6 13.6 l3.7 3.7 l7-7.6" fill="none" stroke="#f0a500"
         stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
