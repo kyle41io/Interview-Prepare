@@ -13,7 +13,8 @@ function build(over: any = {}) {
   const provider = { complete: jest.fn().mockResolvedValue({ text: "ok" }), ...over.provider };
   const billing = { getEntitlement: jest.fn().mockResolvedValue({ isPro: false }), ...over.billing };
   const config = { get: (k: string) => (k === "DEMO_EMAILS" ? "demo@example.com" : undefined), ...over.config };
-  return { svc: new ChatService(quota as any, provider as any, billing as any, config as any), quota, provider };
+  const history = { get: jest.fn().mockResolvedValue([]), save: jest.fn().mockResolvedValue(undefined), ...over.history };
+  return { svc: new ChatService(quota as any, provider as any, billing as any, config as any, history as any), quota, provider, history };
 }
 
 describe("ChatService demo caps", () => {
@@ -60,5 +61,40 @@ describe("ChatService demo caps", () => {
     const { svc, quota } = build({ billing: { getEntitlement: jest.fn().mockResolvedValue({ isPro: true }) } });
     await svc.chat({ id: "u1", email: "demo@example.com", sessionId: "s1" }, MSGS);
     expect(quota.bump).toHaveBeenCalledWith("u1", 30);
+  });
+});
+
+describe("ChatService history", () => {
+  it("saves the exchange, reply included, under the user's own key", async () => {
+    const { svc, history } = build();
+    await svc.chat({ id: "u1", email: "real@user.com", sessionId: "s1" }, MSGS);
+    expect(history.save).toHaveBeenCalledWith("u1", null, [
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "ok" },
+    ]);
+  });
+
+  it("keeps a demo visitor's conversation on their session", async () => {
+    const { svc, history } = build();
+    await svc.chat({ id: "u1", email: "demo@example.com", sessionId: "s1" }, MSGS);
+    expect(history.save.mock.calls[0][1]).toBe("s1");
+    expect((await svc.historyFor({ id: "u1", email: "demo@example.com", sessionId: "s1" })).messages).toEqual([]);
+    expect(history.get).toHaveBeenCalledWith("u1", "s1");
+  });
+
+  it("stores nothing for a demo request with no session to attribute it to", async () => {
+    // Otherwise every reviewer sharing the public login would read the last
+    // visitor's conversation.
+    const { svc, history } = build();
+    await svc.chat({ id: "u1", email: "demo@example.com" }, MSGS);
+    expect(history.save).not.toHaveBeenCalled();
+    expect(await svc.historyFor({ id: "u1", email: "demo@example.com" })).toEqual({ messages: [] });
+    expect(history.get).not.toHaveBeenCalled();
+  });
+
+  it("a failed reply saves nothing", async () => {
+    const { svc, history } = build({ provider: { complete: jest.fn().mockRejectedValue(new Error("boom")) } });
+    await expect(svc.chat({ id: "u1", email: "real@user.com" }, MSGS)).rejects.toThrow("boom");
+    expect(history.save).not.toHaveBeenCalled();
   });
 });

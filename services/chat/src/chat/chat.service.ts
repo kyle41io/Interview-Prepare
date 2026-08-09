@@ -4,7 +4,8 @@ import { QuotaService } from "./quota.service";
 import { ProviderService, AiUnavailable } from "./provider.service";
 import { BillingService } from "@ip/billing-service";
 import { AuthUser } from "@ip/auth";
-import { SYSTEM, clampMessages } from "./scope";
+import { SYSTEM, clampMessages, type ChatMsg } from "./scope";
+import { HistoryService } from "./history.service";
 import { isDemoEmail, limitsFor } from "./limits";
 
 @Injectable()
@@ -14,12 +15,24 @@ export class ChatService {
     private readonly provider: ProviderService,
     private readonly billing: BillingService,
     private readonly config: ConfigService,
+    private readonly history: HistoryService,
   ) {}
+
+  private isDemo(user: AuthUser) {
+    return isDemoEmail(user.email, this.config.get<string>("DEMO_EMAILS") || "");
+  }
 
   private async limits(user: AuthUser) {
     const ent = await this.billing.getEntitlement(user.id);
-    const isDemo = isDemoEmail(user.email, this.config.get<string>("DEMO_EMAILS") || "");
-    return limitsFor({ isPro: !!ent.isPro, isDemo });
+    return limitsFor({ isPro: !!ent.isPro, isDemo: this.isDemo(user) });
+  }
+
+  /* Which conversation this request belongs to. Null means the user's own,
+     a session id means a demo visitor's — and a demo request without one is
+     unattributable, so it gets no history rather than the shared login's. */
+  private historyKey(user: AuthUser): { skip: boolean; sessionId: string | null } {
+    if (!this.isDemo(user)) return { skip: false, sessionId: null };
+    return { skip: !user.sessionId, sessionId: user.sessionId || null };
   }
 
   async chat(user: AuthUser, rawMessages: any): Promise<{ text: string; remaining: number }> {
@@ -45,11 +58,19 @@ export class ChatService {
 
     try {
       const { text } = await this.provider.complete({ system: SYSTEM, messages, maxTokens: 1024 });
+      const h = this.historyKey(user);
+      if (!h.skip) await this.history.save(user.id, h.sessionId, [...messages, { role: "assistant", content: text }]);
       return { text, remaining: q.remaining };
     } catch (e) {
       if (e instanceof AiUnavailable) throw new HttpException({ error: "ai-unconfigured" }, HttpStatus.SERVICE_UNAVAILABLE);
       throw e;
     }
+  }
+
+  async historyFor(user: AuthUser): Promise<{ messages: ChatMsg[] }> {
+    const h = this.historyKey(user);
+    if (h.skip) return { messages: [] };
+    return { messages: await this.history.get(user.id, h.sessionId) };
   }
 
   async quotaFor(user: AuthUser) {

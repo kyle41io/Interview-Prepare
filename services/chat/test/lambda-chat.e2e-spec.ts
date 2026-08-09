@@ -84,6 +84,38 @@ describe("chat lambda handler", () => {
     },
   );
 
+  it("GET /v1/chat/history -> 401 without a token", async () => {
+    const res = await invoke(apiEvent("GET", "/v1/chat/history"));
+    expect(res.statusCode).toBe(401);
+  });
+
+  (dbOn ? it : it.skip)("a conversation survives the request that created it", async () => {
+    const t = user("hist");
+
+    const empty = await json(apiEvent("GET", "/v1/chat/history", { token: t }));
+    expect(empty.status).toBe(200);
+    expect(empty.body.messages).toEqual([]);
+
+    const r = await ask(t);
+    expect(r.status).toBe(201);
+
+    // Both halves of the exchange are stored, in order, under the caller's own
+    // key — this is what a returning user replays at sign-in.
+    const h = await json(apiEvent("GET", "/v1/chat/history", { token: t }));
+    expect(h.status).toBe(200);
+    expect(h.body.messages).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: r.body.text },
+    ]);
+  });
+
+  (dbOn ? it : it.skip)("history is isolated per user", async () => {
+    await ask(user("histA"));
+    const hb = await json(apiEvent("GET", "/v1/chat/history", { token: user("histB") }));
+    expect(hb.status).toBe(200);
+    expect(hb.body.messages).toEqual([]);
+  });
+
   (dbOn ? it : it.skip)("quota is isolated per user", async () => {
     await ask(user("A"));
     const qb = await json(apiEvent("GET", "/v1/chat/quota", { token: user("B") }));

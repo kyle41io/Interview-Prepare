@@ -10,6 +10,8 @@ export class ChatController {
   constructor(private readonly svc: ChatService) {}
   @Post()
   chat(@CurrentUser() u: AuthUser, @Body() b: ChatBody) { return this.svc.chat(u, b?.messages); }
+  @Get("history")
+  history(@CurrentUser() u: AuthUser) { return this.svc.historyFor(u); }
   @Get("quota")
   quota(@CurrentUser() u: AuthUser) { return this.svc.quotaFor(u); }
 }

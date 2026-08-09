@@ -27,4 +27,10 @@ export function clampMessages(raw: any): ChatMsg[] {
 }
 export const usageSk = (day: string) => `CHATUSAGE#${day}`;
 export const sessionSk = (sessionId: string) => `CHATSESSION#${sessionId}`;
+/* The saved conversation, one item beside the counters under the same user pk.
+   Demo logins are shared and their credentials are public, so their history is
+   keyed per session — otherwise every visitor would read the last stranger's
+   conversation, the same reason the quota has a session tier. */
+export const historySk = (sessionId?: string | null) => (sessionId ? `CHATHISTORY#${sessionId}` : "CHATHISTORY");
+export const HISTORY_TTL_DAYS = 30;
 export const todayUtc = () => new Date().toISOString().slice(0, 10);
