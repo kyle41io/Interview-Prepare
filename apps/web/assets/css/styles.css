@@ -193,7 +193,10 @@ code{font-family:var(--font-mono);font-size:.92em}
   background:var(--panel);border:none;color:var(--muted);font-weight:700;font-size:12px;
   padding:8px 11px;cursor:pointer;transition:.15s;
 }
-.lang-toggle button.active{background:var(--txt);color:var(--bg)}
+/* The live language is the app's accent, not ink — it is a state, and ink reads
+   as a third button rather than the selected one. --bg for the label flips with
+   the theme, so it stays 5.7:1 on the light jade and 7.9:1 on the dark one. */
+.lang-toggle button.active{background:var(--accent);color:var(--bg)}
 .icon-btn{
   background:var(--panel);border:1px solid var(--line);color:var(--muted);width:38px;height:38px;
   border-radius:var(--radius);cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.15s;
@@ -965,8 +968,13 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
   padding:9px 12px;border-radius:var(--radius);cursor:pointer;text-align:left;
   display:flex;align-items:center;gap:10px;transition:.12s;width:100%;
 }
+/* Menu glyphs carry the accent so the column of icons reads as one rail; the
+   label stays ink. A destructive row overrides it — a green sign-out icon next
+   to red copy would undercut the warning. */
+.profile-menu button i{color:var(--accent);width:18px;text-align:center}
 .profile-menu button:hover{background:var(--panel2)}
 .profile-menu button.danger{color:var(--red)}
+.profile-menu button.danger i{color:inherit}
 .profile-menu button.danger:hover{background:#f8514912}
 .profile-menu hr{border:none;border-top:1px solid var(--line);margin:4px 0}
 /* The `hidden` attribute must win over the display:flex rules above
