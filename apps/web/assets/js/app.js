@@ -48,7 +48,6 @@
     bookmarkO: "fa-regular fa-bookmark",
     reminders: "fa-solid fa-calendar-check",
     admin: "fa-solid fa-user-shield",
-    settings: "fa-solid fa-gear",
     streak: "fa-solid fa-fire",
     pro: "fa-solid fa-crown",
     cardsCount: "fa-regular fa-clone",
@@ -72,10 +71,10 @@
     gradeLow: "fa-solid fa-book-open-reader",
   };
   /* Glyph + name for every value State.mode can hold, keyed for the phone's
-     collapsed tab trigger. The four tabs are only half of them — settings,
-     saved, cheat sheet and the rest are reached from the profile menu, and the
-     trigger has to say where you are on those screens too rather than falling
-     back to "Học" and lying about it. */
+     collapsed tab trigger. The four tabs are only half of them — saved, cheat
+     sheet and the rest are reached from the profile menu, and the trigger has to
+     say where you are on those screens too rather than falling back to "Học" and
+     lying about it. */
   const MODE_BADGE = {
     learn:     { icon: "learn",           label: () => UI.learn },
     cards:     { icon: "cards",           label: () => UI.cards },
@@ -86,7 +85,6 @@
     reminders: { icon: "reminders",       label: () => UI.reminders },
     upgrade:   { icon: "pro",             label: () => UI.upgrade },
     admin:     { icon: "admin",           label: () => UI.admin },
-    settings:  { icon: "settings",        label: () => UI.settings },
   };
   function fa(cls) { return `<i class="${cls}"></i>`; }
   function proBadge(tp) {
@@ -161,16 +159,11 @@
   const UI = Object.assign(IP.i18n.STR, {
     changeTrack: { vi: "Đổi lộ trình", en: "Change path" },
     saved: { vi: "Đã lưu", en: "Saved" },
-    clearData: { vi: "Xoá dữ liệu", en: "Clear data" },
-    confirmClear: { vi: "Xoá toàn bộ dữ liệu học? Không thể hoàn tác.", en: "Clear all study data? This cannot be undone." },
     // Still used by the Chat/Upgrade signed-out fallbacks, which are reachable
     // only when IP.auth.enabled() is false — otherwise render() short-circuits
     // to the auth page. No longer bound to any [data-i18n] element.
     signIn: { vi: "Đăng nhập", en: "Sign in" },
     signOut: { vi: "Đăng xuất", en: "Sign out" },
-    deleteAccount: { vi: "Xoá tài khoản", en: "Delete account" },
-    confirmDelete: { vi: "Xoá tài khoản và toàn bộ dữ liệu? Không thể hoàn tác.", en: "Delete account and all data? This cannot be undone." },
-    settings: { vi: "Cài đặt tài khoản", en: "Account settings" },
     // No leading glyph in the copy — the button prepends a Font Awesome check,
     // so these stay plain text and can be reused anywhere.
     markLearned: { vi: "Đánh dấu đã học", en: "Mark as learned" },
@@ -234,12 +227,18 @@
     exportIcs: { vi: "Xuất .ics", en: "Export .ics" },
     markDone: { vi: "Xong", en: "Done" },
     dismiss: { vi: "Bỏ qua", en: "Dismiss" },
+    // Gmail copy now sits in a ~250px dropdown strip, not on a full page, so the
+    // subtitles are one short line each. The long marketing paragraphs the
+    // account page carried had nowhere to wrap to and were cut.
     gmailConnect: { vi: "Kết nối Gmail", en: "Connect Gmail" },
     gmailDisconnect: { vi: "Ngắt kết nối", en: "Disconnect" },
     gmailConnected: { vi: "Đã kết nối Gmail", en: "Gmail connected" },
-    gmailBlurb: { vi: "Tự động phát hiện email tuyển dụng (bài test, phỏng vấn, offer) và nhắc lịch.", en: "Auto-detect recruiting emails (tests, interviews, offers) and remind you." },
-    gmailProTitle: { vi: "Đồng bộ Gmail là tính năng Pro", en: "Gmail sync is a Pro feature" },
-    gmailProDesc: { vi: "Tự động phát hiện email tuyển dụng, tạo lịch nhắc phỏng vấn/bài test và thông báo. Nâng cấp Pro để bật.", en: "Auto-detect recruiting emails, create interview/test reminders and notifications. Upgrade to Pro to enable." },
+    gmailBlurb: { vi: "Tự nhận email tuyển dụng, tự nhắc lịch.", en: "Auto-detects recruiting mail, sets reminders." },
+    gmailChecking: { vi: "Đang kiểm tra…", en: "Checking…" },
+    gmailProDesc: { vi: "Nâng cấp để tự nhận email tuyển dụng.", en: "Upgrade to auto-detect recruiting mail." },
+    gmailLastScan: { vi: "Quét lần cuối", en: "Last scan" },
+    gmailNoScan: { vi: "chưa quét", en: "not yet" },
+    gmailConfirmOff: { vi: "Ngắt kết nối Gmail? Sẽ không còn tự nhận email tuyển dụng.", en: "Disconnect Gmail? Recruiting mail will no longer be detected." },
     calAdd: { vi: "Thêm", en: "Add" },
     calDelete: { vi: "Xoá", en: "Delete" },
     calToday: { vi: "Hôm nay", en: "Today" },
@@ -453,60 +452,6 @@
         <button class="btn subtle" id="cheatCollapseAll">${L === "vi" ? "Gập tất cả" : "Collapse all"}</button>
       </div>
       ${rows || `<div class="empty-hint">${L === "vi" ? "Chưa có câu nào." : "Nothing here yet."}</div>`}
-    </div>`;
-  }
-
-  function renderSettings() {
-    const L = State.lang;
-    const u = IP.auth ? IP.auth.getUser() : null;
-    const md = (u && u.user_metadata) || {};
-    const acct = u
-      ? `<div class="settings-acct">
-           ${md.avatar_url ? `<img class="settings-avatar" src="${md.avatar_url}" alt="" referrerpolicy="no-referrer">` : `<span style="font-size:40px;color:var(--muted)">${fa(ICON.profile)}</span>`}
-           <div><div class="sa-name">${esc(md.full_name || md.name || "")}</div><div class="sa-email">${esc(u.email || "")}</div></div>
-         </div>`
-      : `<div class="empty-hint">${L === "vi" ? "Bạn chưa đăng nhập. Đăng nhập với Google để đồng bộ tiến độ giữa các thiết bị." : "You're not signed in. Sign in with Google to sync your progress across devices."}</div>`;
-    const delItem = u
-      ? `<div class="danger-item">
-           <div><div class="di-title">${t(UI.deleteAccount)}</div><div class="di-desc">${L === "vi" ? "Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu trên máy chủ." : "Permanently delete your account and all server-side data."}</div></div>
-           <button class="btn danger-btn" id="deleteAccountBtn">${t(UI.deleteAccount)}</button>
-         </div>`
-      : "";
-    const gmailBlock = u ? (() => {
-      // Non-Pro: a discoverable but locked upsell — no status fetch, no connect.
-      if (!IP.pro.isPro()) {
-        return `<div class="settings-block gmail-block gmail-block--locked">
-          <div class="sb-head"><h2>${fa("fa-solid fa-lock")} Gmail</h2><span class="pro-badge pro-badge--locked">${fa(ICON.pro)} PRO</span></div>
-          <div class="di-desc">${t(UI.gmailProTitle)}</div>
-          <div class="di-desc">${t(UI.gmailProDesc)}</div>
-          <button class="btn" data-menu-go="upgrade">${fa(ICON.pro)} ${t(UI.proUpgradeCta)}</button>
-        </div>`;
-      }
-      if (!GmailSettings.loaded) loadGmailStatus();
-      const st = GmailSettings.status;
-      const connected = !!(st && st.connected);
-      const scanTxt = st && st.last_scan ? new Date(st.last_scan).toLocaleString(L === "vi" ? "vi-VN" : "en-US") : (L === "vi" ? "chưa quét" : "not yet");
-      return `<div class="settings-block gmail-block">
-        <div class="sb-head"><h2>${fa("fa-solid fa-envelope")} Gmail</h2></div>
-        <div class="di-desc">${t(UI.gmailBlurb)}</div>
-        ${connected
-          ? `<div class="gmail-connected-row"><span class="status-pill approved">${t(UI.gmailConnected)}</span> <span class="gmail-meta">${esc(st.email || "")} · ${L === "vi" ? "quét lần cuối" : "last scan"} ${esc(scanTxt)}</span></div>
-             <button class="btn danger-btn" id="gmailDisconnectBtn">${t(UI.gmailDisconnect)}</button>`
-          : `<button class="btn" id="gmailConnectBtn">${fa("fa-solid fa-envelope")} ${t(UI.gmailConnect)}</button>`}
-      </div>`;
-    })() : "";
-    return `<div class="fade-in settings-page">
-      <div class="page-head"><h1>${fa("fa-solid fa-gear")} ${L === "vi" ? "Cài đặt tài khoản" : "Account settings"}</h1></div>
-      ${acct}
-      ${gmailBlock}
-      <div class="danger-zone">
-        <div class="dz-label">${L === "vi" ? "Vùng nguy hiểm" : "Danger zone"}</div>
-        <div class="danger-item">
-          <div><div class="di-title">${t(UI.clearData)}</div><div class="di-desc">${L === "vi" ? "Xoá dữ liệu học lưu trên trình duyệt này. Dữ liệu đã đồng bộ trên máy chủ không bị ảnh hưởng." : "Clear study data stored in this browser. Server-synced data is unaffected."}</div></div>
-          <button class="btn danger-btn" id="clearDataBtn">${t(UI.clearData)}</button>
-        </div>
-        ${delItem}
-      </div>
     </div>`;
   }
 
@@ -790,21 +735,104 @@
     }
   }
 
-  /* ---------- Gmail settings ---------- */
+  /* ---------- Gmail connection (profile menu strip) ---------- */
   const GmailSettings = { status: null, loaded: false };
   async function loadGmailStatus() {
     GmailSettings.status = await IP.gmail.status();
     GmailSettings.loaded = true;
-    if (State.mode === "settings") render();
+    renderGmailMenu();
   }
-  // The consent redirect lands us back on the settings screen, which fetches
-  // status while auth.js is still handing the refresh token to the server. That
-  // race renders "not connected" for a connect that succeeded, so re-fetch once
-  // the handoff actually lands.
+  // The consent redirect lands us back in the app, which fetches status while
+  // auth.js is still handing the refresh token to the server. That race renders
+  // "not connected" for a connect that succeeded, so re-fetch once the handoff
+  // actually lands.
   window.addEventListener("ip:gmail-connected", function () {
     GmailSettings.loaded = false;
     loadGmailStatus();
   });
+
+  /* Paints #gmailSlot at the foot of the profile menu. Four states, and the
+     status one is only known after a round trip, so this is written imperatively
+     and re-run from loadGmailStatus, updateAuthUI and syncStaticText.
+
+     It deliberately does not look like the navigation rows above it: those go
+     somewhere, this one reports a state and offers a switch. Hence the tinted
+     inset, the status dot, and the action as a separate full-width row instead
+     of a label with a chevron. */
+  function renderGmailMenu() {
+    const slot = document.getElementById("gmailSlot");
+    if (!slot) return;
+    const sep = document.getElementById("gmailSep");
+    const L = State.lang;
+    const u = IP.auth && IP.auth.getUser ? IP.auth.getUser() : null;
+    if (!u) {
+      slot.hidden = true; slot.innerHTML = "";
+      if (sep) sep.hidden = true;
+      return;
+    }
+    slot.hidden = false;
+    if (sep) sep.hidden = false;
+
+    // Non-Pro: still shown, because a feature nobody can see is a feature nobody
+    // upgrades for. The whole strip is the upsell target, so it stays a <button>
+    // and rides the existing [data-menu] handler to the upgrade page.
+    if (!IP.pro.isPro()) {
+      // The badge rides the title line rather than the strip row: as a third
+      // flex child it took ~70px off a ~250px panel and wrapped the sentence
+      // beside it into a six-line column one word wide.
+      slot.innerHTML = `<button class="gm-strip gm-locked" data-menu="upgrade">
+        <span class="gm-ic">${fa("fa-solid fa-lock")}</span>
+        <span class="gm-body">
+          <span class="gm-titlerow"><span class="gm-title">Gmail</span><span class="pro-badge">${fa(ICON.pro)} PRO</span></span>
+          <span class="gm-sub">${t(UI.gmailProDesc)}</span>
+        </span>
+      </button>`;
+      return;
+    }
+
+    const st = GmailSettings.status;
+    // Unknown, not "off": showing "Kết nối Gmail" to someone already connected
+    // invites a pointless OAuth trip, so the fetch gets its own state.
+    if (!GmailSettings.loaded) {
+      slot.innerHTML = `<div class="gm-strip">
+        <span class="gm-ic">${fa("fa-regular fa-envelope")}</span>
+        <span class="gm-body"><span class="gm-title">Gmail</span><span class="gm-sub">${t(UI.gmailChecking)}</span></span>
+      </div>`;
+      return;
+    }
+
+    if (!(st && st.connected)) {
+      slot.innerHTML = `<div class="gm-strip">
+        <span class="gm-ic">${fa("fa-regular fa-envelope")}</span>
+        <span class="gm-body"><span class="gm-title">Gmail</span><span class="gm-sub">${t(UI.gmailBlurb)}</span></span>
+      </div>
+      <button class="gm-act gm-on" id="gmailConnectBtn">${fa("fa-solid fa-link")} ${t(UI.gmailConnect)}</button>`;
+      return;
+    }
+
+    // Connected: the address is the thing worth showing — it is the one fact a
+    // second Google account makes ambiguous. Date only, no clock: the scan runs
+    // on a schedule and the minute it fired is noise at this size.
+    //
+    // The scan shares its row with the disconnect button in a ~200px menu, so it
+    // is a glyph plus a date and nothing else. Spelled out ("Quét lần cuối
+    // 14/8/2026") it ran out of room and ellipsed away the date — the only part
+    // that carried information. The full phrase lives in the tooltip.
+    const scan = st.last_scan
+      ? new Date(st.last_scan).toLocaleDateString(L === "vi" ? "vi-VN" : "en-US")
+      : t(UI.gmailNoScan);
+    slot.innerHTML = `<div class="gm-strip gm-live">
+      <span class="gm-ic">${fa("fa-solid fa-envelope-circle-check")}</span>
+      <span class="gm-body">
+        <span class="gm-title">${t(UI.gmailConnected)}</span>
+        <span class="gm-sub" title="${esc(st.email || "")}">${esc(st.email || "")}</span>
+      </span>
+    </div>
+    <div class="gm-foot">
+      <span class="gm-scan" title="${esc(t(UI.gmailLastScan))}">${fa("fa-solid fa-rotate")} ${esc(scan)}</span>
+      <button class="gm-act gm-off" id="gmailDisconnectBtn">${t(UI.gmailDisconnect)}</button>
+    </div>`;
+  }
 
   /* ---------- Reminders page (month calendar) ---------- */
   const Reminders = { list: null };
@@ -1337,7 +1365,6 @@
     if (State.mode === "cards") { main.innerHTML = renderCards(); updateCardProgress(); }
     else if (State.mode === "quiz") main.innerHTML = renderQuiz();
     else if (State.mode === "saved") main.innerHTML = renderSaved();
-    else if (State.mode === "settings") main.innerHTML = renderSettings();
     else if (State.mode === "cheat") main.innerHTML = renderCheatsheet();
     else if (State.mode === "upgrade") main.innerHTML = renderUpgrade();
     else if (State.mode === "admin") main.innerHTML = renderAdmin();
@@ -1656,6 +1683,13 @@
         const willOpen = pMenu.hidden;
         closeTopbarMenus();
         pMenu.hidden = !willOpen;
+        // Status is fetched on first open, not on boot: nobody who never opens
+        // this menu should pay a request for it. Paint first so the strip is
+        // already sized when the menu appears, then fill it in.
+        if (willOpen) {
+          renderGmailMenu();
+          if (IP.pro.isPro() && !GmailSettings.loaded) loadGmailStatus();
+        }
       };
       document.addEventListener("click", () => {
         if (pMenu) pMenu.hidden = true;
@@ -1690,9 +1724,6 @@
           State.mode = "admin"; State.topic = null;
           pMenu.hidden = true; render(); toTop(); saveView();
           loadAdminData();
-        } else if (action === "settings") {
-          State.mode = "settings"; State.topic = null;
-          pMenu.hidden = true; render(); toTop(); saveView();
         } else if (action === "signout") {
           pMenu.hidden = true; IP.auth.signOut();
         }
@@ -1789,18 +1820,6 @@
       if (barId === "goCards") { Cards.topic = State.topic; setMode("cards"); return; }
       if (barId === "goQuiz") { setMode("quiz"); startQuiz(State.topic); render(); return; }
 
-      // settings page danger-zone actions
-      if (e.target.closest("#clearDataBtn")) {
-        // store.clearAll only sweeps the "ip_" prefix; the ~1.3 MB content
-        // bundle is cached outside it and would survive a "clear all data".
-        if (confirm(t(UI.confirmClear))) { contentClearCache(); IP.store.clearAll(); location.reload(); }
-        return;
-      }
-      if (e.target.closest("#deleteAccountBtn")) {
-        if (confirm(t(UI.confirmDelete))) { if (IP.account) IP.account.deleteAccount(); }
-        return;
-      }
-
       // pro upgrade page actions
       if (e.target.closest("#startUpgradeBtn")) {
         (async () => {
@@ -1850,13 +1869,24 @@
         return;
       }
 
-      // Gmail settings
+      // Gmail, from inside the profile menu. Both stop propagation: the strip is
+      // a control, not a navigation row, so the menu has to survive the click and
+      // repaint into its new state rather than closing out from under the user.
       if (e.target.closest("#gmailConnectBtn")) {
-        IP.gmail.connect();
+        e.stopPropagation();
+        IP.gmail.connect();   // leaves the page for Google's consent screen
         return;
       }
       if (e.target.closest("#gmailDisconnectBtn")) {
-        (async () => { await IP.gmail.disconnect(); GmailSettings.loaded = false; await loadGmailStatus(); })();
+        e.stopPropagation();
+        // Reconnecting costs a full OAuth round trip, and the strip puts this
+        // one tap from the avatar — near enough to a mis-tap to be worth asking.
+        if (!confirm(t(UI.gmailConfirmOff))) return;
+        (async () => {
+          GmailSettings.loaded = false; renderGmailMenu();   // "Đang kiểm tra…" while the call is out
+          await IP.gmail.disconnect();
+          await loadGmailStatus();
+        })();
         return;
       }
 
@@ -2110,6 +2140,10 @@
     }
     const ma = document.getElementById("menuAdmin");
     if (ma) ma.hidden = !(user && IP.pro.isAdmin(user.id, (window.IP_CONFIG || {}).ADMIN_UIDS));
+    // Sign-out and the Pro flip both land here, and the strip differs across
+    // both. A stale status from the previous account must not survive either.
+    if (!on || !proOn) { GmailSettings.status = null; GmailSettings.loaded = false; }
+    renderGmailMenu();
     const bell = document.getElementById("bellBtn");
     if (bell) bell.hidden = !proOn;
     const remBtn = document.querySelector('[data-menu="reminders"]');
@@ -2164,10 +2198,12 @@
     setI("reminders", UI.reminders);
     setI("upgrade", UI.upgrade);
     setI("admin", UI.admin);
-    setI("settings", UI.settings);
     setI("signOut", UI.signOut);
     setI("chatAI", UI.chatAI);
     syncTopbarTriggers();
+    // The Gmail strip is built from template strings, not [data-i18n] nodes, so
+    // setI can't reach it — it has to be repainted on a language flip.
+    renderGmailMenu();
   }
 
   /* ---------- reloadFromStore ---------- */

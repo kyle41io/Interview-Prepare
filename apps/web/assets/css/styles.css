@@ -1108,19 +1108,71 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
   filter:drop-shadow(0 1px 2px #00000073);
 }
 
-/* Account settings page */
-.settings-page{max-width:680px;margin-inline:auto}
-.settings-acct{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:22px}
-.settings-avatar{width:48px;height:48px;border-radius:var(--radius);object-fit:cover;flex-shrink:0}
-.sa-name{font-weight:700;font-size:16px}
-.sa-email{color:var(--muted);font-size:13px;margin-top:2px}
-.danger-zone{border:1px solid var(--red);border-radius:var(--radius);padding:6px 16px 14px}
-.dz-label{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--red);padding:12px 0 4px}
-.danger-item{display:flex;align-items:center;gap:16px;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}
-.di-title{font-weight:600}
-.di-desc{color:var(--muted);font-size:13px;margin-top:3px;max-width:440px}
-.danger-btn{background:var(--red);color:#fff;border:none;flex-shrink:0}
-.danger-btn:hover{filter:brightness(1.12)}
+/* Gmail strip — the foot of the profile menu, and the whole of what used to be
+   the account settings page. It reads as an instrument panel rather than a menu
+   row on purpose: the rows above it navigate somewhere, this one reports a state
+   and offers one switch. The tint and the frame are what say so — a sixth
+   identical row would have been read as "another page" and tapped as one.
+   Everything is scoped under .profile-menu because the generic `.profile-menu
+   button` rules above are (0,1,1) and would otherwise outrank these. */
+.gm-slot{display:flex;flex-direction:column;margin:2px 0 2px}
+.gm-slot[hidden]{display:none}
+.profile-menu .gm-strip{
+  display:flex;align-items:flex-start;gap:10px;width:100%;
+  background:var(--panel2);border:1px solid var(--line);
+  border-radius:var(--radius);padding:9px 11px;text-align:left;
+}
+.profile-menu .gm-strip .gm-ic{
+  color:var(--muted);font-size:14px;line-height:18px;width:18px;text-align:center;flex-shrink:0;
+}
+/* The locked strip is a <button>, so `.profile-menu button i` (0,1,1) paints its
+   glyphs accent-green over anything set on the wrapper span. These put the
+   strip's own colours back — inside a control that is reporting a state, a green
+   lock and a green PRO crown both say the wrong thing. */
+.profile-menu .gm-strip .gm-ic i,
+.profile-menu .gm-strip .pro-badge i{color:inherit}
+/* Connected is the one state worth a colour: green glyph, no extra chrome. */
+.profile-menu .gm-live .gm-ic{color:var(--green)}
+.gm-body{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.gm-titlerow{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.gm-title{font-size:13px;font-weight:700;color:var(--txt);line-height:1.3}
+.gm-sub{font-size:11.5px;color:var(--muted);line-height:1.35;max-width:210px}
+/* The hint sentences may wrap; a mail address may not. It can be arbitrarily
+   long and this panel is ~250px, so an un-truncated one dragged the whole menu
+   wider than the topbar it hangs off. */
+.profile-menu .gm-live .gm-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Locked (non-Pro): the entire strip is the upsell target, so it gets the
+   pointer and a gold edge on hover rather than a separate CTA row. */
+.profile-menu .gm-strip.gm-locked{cursor:pointer;transition:.15s}
+.profile-menu .gm-strip.gm-locked:hover{background:var(--panel2);border-color:var(--gold)}
+/* --gold-ink, not --gold: it is the tuned variant for small glyphs, and it is
+   what the sidebar's Pro locks already use. */
+.profile-menu .gm-locked .gm-ic{color:var(--gold-ink)}
+.profile-menu .gm-locked .pro-badge{flex-shrink:0}
+
+.profile-menu .gm-act{
+  justify-content:center;gap:8px;border:1px solid transparent;
+  border-radius:var(--radius);transition:.15s;
+}
+/* Connect is the primary action of the whole menu when it shows at all, so it
+   is the only filled control in here. */
+.profile-menu .gm-act.gm-on{
+  width:100%;margin-top:4px;padding:8px 10px;font-size:12.5px;font-weight:700;
+  background:var(--accent);color:var(--bg);border-color:var(--accent);
+}
+.profile-menu .gm-act.gm-on i{color:var(--bg)}
+.profile-menu .gm-act.gm-on:hover{background:var(--accent);filter:brightness(1.1)}
+/* Disconnect is not: it sits quiet next to the scan line and only turns red
+   under the cursor, where the intent is already committed. */
+.profile-menu .gm-act.gm-off{
+  width:auto;flex-shrink:0;padding:4px 9px;font-size:11.5px;font-weight:600;
+  background:none;color:var(--muted);border-color:var(--line2);
+}
+.profile-menu .gm-act.gm-off:hover{background:none;color:var(--red);border-color:var(--red)}
+.gm-foot{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 2px 0}
+.gm-scan{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.gm-scan i{font-size:9px;opacity:.8}
 
 /* Light theme overrides (profile menu shadow) */
 html[data-theme="light"] .profile-menu{
@@ -1355,13 +1407,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .rem-sub{font-size:12.5px;color:var(--muted)}
 .rem-actions{display:flex;gap:6px;flex-wrap:wrap}
 
-/* ============================================================
-   Gmail settings block
-   ============================================================ */
-.settings-block{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin:18px 0}
-.sb-head h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.gmail-connected-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
-.gmail-meta{font-size:12.5px;color:var(--muted)}
+/* Destructive buttons on the reminders and admin tables. (The account page that
+   introduced this class is gone; these three call sites are what is left.) */
+.danger-btn{background:var(--red);color:#fff;border:none;flex-shrink:0}
+.danger-btn:hover{filter:brightness(1.12)}
 
 /* Logged-out: force-hide gated topbar controls (override their display) */
 .modes[hidden],.modes-wrap[hidden],.search-box[hidden],.kbd-help[hidden]{display:none !important}

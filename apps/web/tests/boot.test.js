@@ -587,20 +587,25 @@ test("starting a quiz that does have questions says nothing", () => {
 });
 
 /* ------------------------------------------------------------------ *
- * Finding 6 — "clear all data" drops the content cache too             *
+ * Finding 6 — the sign-out wipe drops the content cache too            *
  * ------------------------------------------------------------------ */
 
-test("the settings clear-all-data action drops the content cache", () => {
+test("the sign-out wipe drops the content cache too", () => {
   // The bundle is cached outside the "ip_" prefix that store.clearAll sweeps, so
-  // without this a "clear all data" leaves ~1.3 MB of content behind.
+  // without this the next person to sign in on the device renders ~1.3 MB of the
+  // previous user's content before their own fetch returns.
   //
-  // Caveat: [^}]* stops at the first "}", so this only sees the handler while its
+  // This used to guard the settings page's "clear all data" button. That page is
+  // gone (Gmail moved into the profile menu and the danger zone was dropped), so
+  // the sign-out branch is now the only place the pairing has to hold.
+  //
+  // Caveat: [^}]* stops at the first "}", so this only sees the branch while its
   // body stays brace-free. Add an if/function/object literal in there and the
   // match either truncates or fails outright — if this starts failing after an
   // edit that kept contentClearCache(), widen the pattern rather than assuming a
   // real regression. The assertion itself is real; only the extraction is fragile.
-  const m = SRC.match(/confirm\(t\(UI\.confirmClear\)\)\)\s*\{([^}]*)\}/);
-  assert.ok(m, "the clear-all-data handler moved");
+  const m = SRC.match(/else if \(_wasAuthed\) \{([^}]*)\}/);
+  assert.ok(m, "the sign-out wipe moved");
   assert.match(m[1], /contentClearCache\(\)/);
   assert.ok(m[1].indexOf("contentClearCache()") < m[1].indexOf("location.reload()"),
     "must clear before the reload that ends the page");

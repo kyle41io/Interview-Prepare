@@ -82,7 +82,15 @@
       <button data-menu="upgrade"><i class="fa-solid fa-crown"></i> <span data-i18n="upgrade">Nâng cấp Pro</span></button>
       <button data-menu="admin" id="menuAdmin" hidden><i class="fa-solid fa-user-shield"></i> <span data-i18n="admin">Admin</span></button>
       <hr>
-      <button data-menu="settings"><i class="fa-solid fa-gear"></i> <span data-i18n="settings">Cài đặt tài khoản</span></button>
+      <!-- Gmail lives here instead of on an account page. Connecting was the only
+           real control that page had; the name, the email and every other route
+           off it were already in this menu. Filled by renderGmailMenu() — it has
+           four states and none of them are known when this file is parsed. -->
+      <div class="gm-slot" id="gmailSlot" hidden></div>
+      <!-- Toggled with the slot above it, the same way acctSep is toggled with
+           acctRow. Without it sign-out butts straight onto the disconnect row and
+           reads as a third Gmail action. -->
+      <hr id="gmailSep" hidden>
       <button data-menu="signout" id="menuSignout" hidden><i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="signOut">Sign out</span></button>
     </div>
   </div>
@@ -127,7 +135,6 @@
 <script src="assets/js/auth.js"></script>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/sync.js"></script>
-<script src="assets/js/account.js"></script>
 <script src="assets/js/pro.js"></script>
 <script src="assets/js/chat.js"></script>
 <script src="assets/js/calendar.js"></script>
