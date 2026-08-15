@@ -204,6 +204,14 @@ code{font-family:var(--font-mono);font-size:.92em}
 .icon-btn:hover{color:var(--txt);border-color:var(--line2)}
 .menu-btn{display:grid}
 
+/* The tab group and the language pair each sit in a positioning wrapper so the
+   phone layout can turn them into anchored dropdowns without a second copy of
+   the markup — the same <button data-mode> / <button data-lang> nodes serve both
+   widths, so every existing handler keeps working. .tb-current is the collapsed
+   trigger and exists only on the phone. */
+.modes-wrap,.lang-wrap{display:flex;position:relative}
+.tb-current{display:none}
+
 /* ============================================================
    LAYOUT
    ============================================================ */
@@ -850,11 +858,88 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 @media(max-width:900px){
   :root{--sidebar-w:268px}
   .menu-btn{display:grid}
-  .sidebar{transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow)}
+  /* Opaque here, unlike the desktop column: as a drawer floating over the lesson
+     the 80%-transparent surface let the text underneath read straight through the
+     topic list, and the two competing columns of prose were unreadable. */
+  .sidebar{transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow);background:var(--bg)}
   .sidebar.open{transform:none}
   .content{margin-left:0}
   .search-box{display:none}
   .modes button span{display:none}
+}
+
+/* ------------------------------------------------------------------
+   PHONE TOPBAR
+   Nine controls in a row needs ~570px. Below that the tail of the bar —
+   theme, language, bell, avatar — was simply pushed past the right edge,
+   unreachable, while the four tabs ate the middle. So on a phone:
+   the wordmark drops to the logo mark alone, and the tab group and the
+   language pair each collapse to one trigger that opens a vertical menu.
+   What that buys is the whole right-hand side back: language, theme and
+   avatar all fit at 360px with room to spare.
+   ------------------------------------------------------------------ */
+@media(max-width:700px){
+  /* Tighter gutters and 34px controls: the difference between fitting a
+     Pro user's notification bell at 360px and not. */
+  .topbar{gap:8px;padding:0 12px}
+  .icon-btn{width:34px;height:34px;font-size:15px}
+  /* Inside the app the mark alone still reads as the app and still goes home —
+     the row needs those 130px. The logged-out landing carries none of the app
+     chrome, so it keeps the wordmark: it is the first thing a new visitor sees
+     and there is a third of the bar spare there. */
+  body:not(.logged-out) .brand .grad{display:none}
+
+  .tb-current{
+    display:flex;align-items:center;gap:5px;
+    background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    height:34px;padding:0 8px;border-radius:var(--radius);cursor:pointer;
+    font-size:15px;transition:.15s;
+  }
+  .tb-current:hover{color:var(--txt);border-color:var(--line2)}
+  /* Open trigger reads as pressed, so it is obvious which menu is showing. */
+  .modes-wrap.open>.tb-current,.lang-wrap.open>.tb-current{
+    background:var(--panel2);border-color:var(--line2);color:var(--txt);
+  }
+  .tb-caret{font-size:9px;opacity:.7}
+  .modes-wrap.open .tb-caret,.lang-wrap.open .tb-caret{transform:rotate(180deg)}
+  .tb-code{font-weight:700;font-size:12px;letter-spacing:.02em}
+  /* The live language is a state, so the trigger carries the accent the
+     inline pill's active button carries at wider widths. */
+  .lang-wrap>.tb-current .tb-code{color:var(--accent)}
+
+  /* Both collapsed groups become the same dropdown surface as the profile
+     menu — one panel language across the whole topbar. */
+  .modes-wrap>.modes,.lang-wrap>.lang-toggle{
+    position:absolute;top:calc(100% + 8px);left:0;
+    flex-direction:column;gap:2px;padding:6px;
+    background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);
+    box-shadow:var(--shadow);z-index:200;overflow:visible;
+  }
+  .modes-wrap>.modes{min-width:196px}
+  .lang-wrap>.lang-toggle{min-width:108px;left:auto;right:0}
+  .modes-wrap:not(.open)>.modes,.lang-wrap:not(.open)>.lang-toggle{display:none}
+
+  /* Menu rows, not pills: full width, left-aligned, labels back on (the 900px
+     rule above hides them for the inline icon-only pill). The language buttons
+     are plain (non-flex) at wider widths, so they need text-align as well as
+     justify-content to line up with the tab rows' labels. */
+  .modes-wrap>.modes button,.lang-wrap>.lang-toggle button{
+    width:100%;justify-content:flex-start;text-align:left;gap:10px;
+    padding:9px 12px;border-radius:var(--radius);font-size:14px;font-weight:500;
+    background:none;
+  }
+  .modes-wrap>.modes button span{display:inline}
+  .modes-wrap>.modes button i{color:var(--accent);width:18px;text-align:center;font-size:14px}
+  .modes-wrap>.modes button:hover,.lang-wrap>.lang-toggle button:hover{background:var(--panel2)}
+  /* Current row keeps the filled-accent treatment it has in the pill, so its
+     icon has to flip to the page colour to stay legible on it. */
+  .modes-wrap>.modes button.active,.lang-wrap>.lang-toggle button.active{
+    background:var(--accent);color:var(--bg);font-weight:700;
+  }
+  .modes-wrap>.modes button.active i{color:var(--bg)}
+  .lang-wrap>.lang-toggle button{font-size:13px;font-weight:700}
+  /* The lock badge on the Pro-gated Chat row would otherwise crowd the label. */
+  .modes-wrap>.modes button .pro-badge{margin-left:auto}
 }
 
 /* ============================================================
@@ -982,11 +1067,20 @@ html[data-theme="dark"] .pro-badge{color:#fde68a;background:#5a3d05}
 .profile-menu[hidden]{display:none}
 .profile-menu button[hidden]{display:none}
 
-/* Desktop collapsible sidebar (toggled by the topbar menu button) */
-html.sb-collapsed .sidebar{transform:translateX(-100%)}
-/* When the sidebar is hidden, center the content column instead of leaving it
-   pinned left with a large empty gutter on the right. */
-html.sb-collapsed .content{margin-left:auto;margin-right:auto}
+/* Desktop collapsible sidebar (toggled by the topbar menu button).
+   Scoped to the desktop breakpoint on purpose. `sb-collapsed` is persisted in
+   localStorage and restored on every boot, but it is only ever SET by the
+   desktop branch of toggleSidebar(). Left unscoped, `html.sb-collapsed
+   .sidebar` (0,2,1) outranks the mobile `.sidebar.open` (0,2,0), so one
+   collapse at a wide viewport — a tablet in landscape, a "Desktop site"
+   request, a narrowed window — jammed the phone drawer shut for good: the
+   class was added, the overlay appeared, and the panel stayed off-screen. */
+@media(min-width:901px){
+  html.sb-collapsed .sidebar{transform:translateX(-100%)}
+  /* When the sidebar is hidden, center the content column instead of leaving it
+     pinned left with a large empty gutter on the right. */
+  html.sb-collapsed .content{margin-left:auto;margin-right:auto}
+}
 
 /* Topbar profile picture (real avatar when signed in).
    The avatar fills the button, and its radius is the button's radius MINUS the
@@ -1270,7 +1364,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,.nav-item:focus-visible
 .gmail-meta{font-size:12.5px;color:var(--muted)}
 
 /* Logged-out: force-hide gated topbar controls (override their display) */
-.modes[hidden],.search-box[hidden],.kbd-help[hidden]{display:none !important}
+.modes[hidden],.modes-wrap[hidden],.search-box[hidden],.kbd-help[hidden]{display:none !important}
 
 /* ---- auth screens (sign-in / sign-up) ---- */
 /* Spans the viewport below the topbar so align-items can actually centre the

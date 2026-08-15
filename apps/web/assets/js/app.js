@@ -46,6 +46,9 @@
     themeLight: "fa-solid fa-sun",
     bookmark: "fa-solid fa-bookmark",
     bookmarkO: "fa-regular fa-bookmark",
+    reminders: "fa-solid fa-calendar-check",
+    admin: "fa-solid fa-user-shield",
+    settings: "fa-solid fa-gear",
     streak: "fa-solid fa-fire",
     pro: "fa-solid fa-crown",
     cardsCount: "fa-regular fa-clone",
@@ -67,6 +70,23 @@
     warn: "fa-solid fa-triangle-exclamation", allDone: "fa-solid fa-circle-check",
     gradeHigh: "fa-solid fa-trophy", gradeMid: "fa-regular fa-thumbs-up",
     gradeLow: "fa-solid fa-book-open-reader",
+  };
+  /* Glyph + name for every value State.mode can hold, keyed for the phone's
+     collapsed tab trigger. The four tabs are only half of them — settings,
+     saved, cheat sheet and the rest are reached from the profile menu, and the
+     trigger has to say where you are on those screens too rather than falling
+     back to "Học" and lying about it. */
+  const MODE_BADGE = {
+    learn:     { icon: "learn",           label: () => UI.learn },
+    cards:     { icon: "cards",           label: () => UI.cards },
+    quiz:      { icon: "quiz",            label: () => UI.quiz },
+    chat:      { icon: "behavioral",      label: () => UI.chatAI },
+    saved:     { icon: "bookmark",        label: () => UI.saved },
+    cheat:     { icon: "cheat",           label: () => UI.cheat },
+    reminders: { icon: "reminders",       label: () => UI.reminders },
+    upgrade:   { icon: "pro",             label: () => UI.upgrade },
+    admin:     { icon: "admin",           label: () => UI.admin },
+    settings:  { icon: "settings",        label: () => UI.settings },
   };
   function fa(cls) { return `<i class="${cls}"></i>`; }
   function proBadge(tp) {
@@ -566,6 +586,46 @@
     } else if (!locked && badge) {
       badge.remove();
     }
+  }
+
+  /* ---------- phone topbar: collapsed tab + language triggers ----------
+     Both triggers are pure mirrors of state the topbar already holds, so they
+     are re-synced from render()/syncStaticText() rather than from each handler
+     that can change a mode or a language. */
+  function syncTopbarTriggers() {
+    const icon = document.getElementById("modesToggleIcon");
+    const badge = MODE_BADGE[State.mode] || MODE_BADGE.learn;
+    if (icon) icon.className = ICON[badge.icon] || ICON.learn;
+    const mt = document.getElementById("modesToggle");
+    if (mt) mt.setAttribute("aria-label", t(badge.label()));
+    const code = document.getElementById("langToggleCode");
+    if (code) code.textContent = State.lang.toUpperCase();
+    const lt = document.getElementById("langToggle");
+    if (lt) lt.setAttribute("aria-label", State.lang === "vi" ? "Ngôn ngữ" : "Language");
+  }
+
+  /* Only one topbar menu may be open at a time — two anchored panels overlapping
+     at 390px is unreadable. `except` keeps the wrapper that is being opened;
+     the profile and notification menus always close. */
+  function closeTopbarMenus(except) {
+    ["modesWrap", "langWrap"].forEach(id => {
+      const w = document.getElementById(id);
+      if (!w || w === except) return;
+      w.classList.remove("open");
+      const tr = w.querySelector(".tb-current");
+      if (tr) tr.setAttribute("aria-expanded", "false");
+    });
+    const pm = document.getElementById("profileMenu"); if (pm) pm.hidden = true;
+    const nm = document.getElementById("notifMenu"); if (nm) nm.hidden = true;
+  }
+  function toggleTopbarMenu(wrapId) {
+    const w = document.getElementById(wrapId);
+    if (!w) return;
+    const open = !w.classList.contains("open");
+    closeTopbarMenus(w);
+    w.classList.toggle("open", open);
+    const tr = w.querySelector(".tb-current");
+    if (tr) tr.setAttribute("aria-expanded", String(open));
   }
 
   /* ---------- Pro upgrade (VietQR) ---------- */
@@ -1296,6 +1356,7 @@
     else main.innerHTML = renderHome();
     // sync mode buttons
     document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === State.mode));
+    syncTopbarTriggers();
     syncChatNavBadge();
     renderSidebar();
     setupToc();
@@ -1554,10 +1615,16 @@
       State.lang = b.dataset.lang; LS.set("lang", State.lang);
       document.querySelectorAll(".lang-toggle button").forEach(x => x.classList.toggle("active", x.dataset.lang === State.lang));
       document.documentElement.lang = State.lang;
+      closeTopbarMenus();
       syncStaticText(); render();
     });
     // modes
-    document.querySelectorAll(".modes button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+    document.querySelectorAll(".modes button").forEach(b => b.onclick = () => { closeTopbarMenus(); setMode(b.dataset.mode); });
+    // Phone: the collapsed triggers that stand in for the two groups above.
+    const modesToggle = document.getElementById("modesToggle");
+    if (modesToggle) modesToggle.onclick = (e) => { e.stopPropagation(); toggleTopbarMenu("modesWrap"); };
+    const langToggle = document.getElementById("langToggle");
+    if (langToggle) langToggle.onclick = (e) => { e.stopPropagation(); toggleTopbarMenu("langWrap"); };
     // search
     const si = document.getElementById("search");
     si.oninput = () => doSearch(si.value);
@@ -1565,9 +1632,11 @@
     document.getElementById("menuBtn").onclick = toggleSidebar;
     document.getElementById("overlay").onclick = closeSidebar;
     document.getElementById("brand").onclick = goHome;
-    // Close any open custom dropdown on outside-click / Escape.
-    document.addEventListener("click", () => closeAllDropdowns());
-    document.addEventListener("keydown", e => { if (e.key === "Escape") closeAllDropdowns(); });
+    // Close any open custom dropdown on outside-click / Escape. The topbar's own
+    // panels ride along: a tap anywhere off them dismisses them, and the two
+    // triggers stopPropagation so opening one does not immediately close it.
+    document.addEventListener("click", () => { closeAllDropdowns(); closeTopbarMenus(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") { closeAllDropdowns(); closeTopbarMenus(); } });
 
     // theme
     const themeBtn = document.getElementById("themeBtn");
@@ -1580,7 +1649,14 @@
     const pBtn = document.getElementById("profileBtn");
     const pMenu = document.getElementById("profileMenu");
     if (pBtn && pMenu) {
-      pBtn.onclick = (e) => { e.stopPropagation(); pMenu.hidden = !pMenu.hidden; };
+      // Close first, then apply: on a phone the tab/language panels are anchored
+      // to the same row, so opening this one has to dismiss them.
+      pBtn.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = pMenu.hidden;
+        closeTopbarMenus();
+        pMenu.hidden = !willOpen;
+      };
       document.addEventListener("click", () => {
         if (pMenu) pMenu.hidden = true;
         const nMenu = document.getElementById("notifMenu");
@@ -2047,7 +2123,9 @@
     document.body.classList.toggle("logged-out", gated);
     if (pBtn) pBtn.hidden = gated;
     const menuBtn = document.getElementById("menuBtn"); if (menuBtn) menuBtn.hidden = gated;
-    const modes = document.querySelector(".modes"); if (modes) modes.hidden = gated;
+    // Hide the wrapper, not the group: on a phone the collapsed trigger lives
+    // beside the group and would otherwise survive on the logged-out landing.
+    const modes = document.querySelector(".modes-wrap"); if (modes) modes.hidden = gated;
     const searchBox = document.querySelector(".search-box"); if (searchBox) searchBox.hidden = gated;
     const kbdHelp = document.querySelector(".kbd-help"); if (kbdHelp) kbdHelp.hidden = gated;
     // Switch the page between the landing intro and the app. Rebuild #content
@@ -2089,6 +2167,7 @@
     setI("settings", UI.settings);
     setI("signOut", UI.signOut);
     setI("chatAI", UI.chatAI);
+    syncTopbarTriggers();
   }
 
   /* ---------- reloadFromStore ---------- */

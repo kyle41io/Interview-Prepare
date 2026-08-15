@@ -34,11 +34,19 @@
     <span class="logo"><img src="assets/favicon.svg" alt="" width="30" height="30"></span>
     <span class="grad">Interview Prep</span>
   </div>
-  <div class="modes">
-    <button data-mode="learn" class="active"><i class="fa-solid fa-book-open"></i> <span>Học</span></button>
-    <button data-mode="cards"><i class="fa-regular fa-clone"></i> <span>Thẻ ghi nhớ</span></button>
-    <button data-mode="quiz"><i class="fa-solid fa-pen-to-square"></i> <span>Trắc nghiệm</span></button>
-    <button data-mode="chat"><i class="fa-solid fa-comments"></i> <span data-i18n="chatAI">Chat AI</span></button>
+  <!-- Phone: the four tabs collapse behind #modesToggle, which shows the current
+       view's own glyph; the group below becomes its dropdown. Desktop keeps the
+       inline pill and hides the toggle. -->
+  <div class="modes-wrap" id="modesWrap">
+    <button class="tb-current" id="modesToggle" aria-haspopup="menu" aria-expanded="false">
+      <i class="fa-solid fa-book-open" id="modesToggleIcon"></i><i class="fa-solid fa-chevron-down tb-caret"></i>
+    </button>
+    <div class="modes">
+      <button data-mode="learn" class="active"><i class="fa-solid fa-book-open"></i> <span>Học</span></button>
+      <button data-mode="cards"><i class="fa-regular fa-clone"></i> <span>Thẻ ghi nhớ</span></button>
+      <button data-mode="quiz"><i class="fa-solid fa-pen-to-square"></i> <span>Trắc nghiệm</span></button>
+      <button data-mode="chat"><i class="fa-solid fa-comments"></i> <span data-i18n="chatAI">Chat AI</span></button>
+    </div>
   </div>
   <div class="spacer"></div>
   <div class="search-box">
@@ -47,9 +55,15 @@
     <kbd>/</kbd>
   </div>
   <button class="icon-btn" id="themeBtn" title="Theme"><i class="fa-solid fa-moon"></i></button>
-  <div class="lang-toggle">
-    <button data-lang="vi">VI</button>
-    <button data-lang="en">EN</button>
+  <!-- Same collapse as the tabs: phone shows the live language, tap for the pair. -->
+  <div class="lang-wrap" id="langWrap">
+    <button class="tb-current" id="langToggle" aria-haspopup="menu" aria-expanded="false">
+      <span class="tb-code" id="langToggleCode">VI</span><i class="fa-solid fa-chevron-down tb-caret"></i>
+    </button>
+    <div class="lang-toggle">
+      <button data-lang="vi">VI</button>
+      <button data-lang="en">EN</button>
+    </div>
   </div>
   <button class="icon-btn" id="bellBtn" title="Notifications" hidden><i class="fa-solid fa-bell"></i><span class="bell-badge" id="bellBadge" hidden></span></button>
   <div class="notif-menu" id="notifMenu" hidden></div>
