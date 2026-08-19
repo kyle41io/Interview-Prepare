@@ -13,11 +13,21 @@
     return String(n).padStart(2, "0");
   }
 
-  /* Pure: ISO string -> YYYYMMDDTHHMMSSZ (UTC basic format) */
+  /* Pure: ISO string -> YYYYMMDDTHHMMSSZ (UTC basic format).
+     The zone is dropped before parsing, not converted: reminder times are
+     floating wall-clock (see IP.calendar.floatingIso), so a scanned row carrying
+     "+07:00" must still export the hour the email wrote. */
   function icsDate(iso) {
-    var d = new Date(iso);
+    var d = new Date(floating(iso) + "Z");
     return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) +
       "T" + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + "Z";
+  }
+
+  /* Pure: IP.calendar's helper, with a local fallback so the ICS builder stays
+     usable on its own (the tests require this module alone). */
+  function floating(v) {
+    var cal = root.IP && root.IP.calendar;
+    return cal && cal.floatingIso ? cal.floatingIso(v) : (v == null ? "" : String(v).replace(/(Z|[+-]\d{2}:?\d{2})$/, ""));
   }
 
   /* Pure: RFC5545 text escaping */

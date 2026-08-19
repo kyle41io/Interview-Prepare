@@ -28,6 +28,21 @@
     return cells;
   }
 
+  /* Pure: strip a trailing zone designator from a reminder timestamp.
+
+     Reminder times are floating wall-clock — an interview at "3pm" is 3pm for
+     the user, not an absolute instant — and every renderer formats them in UTC
+     to keep them that way. The scanner now reads dates out of email bodies, and
+     the classifier attaches the sender's offset: "2026-08-22T09:00:00+07:00" for
+     a 09:00 interview, which a UTC render turns into 02:00. The digits written
+     there are already local to that offset, so the zone is dropped, not applied.
+
+     The scanner strips it server-side too; this keeps rows already written — and
+     anything hand-edited — showing the hour the email actually said. */
+  function floatingIso(v) {
+    return v == null ? "" : String(v).replace(/(Z|[+-]\d{2}:?\d{2})$/, "");
+  }
+
   /* Pure: map a manual-entry {kind,date,time} to reminder-table timestamp columns.
      kind "deadline" -> deadline_at; anything else -> due_at. */
   function buildWhen(opts) {
@@ -42,5 +57,5 @@
     return { due_at: iso, deadline_at: null };
   }
 
-  return { monthGrid: monthGrid, buildWhen: buildWhen };
+  return { monthGrid: monthGrid, buildWhen: buildWhen, floatingIso: floatingIso };
 });

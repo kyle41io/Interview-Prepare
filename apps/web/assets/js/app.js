@@ -910,7 +910,9 @@
           const w = r.due_at || r.deadline_at;
           // timeZone:"UTC" — reminder times are floating wall-clock stored in UTC,
           // so render them in UTC to show exactly the time from the email/entry.
-          const time = w ? new Date(w).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "";
+          // floatingIso first: a scanned reminder can carry the sender's offset
+          // ("09:00+07:00"), which this formatter would otherwise show as 02:00.
+          const time = w ? new Date(IP.calendar.floatingIso(w) + "Z").toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "";
           const del = r.source === "manual"
             ? `<button class="btn danger-btn" data-cal-del="${r.id}">${t(UI.calDelete)}</button>` : "";
           const done = r.status === "done";

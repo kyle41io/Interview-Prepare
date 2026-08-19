@@ -147,3 +147,10 @@ test("createReminder returns null when the request is rejected", async () => {
   global.IP = { api: { post: async () => { throw new Error("network"); } }, calendar: require("../assets/js/calendar.js") };
   assert.strictEqual(await g.createReminder({ title: "x", kind: "interview", date: "2026-07-15" }), null);
 });
+
+test("buildICS ignores the offset a scanned reminder may carry", () => {
+  // The row this covers is real: due_at "2026-08-22T09:00:00+07:00" for a 09:00
+  // interview. Converting would have exported it as 02:00.
+  const ics = g.buildICS({ title: "Interview", company: "TechPlus", kind: "interview", due_at: "2026-08-22T09:00:00+07:00" });
+  assert.match(ics, /DTSTART:20260822T090000\r\n/);
+});

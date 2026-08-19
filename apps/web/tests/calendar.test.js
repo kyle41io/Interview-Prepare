@@ -38,3 +38,34 @@ test("buildWhen: missing time defaults to midnight", () => {
 test("buildWhen: missing date returns nulls", () => {
   assert.deepStrictEqual(cal.buildWhen({ kind: "interview" }), { due_at: null, deadline_at: null });
 });
+
+/* floatingIso: reminder times are floating wall-clock, but the scanner reads
+   dates out of email bodies and the model attaches the sender's offset —
+   "2026-08-22T09:00:00+07:00" for a 09:00 interview. Everything downstream
+   renders reminder times in UTC on purpose, so a kept offset showed that
+   interview at 02:00. The written digits are already local to the offset, so
+   the zone is dropped rather than applied. */
+test("floatingIso drops a trailing offset, keeping the wall clock", () => {
+  assert.strictEqual(cal.floatingIso("2026-08-22T09:00:00+07:00"), "2026-08-22T09:00:00");
+  assert.strictEqual(cal.floatingIso("2026-08-22T09:00:00+0700"), "2026-08-22T09:00:00");
+  assert.strictEqual(cal.floatingIso("2026-08-22T09:00-05:00"), "2026-08-22T09:00");
+});
+test("floatingIso drops a trailing Z", () => {
+  assert.strictEqual(cal.floatingIso("2026-07-10T09:30:00.000Z"), "2026-07-10T09:30:00.000");
+});
+test("floatingIso leaves a zoneless timestamp alone", () => {
+  assert.strictEqual(cal.floatingIso("2026-08-07T15:30:00"), "2026-08-07T15:30:00");
+  assert.strictEqual(cal.floatingIso("2026-08-07"), "2026-08-07");
+});
+test("floatingIso tolerates missing values", () => {
+  assert.strictEqual(cal.floatingIso(null), "");
+  assert.strictEqual(cal.floatingIso(undefined), "");
+});
+
+/* The pair that matters: a UTC render of the floating value shows the time the
+   email wrote, whether or not the row carries an offset. */
+test("an offset reminder and a floating one render the same clock time", () => {
+  const asUtc = (v) => new Date(cal.floatingIso(v) + "Z").toISOString().slice(11, 16);
+  assert.strictEqual(asUtc("2026-08-22T09:00:00+07:00"), "09:00");
+  assert.strictEqual(asUtc("2026-08-22T09:00:00"), "09:00");
+});

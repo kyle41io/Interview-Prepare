@@ -1510,6 +1510,11 @@ html.sb-collapsed body.no-sidebar .content{margin-left:0;margin-right:0;max-widt
 .cal-pill--test { background: var(--purple); }
 .cal-pill--deadline { background: var(--red); }
 .cal-pill--other { background: #64748b; }
+/* Every kind the scanner can attach needs a colour now that any dated recruiting
+   mail becomes an event — .cal-pill's text is white, so a missing modifier is an
+   invisible pill. */
+.cal-pill--offer { background: var(--green, #16a34a); }
+.cal-pill--rejection { background: #78716c; }
 .cal-pill--done{opacity:.55}
 .cal-more { font-size: .7rem; opacity: .6; }
 .cal-panel-head { font-weight: 600; margin-bottom: 8px; text-transform: capitalize; }
