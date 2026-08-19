@@ -28,9 +28,20 @@ describe("RECRUIT_RE", () => {
  *  so the event exists in the table and appears nowhere on screen. */
 describe("normalizeDate", () => {
   it("keeps a real timestamp", () => {
-    expect(normalizeDate("2026-08-21T14:00:00Z")).toBe("2026-08-21T14:00:00Z");
     expect(normalizeDate("2026-08-21T14:00")).toBe("2026-08-21T14:00");
-    expect(normalizeDate("2026-08-21T14:00:00+07:00")).toBe("2026-08-21T14:00:00+07:00");
+    expect(normalizeDate("2026-08-21T14:00:00")).toBe("2026-08-21T14:00:00");
+  });
+
+  /** Reminder times are floating wall-clock: "14:00" in the email must stay
+   *  14:00 on the calendar. The first invitation this scanner read the body of
+   *  came back "2026-08-22T09:00:00+07:00" — a 09:00 interview that the panel,
+   *  which formats in UTC by design, showed as 02:00. The written digits are
+   *  already local to the stated offset, so the zone is dropped, not applied. */
+  it("drops the zone, keeping the wall-clock the email wrote", () => {
+    expect(normalizeDate("2026-08-22T09:00:00+07:00")).toBe("2026-08-22T09:00:00");
+    expect(normalizeDate("2026-08-22T09:00:00+0700")).toBe("2026-08-22T09:00:00");
+    expect(normalizeDate("2026-08-21T14:00:00Z")).toBe("2026-08-21T14:00:00");
+    expect(normalizeDate("2026-08-21T14:00-05:00")).toBe("2026-08-21T14:00");
   });
 
   it("keeps a date with no time — a day on the calendar still beats nothing", () => {
@@ -49,6 +60,6 @@ describe("normalizeDate", () => {
   });
 
   it("trims incidental whitespace", () => {
-    expect(normalizeDate("  2026-08-21T14:00:00Z ")).toBe("2026-08-21T14:00:00Z");
+    expect(normalizeDate("  2026-08-21T14:00:00Z ")).toBe("2026-08-21T14:00:00");
   });
 });

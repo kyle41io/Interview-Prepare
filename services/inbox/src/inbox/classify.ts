@@ -38,5 +38,9 @@ export function normalizeDate(v: unknown): string | null {
   if (Number.isNaN(new Date(probe).getTime())) return null;
   // A parseable string can still be a rolled-over date (2026-02-30 -> Mar 2).
   if (new Date(probe).toISOString().slice(0, 10) !== s.slice(0, 10) && s.length <= 10) return null;
-  return s;
+  // Drop the zone rather than convert through it. The digits a recruiter wrote
+  // are already local to the offset the model attached, and the calendar renders
+  // reminder times in UTC on purpose — so "09:00+07:00" kept whole displays as
+  // 02:00, which is how the first body-read invitation landed two hours early.
+  return s.replace(/(Z|[+-]\d{2}:?\d{2})$/, "");
 }
