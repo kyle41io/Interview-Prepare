@@ -840,12 +840,11 @@
   function calPad2(n) { return String(n).padStart(2, "0"); }
   function calDateKey(d) { return d.getFullYear() + "-" + calPad2(d.getMonth() + 1) + "-" + calPad2(d.getDate()); }
   function remDateKey(r) {
-    const w = r.due_at || r.deadline_at;
-    if (!w) return null;
-    // Reminder times are floating wall-clock stored in UTC (see IP.calendar.buildWhen);
-    // take the day straight from the ISO date part so it never shifts with the
-    // viewer's timezone.
-    return String(w).slice(0, 10);
+    // Which day a reminder lands on depends on what kind of timestamp it is: a
+    // scanned one carries an offset and is bucketed by the viewer's own day, a
+    // manual one is floating and keeps the day it was typed. See
+    // IP.calendar.whenDateKey.
+    return IP.calendar.whenDateKey(r.due_at || r.deadline_at);
   }
   function calEnsureInit() {
     if (Calendar.year == null) {
@@ -908,11 +907,9 @@
     const list = events.length
       ? events.map((r) => {
           const w = r.due_at || r.deadline_at;
-          // timeZone:"UTC" — reminder times are floating wall-clock stored in UTC,
-          // so render them in UTC to show exactly the time from the email/entry.
-          // floatingIso first: a scanned reminder can carry the sender's offset
-          // ("09:00+07:00"), which this formatter would otherwise show as 02:00.
-          const time = w ? new Date(IP.calendar.floatingIso(w) + "Z").toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "";
+          // A scanned time carries the sender's offset and is shown in the
+          // reader's own zone; a hand-typed one is floating and shown verbatim.
+          const time = IP.calendar.formatWhenTime(w, locale);
           const del = r.source === "manual"
             ? `<button class="btn danger-btn" data-cal-del="${r.id}">${t(UI.calDelete)}</button>` : "";
           const done = r.status === "done";

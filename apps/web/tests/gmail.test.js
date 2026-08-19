@@ -2,8 +2,17 @@ const test = require("node:test");
 const assert = require("node:assert");
 const g = require("../assets/js/gmail.js");
 
-test("icsDate formats UTC basic", () => {
-  assert.strictEqual(g.icsDate("2026-07-10T09:30:00.000Z"), "20260710T093000Z");
+test("icsDate keeps a floating time floating", () => {
+  // A bare Z is what the manual add form writes and means "the hour typed",
+  // so it exports with no zone at all — RFC5545 local time.
+  assert.strictEqual(g.icsDate("2026-07-10T09:30:00.000Z"), "20260710T093000");
+});
+test("icsDate exports a zone-bearing time as the instant it is", () => {
+  assert.strictEqual(g.icsDate("2026-07-10T09:30:00+07:00"), "20260710T023000Z");
+});
+test("icsDate returns empty for junk rather than DTSTART:NaN", () => {
+  assert.strictEqual(g.icsDate("deadline"), "");
+  assert.strictEqual(g.icsDate(null), "");
 });
 test("buildICS produces a valid VEVENT", () => {
   const ics = g.buildICS({ title: "Interview @ ACME", company: "ACME", kind: "interview", due_at: "2026-07-10T09:30:00.000Z" });
@@ -148,9 +157,16 @@ test("createReminder returns null when the request is rejected", async () => {
   assert.strictEqual(await g.createReminder({ title: "x", kind: "interview", date: "2026-07-15" }), null);
 });
 
-test("buildICS ignores the offset a scanned reminder may carry", () => {
+test("buildICS exports a scanned reminder as a real instant", () => {
   // The row this covers is real: due_at "2026-08-22T09:00:00+07:00" for a 09:00
-  // interview. Converting would have exported it as 02:00.
+  // interview in Vietnam. 02:00Z is that same moment, so the calendar importing
+  // it shows 09:00 to a reader in Vietnam and their own hour to anyone else —
+  // which is the point of keeping the offset instead of dropping it.
   const ics = g.buildICS({ title: "Interview", company: "TechPlus", kind: "interview", due_at: "2026-08-22T09:00:00+07:00" });
-  assert.match(ics, /DTSTART:20260822T090000\r\n/);
+  assert.match(ics, /DTSTART:20260822T020000Z\r\n/);
+});
+test("buildICS still exports a hand-typed reminder as floating", () => {
+  // buildWhen writes a bare Z for a time the user typed; no zone in, no zone out.
+  const ics = g.buildICS({ title: "Standup", kind: "other", due_at: "2026-08-22T15:00:00.000Z" });
+  assert.match(ics, /DTSTART:20260822T150000\r\n/);
 });

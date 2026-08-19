@@ -13,21 +13,41 @@
     return String(n).padStart(2, "0");
   }
 
-  /* Pure: ISO string -> YYYYMMDDTHHMMSSZ (UTC basic format).
-     The zone is dropped before parsing, not converted: reminder times are
-     floating wall-clock (see IP.calendar.floatingIso), so a scanned row carrying
-     "+07:00" must still export the hour the email wrote. */
-  function icsDate(iso) {
-    var d = new Date(floating(iso) + "Z");
+  /* Pure: Date -> YYYYMMDDTHHMMSS in ICS basic format, read in UTC. */
+  function basic(d, suffix) {
     return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) +
-      "T" + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + "Z";
+      "T" + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + suffix;
   }
 
-  /* Pure: IP.calendar's helper, with a local fallback so the ICS builder stays
-     usable on its own (the tests require this module alone). */
-  function floating(v) {
+  /* Pure: reminder timestamp -> ICS DTSTART value.
+
+     RFC5545 spells the same distinction the reminder table makes. A scanned time
+     carries an offset and is a real instant, so it exports as UTC with the "Z"
+     suffix and whatever calendar receives it shows the reader their own hour. A
+     hand-typed time is floating, and a DTSTART with no zone is defined as local
+     time wherever the event is read — which is what "3pm" meant when it was
+     typed. Converting one of those to UTC is what shifts an exported interview. */
+  function icsDate(iso) {
+    var d = zone().whenDate(iso);
+    return d ? basic(d, zone().hasZone(iso) ? "Z" : "") : "";
+  }
+
+  /* Pure: IP.calendar's zone helpers, with a local fallback so the ICS builder
+     stays usable on its own (the tests require this module alone). */
+  function zone() {
     var cal = root.IP && root.IP.calendar;
-    return cal && cal.floatingIso ? cal.floatingIso(v) : (v == null ? "" : String(v).replace(/(Z|[+-]\d{2}:?\d{2})$/, ""));
+    if (cal && cal.whenDate && cal.hasZone) return cal;
+    var hasZone = function (v) { return /[+-]\d{2}:?\d{2}$/.test(String(v == null ? "" : v).trim()); };
+    return {
+      hasZone: hasZone,
+      whenDate: function (v) {
+        var s = String(v == null ? "" : v).trim();
+        if (!s) return null;
+        var bare = s.replace(/(Z|[+-]\d{2}:?\d{2})$/, "");
+        var d = new Date((hasZone(s) ? s : bare + (bare.length <= 10 ? "T00:00:00Z" : "Z")).replace(" ", "T"));
+        return isNaN(d.getTime()) ? null : d;
+      },
+    };
   }
 
   /* Pure: RFC5545 text escaping */
@@ -45,13 +65,11 @@
     var lines = [
       "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Interview Prep//EN", "BEGIN:VEVENT",
       "UID:" + (r.id || (r.source || "rem") + "@interviewprep"),
-      "DTSTAMP:" + icsDate(new Date(0).toISOString()),
+      "DTSTAMP:" + basic(new Date(0), "Z"),
     ];
     // Only emit DTSTART when we actually have a date (avoid DTSTART:NaN...).
-    // Strip the trailing "Z": reminder times are floating wall-clock (see
-    // IP.calendar.buildWhen), so emit a floating DTSTART with no timezone —
-    // calendar apps then show the exact time from the email, not a shifted one.
-    if (when) lines.push("DTSTART:" + icsDate(when).slice(0, -1));
+    // icsDate decides whether it carries a zone; see there.
+    if (when) lines.push("DTSTART:" + icsDate(when));
     lines.push(
       "SUMMARY:" + esc(r.title),
       "DESCRIPTION:" + esc((r.company ? r.company + " — " : "") + (r.kind || "")),

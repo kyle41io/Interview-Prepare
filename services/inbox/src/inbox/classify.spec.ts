@@ -32,16 +32,27 @@ describe("normalizeDate", () => {
     expect(normalizeDate("2026-08-21T14:00:00")).toBe("2026-08-21T14:00:00");
   });
 
-  /** Reminder times are floating wall-clock: "14:00" in the email must stay
-   *  14:00 on the calendar. The first invitation this scanner read the body of
-   *  came back "2026-08-22T09:00:00+07:00" — a 09:00 interview that the panel,
-   *  which formats in UTC by design, showed as 02:00. The written digits are
-   *  already local to the stated offset, so the zone is dropped, not applied. */
-  it("drops the zone, keeping the wall-clock the email wrote", () => {
-    expect(normalizeDate("2026-08-22T09:00:00+07:00")).toBe("2026-08-22T09:00:00");
-    expect(normalizeDate("2026-08-22T09:00:00+0700")).toBe("2026-08-22T09:00:00");
-    expect(normalizeDate("2026-08-21T14:00:00Z")).toBe("2026-08-21T14:00:00");
-    expect(normalizeDate("2026-08-21T14:00-05:00")).toBe("2026-08-21T14:00");
+  /** The offset is kept, and it is the whole point: "09:00+07:00" says both what
+   *  hour the recruiter wrote and which zone that hour belongs to. The calendar
+   *  needs both to show the reader their own time — 09:00 for a candidate in
+   *  Vietnam, 02:00 for one in London. What must never happen is this function
+   *  converting the hour itself, which is how a 09:00 interview would be stored
+   *  as 02:00 and shown as 02:00 to the person it was actually 09:00 for. */
+  it("keeps the offset the email's hour belongs to", () => {
+    expect(normalizeDate("2026-08-22T09:00:00+07:00")).toBe("2026-08-22T09:00:00+07:00");
+    expect(normalizeDate("2026-08-22T09:00:00+0700")).toBe("2026-08-22T09:00:00+0700");
+    expect(normalizeDate("2026-08-21T14:00-05:00")).toBe("2026-08-21T14:00-05:00");
+  });
+
+  /** The web app writes a bare "Z" to mean a floating hand-typed time (see
+   *  IP.calendar.hasZone), so a scanned row must not look like one: "+00:00"
+   *  says the same instant while staying unambiguously zone-bearing. */
+  it("spells a bare Z as +00:00 so it reads as a real instant", () => {
+    expect(normalizeDate("2026-08-21T14:00:00Z")).toBe("2026-08-21T14:00:00+00:00");
+  });
+
+  it("normalizes a space separator to T", () => {
+    expect(normalizeDate("2026-08-21 14:00:00+07:00")).toBe("2026-08-21T14:00:00+07:00");
   });
 
   it("keeps a date with no time — a day on the calendar still beats nothing", () => {
@@ -60,6 +71,6 @@ describe("normalizeDate", () => {
   });
 
   it("trims incidental whitespace", () => {
-    expect(normalizeDate("  2026-08-21T14:00:00Z ")).toBe("2026-08-21T14:00:00");
+    expect(normalizeDate("  2026-08-21T14:00:00Z ")).toBe("2026-08-21T14:00:00+00:00");
   });
 });
