@@ -132,7 +132,11 @@ export class ScanService {
         // present in the table, invisible on screen, undeletable by the user.
         const eventAt = normalizeDate(c.event_at);
         const deadlineAt = normalizeDate(c.deadline_at);
-        const reminder = (c.kind === "test" || c.kind === "interview") && !!(eventAt || deadlineAt);
+        // Any date in a recruiting mail earns a calendar entry, whatever the
+        // classifier called the mail. Gating on (interview|test) meant an offer
+        // with a signing deadline or an assessment mail the model labelled
+        // "other" arrived as a notification the user then had to diary by hand.
+        const reminder = !!(eventAt || deadlineAt);
         if (reminder) {
           await this.inbox.addReminder(acc.userId, { kind: c.kind, title: c.title || meta.subject, company: c.company, due_at: eventAt || undefined, deadline_at: deadlineAt || undefined, source: m.id });
         }

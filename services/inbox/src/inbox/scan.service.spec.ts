@@ -150,3 +150,33 @@ describe("ScanService date extraction", () => {
     expect(out.debug![0].messages[0]).toMatchObject({ outcome: "notified", kind: "interview", reminder: false });
   });
 });
+
+/** The rule the user asked for: a date in a recruiting mail belongs on the
+ *  calendar whatever the mail is called. The kind gate used to be
+ *  (interview|test), so an offer with a signing deadline or a task with a due
+ *  date produced a notification and nothing to plan around. */
+describe("ScanService reminder for any dated recruiting mail", () => {
+  const dated = (kind: string, extra: any = {}) => ({
+    is_recruiting: true, kind, company: "X", title: "T",
+    event_at: "2026-08-22T09:00:00", deadline_at: null, summary: "s", ...extra,
+  });
+
+  it.each(["offer", "other", "rejection", "test", "interview"])("%s with a date becomes a reminder", async (kind) => {
+    const { svc, inbox } = build({ classify: async () => dated(kind) });
+    await svc.scanAll();
+    expect(inbox.addReminder).toHaveBeenCalledWith("u1", expect.objectContaining({ kind, due_at: "2026-08-22T09:00:00" }));
+  });
+
+  it("an offer whose only date is a deadline still lands on the calendar", async () => {
+    const { svc, inbox } = build({ classify: async () => dated("offer", { event_at: null, deadline_at: "2026-08-30" }) });
+    await svc.scanAll();
+    expect(inbox.addReminder).toHaveBeenCalledWith("u1", expect.objectContaining({ kind: "offer", deadline_at: "2026-08-30" }));
+  });
+
+  it("no date is still no reminder — there is no day to put it on", async () => {
+    const { svc, inbox } = build({ classify: async () => dated("offer", { event_at: null, deadline_at: null }) });
+    await svc.scanAll();
+    expect(inbox.addNotification).toHaveBeenCalledTimes(1);
+    expect(inbox.addReminder).not.toHaveBeenCalled();
+  });
+});
