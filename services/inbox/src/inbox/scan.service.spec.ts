@@ -16,14 +16,24 @@ function build(opts: { seenFirst?: boolean; classify?: () => Promise<any>; meta?
     refreshAccessToken: async () => "acc",
     recentQuery: () => "newer_than:2d in:inbox",
     listRecent: async () => [{ id: "m1" }],
-    getMeta: async () => ("meta" in opts ? opts.meta : { subject: "Interview at Acme", from: "r@a.com", snippet: "schedule interview" }),
+    getMeta: async () => ("meta" in opts ? opts.meta : { subject: "Interview at Acme", from: "r@a.com", snippet: "schedule interview", date: "Wed, 19 Aug 2026 08:10:00 +0700", body: "Vòng 1 lúc 14:00 ngày 21/08/2026 tại HQ." }),
   } as any;
   const accounts = { listActiveAccounts: async () => [{ userId: "u1", refresh_token: "rt", email: "u@example.com" }], setLastScan: jest.fn() } as any;
   const inbox = { addNotification: jest.fn(async () => ({ id: "n" })), addReminder: jest.fn(async () => ({ id: "r" })) } as any;
+  const inputs: string[] = [];
+  const classify = opts.classify || (async () => ({ is_recruiting: true, kind: "interview", company: "Acme", title: "Interview", event_at: "2026-08-01T09:00:00Z", deadline_at: null, summary: "s" }));
   const provider = {
-    classify: opts.classify || (async () => ({ is_recruiting: true, kind: "interview", company: "Acme", title: "Interview", event_at: "2026-08-01T09:00:00Z", deadline_at: null, summary: "s" })),
+    classify: async (arg: { system: string; input: string }) => {
+      inputs.push(arg.input);
+      return classify();
+    },
   } as any;
-  return { svc: new ScanService(dyn, google, accounts, inbox, provider), inbox, seenIds: () => puts.filter((i) => String(i.sk).startsWith("SEEN#")).map((i) => i.sk) };
+  return {
+    svc: new ScanService(dyn, google, accounts, inbox, provider),
+    inbox,
+    classifyInput: () => inputs[0] || "",
+    seenIds: () => puts.filter((i) => String(i.sk).startsWith("SEEN#")).map((i) => i.sk),
+  };
 }
 
 describe("ScanService.scanAll", () => {
@@ -87,5 +97,56 @@ describe("ScanService.scanAll", () => {
   it("omits the debug key entirely when not requested", async () => {
     const { svc } = build();
     expect(await svc.scanAll()).not.toHaveProperty("debug");
+  });
+});
+
+/** The bug these cover: an interview invite produced a notification but no
+ *  calendar event, because the only text the classifier ever saw was the
+ *  subject plus Gmail's ~200-character snippet. Real invitations put the
+ *  schedule in the body, so event_at came back null and the reminder — the one
+ *  thing the calendar renders — was never written. */
+describe("ScanService date extraction", () => {
+  it("shows the classifier the body and the email's own date", async () => {
+    const { svc, classifyInput } = build();
+    await svc.scanAll();
+    const input = classifyInput();
+    expect(input).toContain("Vòng 1 lúc 14:00 ngày 21/08/2026");
+    // Without a reference date the model cannot resolve "next Tuesday", and
+    // guesses the year.
+    expect(input).toContain("Wed, 19 Aug 2026 08:10:00 +0700");
+    expect(input).toContain("Subject: Interview at Acme");
+  });
+
+  it("a date found only in the body still becomes a reminder", async () => {
+    const { svc, inbox } = build({
+      classify: async () => ({ is_recruiting: true, kind: "interview", company: "TechPlus", title: "Thư mời phỏng vấn", event_at: "2026-08-21T14:00:00", deadline_at: null, summary: "s" }),
+    });
+    await svc.scanAll();
+    expect(inbox.addReminder).toHaveBeenCalledWith("u1", expect.objectContaining({ kind: "interview", due_at: "2026-08-21T14:00:00" }));
+  });
+
+  it("a junk date from the model creates no reminder and is never stored", async () => {
+    const { svc, inbox } = build({
+      classify: async () => ({ is_recruiting: true, kind: "interview", company: "X", title: "T", event_at: null, deadline_at: true, summary: "s" }),
+    });
+    await svc.scanAll();
+    expect(inbox.addNotification).toHaveBeenCalledTimes(1); // the mail still reaches the bell
+    expect(inbox.addReminder).not.toHaveBeenCalled();       // but nothing invisible on the calendar
+  });
+
+  it("passes only normalized dates through to the reminder", async () => {
+    const { svc, inbox } = build({
+      classify: async () => ({ is_recruiting: true, kind: "test", company: "X", title: "T", event_at: "not a date", deadline_at: "2026-09-01", summary: "s" }),
+    });
+    await svc.scanAll();
+    expect(inbox.addReminder).toHaveBeenCalledWith("u1", expect.objectContaining({ due_at: undefined, deadline_at: "2026-09-01" }));
+  });
+
+  it("debug mode reports no reminder when the mail carries no date", async () => {
+    const { svc } = build({
+      classify: async () => ({ is_recruiting: true, kind: "interview", company: "X", title: "T", event_at: null, deadline_at: null, summary: "s" }),
+    });
+    const out = await svc.scanAll({ debug: true });
+    expect(out.debug![0].messages[0]).toMatchObject({ outcome: "notified", kind: "interview", reminder: false });
   });
 });

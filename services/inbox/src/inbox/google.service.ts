@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { extractBody } from "./mime";
 export class GmailUnavailable extends Error {}
+
+// How much of the body the classifier sees. Enough for the schedule block of a
+// long invitation, short of a whole thread's quoted history.
+const BODY_CHARS = 4000;
 @Injectable()
 export class GoogleService {
   constructor(private readonly config: ConfigService) {}
@@ -38,13 +43,30 @@ export class GoogleService {
     if (!r.ok) return [];
     return ((await r.json()).messages || []).map((m: any) => ({ id: m.id }));
   }
-  // Returns { subject, from, snippet }; mock yields a canned interview email.
-  async getMeta(access: string, id: string): Promise<{ subject: string; from: string; snippet: string } | null> {
-    if (this.mock()) return { subject: "Interview invite — Acme", from: "recruiter@acme.com", snippet: "We'd like to schedule your interview." };
-    const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + id + "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date", { headers: { Authorization: "Bearer " + access } });
+  /** Returns { subject, from, date, snippet, body }; mock yields a canned
+   *  interview email.
+   *
+   *  format=full, not format=metadata. The scanner used to classify on the
+   *  subject plus Gmail's ~200-character snippet alone, which is where an
+   *  invitation's greeting lives — the interview time is further down, in the
+   *  body. That is why a "Thư mời phỏng vấn" mail reached the notification bell
+   *  but never produced a calendar event: with no date in the input, the
+   *  classifier had nothing to return. The granted scope is gmail.readonly, so
+   *  the full message is already ours to read; gmail.metadata would 403 here. */
+  async getMeta(access: string, id: string): Promise<{ subject: string; from: string; date: string; snippet: string; body: string } | null> {
+    if (this.mock()) {
+      return {
+        subject: "Interview invite — Acme",
+        from: "recruiter@acme.com",
+        date: "Wed, 19 Aug 2026 08:10:00 +0700",
+        snippet: "We'd like to schedule your interview.",
+        body: "We would like to invite you to a technical interview at 14:00 on 21/08/2026.",
+      };
+    }
+    const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + id + "?format=full", { headers: { Authorization: "Bearer " + access } });
     if (!r.ok) return null;
     const msg: any = await r.json();
     const h = (name: string) => (msg.payload?.headers || []).find((x: any) => x.name?.toLowerCase() === name)?.value || "";
-    return { subject: h("subject"), from: h("from"), snippet: msg.snippet || "" };
+    return { subject: h("subject"), from: h("from"), date: h("date"), snippet: msg.snippet || "", body: extractBody(msg.payload, BODY_CHARS) };
   }
 }

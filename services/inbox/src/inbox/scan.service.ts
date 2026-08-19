@@ -6,7 +6,7 @@ import { GoogleService } from "./google.service";
 import { GmailAccountService } from "./gmail-account.service";
 import { InboxService } from "./inbox.service";
 import { ProviderService } from "@ip/chat-service";
-import { CLASSIFY_SYS, CLASSIFY_INSTRUCTION, RECRUIT_RE } from "./classify";
+import { CLASSIFY_SYS, CLASSIFY_INSTRUCTION, RECRUIT_RE, normalizeDate } from "./classify";
 
 /** Why a message produced nothing. Every non-"notified" outcome used to be an
  *  indistinguishable `continue`, so "scanned: 0" could mean "no recruiting mail
@@ -106,7 +106,13 @@ export class ScanService {
         }
         let c: any;
         try {
-          c = await this.provider.classify({ system: CLASSIFY_SYS + CLASSIFY_INSTRUCTION, input: `From: ${meta.from}\nSubject: ${meta.subject}\nSnippet: ${meta.snippet}` });
+          // Date and Body are what make a calendar event possible: the schedule
+          // is almost never in the subject line, and a body that says "14:00
+          // thứ 5 tuần này" is only a timestamp relative to when it was sent.
+          c = await this.provider.classify({
+            system: CLASSIFY_SYS + CLASSIFY_INSTRUCTION,
+            input: `From: ${meta.from}\nDate: ${meta.date}\nSubject: ${meta.subject}\nSnippet: ${meta.snippet}\nBody:\n${meta.body}`,
+          });
         } catch (e: any) {
           // Transient by assumption (rate limit, timeout, provider outage), so
           // this message stays unseen and is retried on the next run. Marking it
@@ -121,9 +127,14 @@ export class ScanService {
           continue;
         }
         await this.inbox.addNotification(acc.userId, { type: c.kind || "other", title: (c.company ? c.company + " — " : "") + (c.title || meta.subject), body: c.summary || "", source: m.id });
-        const reminder = (c.kind === "test" || c.kind === "interview") && !!(c.event_at || c.deadline_at);
+        // Only a real timestamp earns a reminder. A junk one (`true`, "next
+        // Tuesday") would write a row the calendar cannot place on any day —
+        // present in the table, invisible on screen, undeletable by the user.
+        const eventAt = normalizeDate(c.event_at);
+        const deadlineAt = normalizeDate(c.deadline_at);
+        const reminder = (c.kind === "test" || c.kind === "interview") && !!(eventAt || deadlineAt);
         if (reminder) {
-          await this.inbox.addReminder(acc.userId, { kind: c.kind, title: c.title || meta.subject, company: c.company, due_at: c.event_at || undefined, deadline_at: c.deadline_at || undefined, source: m.id });
+          await this.inbox.addReminder(acc.userId, { kind: c.kind, title: c.title || meta.subject, company: c.company, due_at: eventAt || undefined, deadline_at: deadlineAt || undefined, source: m.id });
         }
         note("notified", { kind: c.kind, reminder }, meta);
         scanned++;
